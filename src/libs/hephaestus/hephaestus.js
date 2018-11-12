@@ -4,31 +4,31 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 //Version: 0.0.1
 
-function loadLibs(){
+function loadLibs(options){
     $.getScript("libs/libs.js", function() {
         console.log("Libs loaded.");
-        loadModules();
+        loadModules(options);
     });
 }
 
-function loadModules(){
+function loadModules(options){
     libs.forEach(lib => {
         $.getScript(lib.src, function() {
-            console.log("Modules loaded.");
+            console.log(lib.name + " module loaded.");
         });
     });
-    loadThemes();
+    loadThemes(options);
 }
 
-function loadThemes() {
+function loadThemes(options) {
     $.getScript("res/themes/themes.js", function() {
         console.log("Themes loaded.");
-        loadTheme();
+        loadTheme(options);
     });
 }
 
 function loadTheme(options) {
-    if(options !== undefined) {
+    if(options.theme !== undefined) {
         themes.forEach(theme => {
             if(options.theme.id === theme.id) appendHead(theme);
         });
@@ -40,4 +40,5 @@ function appendHead(theme){
     link.attr('href',theme.href);
     $('head').append(link);
     console.log( theme.name + " theme loaded.");
+    generateBasicLayout();
 }

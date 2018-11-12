@@ -1,3 +1,5 @@
 $(document).ready(function(){
-    init();
+    init({
+        themes: { id: 0000 }
+    });
 });
