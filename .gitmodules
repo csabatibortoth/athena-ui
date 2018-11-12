@@ -1,0 +1,6 @@
+[submodule "src/libs/hephaistos/HTMLElementGenerator"]
+	path = src/libs/hephaistos/HTMLElementGenerator
+	url = https://github.com/csabatibortoth/HTMLElementGenerator.git
+[submodule "src/libs/hephaistos/HTMLControlGenerator"]
+	path = src/libs/hephaistos/HTMLControlGenerator
+	url = https://github.com/csabatibortoth/HTMLControlGenerator.git
