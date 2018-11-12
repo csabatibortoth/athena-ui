@@ -13,6 +13,7 @@ function generateBasicLayout(){
 
 function generateContainer(){
     HTMLElementGenerator({
+        parent: "",
         elementType: "div",
         id: "container",
         class: "container"
