@@ -1,0 +1,16 @@
+/*Basic Theme Loading*/
+
+/* Body, Header, Wrapper, Footer Options */
+@import url('res/css/body.style.css');
+@import url('res/css/header.style.css');
+@import url('res/css/wrapper.style.css');
+@import url('res/css/footer.style.css');
+
+/* Layout options */
+@import url('res/css/layouts/default.layout.style.css');
+
+/* Elements options */
+@import url('res/css/elements/default.elements.style.css');
+
+/* Controls options */
+@import url('res/css/controls/default.controls.style.css');
