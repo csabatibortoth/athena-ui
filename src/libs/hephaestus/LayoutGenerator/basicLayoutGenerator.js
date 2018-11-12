@@ -16,7 +16,7 @@ function generateContainer(){
         parent: "",
         elementType: "div",
         id: "container",
-        class: "container"
+        class: "container default-cointainer-bordered"
     });
 }
 
@@ -25,7 +25,8 @@ function generateHeader(){
         elementType: "div",
         parent: "container",
         id: "header",
-        class: "header-container"
+        class: "header-container default-cointainer-bordered",
+        text: "header"
     });
 }
 
@@ -34,7 +35,8 @@ function generateWrapper(){
         elementType: "div",
         parent: "container",
         id: "wrapper",
-        class: "wrapper-container"
+        class: "wrapper-container default-cointainer-bordered",
+        text: "wrapper"
     });
 }
 
@@ -43,6 +45,7 @@ function generateFooter(){
         elementType: "div",
         parent: "container",
         id: "footer",
-        class: "footer-container"
+        class: "footer-container default-cointainer-bordered",
+        text: "footer"
     });
 }
