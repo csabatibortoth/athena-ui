@@ -6,26 +6,29 @@
 
 function loadLibs(){
     $.getScript("libs/libs.js", function() {
-        console.log("Libs loaded but not necessarily executed.");
+        console.log("Libs loaded.");
+        loadModules();
     });
 }
 
 function loadModules(){
     libs.forEach(lib => {
         $.getScript(lib.src, function() {
-            console.log("Modules loaded but not necessarily executed.");
+            console.log("Modules loaded.");
         });
     });
+    loadThemes();
 }
 
 function loadThemes() {
     $.getScript("res/themes/themes.js", function() {
-        console.log("Modules loaded but not necessarily executed.");
+        console.log("Themes loaded.");
+        loadTheme();
     });
 }
 
 function loadTheme(options) {
-    if(options.theme.id !== undefined) {
+    if(options !== undefined) {
         themes.forEach(theme => {
             if(options.theme.id === theme.id) appendHead(theme);
         });
@@ -33,8 +36,8 @@ function loadTheme(options) {
 }
 
 function appendHead(theme){
-    var link = ('<link>');
-    link.attr('rel','stylesheet');
+    var link = $('<link rel="stylesheet" type="text/css" />');
     link.attr('href',theme.href);
     $('head').append(link);
+    console.log( theme.name + " theme loaded.");
 }

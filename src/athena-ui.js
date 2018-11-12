@@ -6,14 +6,15 @@
 
 function init(options) {
     loadHephaestus();
-    loadLibs();
-    loadModules();
-    loadTheme(options);
+    //loadLibs();
+    //loadModules();
+    //loadTheme(options);
 }
 
 function loadHephaestus(){
     $.getScript("libs/hephaestus/hephaestus.js", function() {
-        console.log("Hephaestus loaded but not necessarily executed.");
+        console.log("Hephaestus loaded.");
+        loadLibs();
     });
 }
 
