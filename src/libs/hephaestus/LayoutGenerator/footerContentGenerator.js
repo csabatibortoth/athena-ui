@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.0.1
+//Version: 0.1.1
 
 
 function generateFooterContent() {
@@ -18,14 +18,14 @@ function generateFooterMenu() {
         menu_id: "footer_menu",
         class: footer_menu_class,
         items: [
-            { id: "footer_menu-item-1", class: "footer-menu-item-class", text: "",inner_text:"item-1"},
-            { id: "footer_menu-item-2", class: "footer-menu-item-class", text: "",inner_text:"item-2"},
-            { id: "footer_menu-item-3", class: "footer-menu-item-class", text: "",inner_text:"item-3"}
+            { id: "footer_menu-item-1", class: "footer-menu-item-class", text: "", inner_text: "item-1" },
+            { id: "footer_menu-item-2", class: "footer-menu-item-class", text: "", inner_text: "item-2" },
+            { id: "footer_menu-item-3", class: "footer-menu-item-class", text: "", inner_text: "item-3" }
         ]
     });
 }
 
-function generateFooterCopyrightText(){
+function generateFooterCopyrightText() {
     HTMLElementGenerator({
         parent: 'footer',
         id: 'copyright_text',

@@ -34,7 +34,7 @@ function addMenuItemToWireFrame(options) {
             id: options.menu_id + "-item-" + i,
             elementType: 'span',
             text: element.inner_text,
-            onclick: function(){
+            onclick: function () {
                 console.log("click");
             }
         });

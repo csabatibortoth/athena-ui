@@ -3,9 +3,9 @@
 It's a JQuery based UI for developement and education purposes.
 
 ## Prerequisites:
-JQuery v3.3.1 loaded to the html file.
-HTMLControlGenerator.js
-HTMLElementGenerator.js
+1. JQuery v3.3.1 loaded to the html file.
+2. HTMLControlGenerator
+3. HTMLElementGenerator
 
 ## Authors
 
@@ -16,6 +16,11 @@ HTMLElementGenerator.js
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Releases
+
+ ### 0.1.1
+ #### Added:
+  1. Fixes
+
  ### 0.1.0
  #### Added:
   1. basic html layout generation
