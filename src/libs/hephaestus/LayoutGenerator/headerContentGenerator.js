@@ -17,14 +17,14 @@ function generateHeaderMenu() {
         menu_id: "header_menu",
         class: header_menu_class,
         items: [
-            { id: "header_menu-item-1", class: "header-menu-item-class", text: "",inner_text:"item-1"},
-            { id: "header_menu-item-2", class: "header-menu-item-class", text: "",inner_text:"item-2"},
-            { id: "header_menu-item-3", class: "header-menu-item-class", text: "",inner_text:"item-3"}
+            { id: "header_menu-item-1", class: "header-menu-item-class", text: "", inner_text: "item-1" },
+            { id: "header_menu-item-2", class: "header-menu-item-class", text: "", inner_text: "item-2" },
+            { id: "header_menu-item-3", class: "header-menu-item-class", text: "", inner_text: "item-3" }
         ]
     });
 }
 
-function generateHeaderTitle(){
+function generateHeaderTitle() {
     HTMLElementGenerator({
         parent: 'header',
         id: 'header_title_text',

@@ -5,5 +5,5 @@ var libs = [
     { id: 0003, name: "headerContentGenerator", src: 'libs/hephaestus/LayoutGenerator/headerContentGenerator.js' },
     { id: 0004, name: "footerContentGenerator", src: 'libs/hephaestus/LayoutGenerator/footerContentGenerator.js' },
     { id: 0005, name: "basicMenuGenerator", src: 'libs/hephaestus/MenuGenerator/basicMenuGenerator.js' },
-    
+
 ];
