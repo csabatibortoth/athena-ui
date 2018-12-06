@@ -5,13 +5,20 @@
 //Version: 0.0.1
 
 function init(options) {
-    loadHephaestus(options);
+    loadConfig(options);
 }
 
-function loadHephaestus(options){
-    $.getScript("libs/hephaestus/hephaestus.js", function() {
+function loadHephaestus(options) {
+    $.getScript("libs/hephaestus/hephaestus.js", function () {
         console.log("Hephaestus loaded.");
         loadLibs(options);
+    });
+}
+
+function loadConfig(options) {
+    $.getScript("libs/config/config.js", function () {
+        console.log("config loaded");
+        loadHephaestus(options);
     });
 }
 

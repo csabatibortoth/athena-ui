@@ -1,4 +1,4 @@
-$(document).ready(function(){
+$(document).ready(function () {
     init({
         themes: { id: 0000 }
     });
