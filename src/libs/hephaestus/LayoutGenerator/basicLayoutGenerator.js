@@ -42,23 +42,15 @@ function generateHeader() {
 function generateHeaderMenu() {
     header_menu_class = config.header_menu_class;
     if (config.bordered) header_menu_class += " default-cointainer-bordered";
-    HTMLControlGenerator({
-        inputType: "ul",
+    generateBasicMenu({
         parent: "header",
-        id: "header_menu",
+        menu_id: "header_menu",
         class: header_menu_class,
         items: [
-            { 
-                id: "item-1", 
-                class: "header-menu-item-class", 
-                text: "item-1", 
-                onclick: function() {
-                    console.log("click");
-                } 
-            },
-            { id: "item-2", class: "header-menu-item-class", text: "item-2" },
-            { id: "item-3", class: "header-menu-item-class", text: "item-3" }
-        ],
+            { id: "header_menu-item-1", class: "header-menu-item-class", text: "",inner_text:"item-1"},
+            { id: "header_menu-item-2", class: "header-menu-item-class", text: "",inner_text:"item-2"},
+            { id: "header_menu-item-3", class: "header-menu-item-class", text: "",inner_text:"item-3"}
+        ]
     });
 }
 
@@ -93,15 +85,14 @@ function generateFooter() {
 function generateFooterMenu() {
     footer_menu_class = config.footer_menu_class;
     if (config.bordered) footer_menu_class += " default-cointainer-bordered";
-    HTMLControlGenerator({
-        inputType: "ul",
+    generateBasicMenu({
         parent: "footer",
-        id: "footer_menu",
+        menu_id: "footer_menu",
         class: footer_menu_class,
         items: [
-            { id: "item-1", class: "footer-menu-item-class", text: "item-1" },
-            { id: "item-2", class: "footer-menu-item-class", text: "item-2" },
-            { id: "item-3", class: "footer-menu-item-class", text: "item-3" }
-        ],
+            { id: "footer_menu-item-1", class: "footer-menu-item-class", text: "",inner_text:"item-1"},
+            { id: "footer_menu-item-2", class: "footer-menu-item-class", text: "",inner_text:"item-2"},
+            { id: "footer_menu-item-3", class: "footer-menu-item-class", text: "",inner_text:"item-3"}
+        ]
     });
 }
