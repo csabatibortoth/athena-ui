@@ -16,6 +16,11 @@ It's a JQuery based UI for developement and education purposes.
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Releases
+
+ ### 0.1.1
+ #### Added:
+  1. Fixes
+
  ### 0.1.0
  #### Added:
   1. basic html layout generation
