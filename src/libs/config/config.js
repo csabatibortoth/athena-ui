@@ -1,5 +1,5 @@
 config = {
-    version: "0.0.0.0",
+    version: "0.1.0",
     container_class: "container",
     header_class: "header-container",
     header_menu_class: "header-menu menu",
