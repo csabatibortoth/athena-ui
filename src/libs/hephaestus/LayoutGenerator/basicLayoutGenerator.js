@@ -10,8 +10,8 @@ function generateBasicLayout() {
     generateWrapper();
     generateFooter();
 
-    generateHeaderMenu();
-    generateFooterMenu();
+    generateHeaderContent();
+    generateFooterContent();
 }
 
 function generateContainer() {
@@ -36,21 +36,6 @@ function generateHeader() {
         id: "header",
         class: header_class,
         text: "header"
-    });
-}
-
-function generateHeaderMenu() {
-    header_menu_class = config.header_menu_class;
-    if (config.bordered) header_menu_class += " default-cointainer-bordered";
-    generateBasicMenu({
-        parent: "header",
-        menu_id: "header_menu",
-        class: header_menu_class,
-        items: [
-            { id: "header_menu-item-1", class: "header-menu-item-class", text: "",inner_text:"item-1"},
-            { id: "header_menu-item-2", class: "header-menu-item-class", text: "",inner_text:"item-2"},
-            { id: "header_menu-item-3", class: "header-menu-item-class", text: "",inner_text:"item-3"}
-        ]
     });
 }
 
@@ -79,20 +64,5 @@ function generateFooter() {
         id: "footer",
         class: footer_class,
         text: "footer"
-    });
-}
-
-function generateFooterMenu() {
-    footer_menu_class = config.footer_menu_class;
-    if (config.bordered) footer_menu_class += " default-cointainer-bordered";
-    generateBasicMenu({
-        parent: "footer",
-        menu_id: "footer_menu",
-        class: footer_menu_class,
-        items: [
-            { id: "footer_menu-item-1", class: "footer-menu-item-class", text: "",inner_text:"item-1"},
-            { id: "footer_menu-item-2", class: "footer-menu-item-class", text: "",inner_text:"item-2"},
-            { id: "footer_menu-item-3", class: "footer-menu-item-class", text: "",inner_text:"item-3"}
-        ]
     });
 }

@@ -9,9 +9,7 @@
             { id: "item-3", class: "header-menu-item-class", text: "" } */
 
 function generateBasicMenu(options) {
-    console.log(options);
     generateMenuWireFrame(options);
-    console.log(options);
     addMenuItemToWireFrame(options);
 }
 
