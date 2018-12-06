@@ -4,8 +4,8 @@ It's a JQuery based UI for developement and education purposes.
 
 ## Prerequisites:
 JQuery v3.3.1 loaded to the html file.
-HTMLControlGenerator.js
-HTMLElementGenerator.js
+HTMLControlGenerator
+HTMLElementGenerator
 
 ## Authors
 
