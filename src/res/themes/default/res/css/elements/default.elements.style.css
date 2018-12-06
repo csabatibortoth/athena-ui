@@ -8,3 +8,12 @@
 .default-cointainer-bordered {
     border: 1px solid #000000;
 }
+
+.menu {
+    display: flex;
+    list-style-type: none;
+}
+
+.menu li {
+    margin: 5px;
+}
