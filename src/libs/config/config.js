@@ -1,4 +1,10 @@
-config = {
+//config for Athena UI
+//Author: Csaba Tóth https://github.com/csabatibortoth/
+//LICENCE: MIT
+//Repository: https://github.com/csabatibortoth/athena-ui
+//Version: 0.1.0
+
+var config = {
     version: "0.1.0",
     container_class: "container",
     header_class: "header-container",
@@ -8,6 +14,10 @@ config = {
     footer_menu_class: "footer-menu menu",
 
     bordered: true,
+    generateHeader: true,
+    generateFooter: true,
+    generateHeadercontent: true,
+    generateFooterContent: true,
 
     header_title_text: "Athena UI",
     copyright: "Here is the bottom Copyright Text for website"
