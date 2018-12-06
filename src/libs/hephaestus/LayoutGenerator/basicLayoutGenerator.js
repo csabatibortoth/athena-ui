@@ -48,7 +48,14 @@ function generateHeaderMenu() {
         id: "header_menu",
         class: header_menu_class,
         items: [
-            { id: "item-1", class: "header-menu-item-class", text: "item-1" },
+            { 
+                id: "item-1", 
+                class: "header-menu-item-class", 
+                text: "item-1", 
+                onclick: function() {
+                    console.log("click");
+                } 
+            },
             { id: "item-2", class: "header-menu-item-class", text: "item-2" },
             { id: "item-3", class: "header-menu-item-class", text: "item-3" }
         ],
