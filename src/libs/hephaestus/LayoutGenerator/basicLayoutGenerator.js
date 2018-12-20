@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.1.1
+//Version: 0.2.0
 
 function generateBasicLayout() {
     generateContainer();
@@ -32,7 +32,7 @@ function generateHeader() {
         parent: "container",
         id: "header",
         class: header_class,
-        text: "header"
+        //text: "header"
     });
     if(config.generateHeadercontent) generateHeaderContent();
 }
@@ -47,7 +47,7 @@ function generateWrapper() {
         parent: "container",
         id: "wrapper",
         class: wrapper_class,
-        text: "wrapper"
+        //text: "wrapper"
     });
 }
 
@@ -61,7 +61,7 @@ function generateFooter() {
         parent: "container",
         id: "footer",
         class: footer_class,
-        text: "footer"
+        //text: "footer"
     });
     if(config.generateFooterContent) generateFooterContent();
 }
