@@ -9,14 +9,14 @@ function init(options) {
 }
 
 function loadHephaestus(options) {
-    $.getScript("libs/hephaestus/hephaestus.js", function () {
+    $.getScript(appConfig.athenaUIFolder + "libs/hephaestus/hephaestus.js", function () {
         console.log("Hephaestus loaded.");
         loadLibs(options);
     });
 }
 
 function loadConfig(options) {
-    $.getScript("libs/config/config.js", function () {
+    $.getScript(appConfig.athenaUIFolder + "libs/config/config.js", function () {
         console.log("config loaded");
         loadHephaestus(options);
     });
