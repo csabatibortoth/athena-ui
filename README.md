@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.2.0
+ #### Added:
+  1. Element generation from external configuration
+
  ### 0.1.1
  #### Added:
   1. Fixes
