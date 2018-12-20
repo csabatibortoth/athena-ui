@@ -5,7 +5,7 @@
 //Version: 0.1.1
 
 function loadLibs(options) {
-    $.getScript("libs/libs.js", function () {
+    $.getScript(appConfig.athenaUIFolder + "libs/libs.js", function () {
         console.log("Libs loaded.");
         loadModules(options);
     });
@@ -21,7 +21,7 @@ function loadModules(options) {
 }
 
 function loadThemes(options) {
-    $.getScript("res/themes/themes.js", function () {
+    $.getScript(appConfig.athenaUIFolder + "res/themes/themes.js", function () {
         console.log("Themes loaded.");
         loadTheme(options);
     });
