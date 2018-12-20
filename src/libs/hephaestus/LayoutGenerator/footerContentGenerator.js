@@ -11,6 +11,14 @@ function generateFooterContent() {
 }
 
 function generateFooterMenu() {
+    var items = [
+        { id: "header_menu-item-1", class: "header-menu-item-class", text: "", inner_text: "item-1" },
+        { id: "header_menu-item-2", class: "header-menu-item-class", text: "", inner_text: "item-2" },
+        { id: "header_menu-item-3", class: "header-menu-item-class", text: "", inner_text: "item-3" }
+    ];
+
+    if(menuItems) items = menuItems;
+
     footer_menu_class = config.footer_menu_class;
     if (config.bordered) footer_menu_class += " default-cointainer-bordered";
     generateBasicMenu({
