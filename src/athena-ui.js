@@ -17,9 +17,6 @@ function loadHephaestus(options) {
 
 function loadConfig(options) {
     $.getScript(appConfig.athenaUIFolder + "libs/config/config.js", function () {
-        if(appConfig) config.version = appConfig.version;
-        if(appConfig) config.header_title_text = appConfig.header_title_text;
-        if(appConfig) config.copyright = appConfig.copyright;
         console.log("config loaded");
         loadHephaestus(options);
     });
