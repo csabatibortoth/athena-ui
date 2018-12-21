@@ -19,9 +19,9 @@ function loadHephaestus(options) {
 
 function loadConfig(options) {
     $.getScript(appConfig.athenaUIFolder + "libs/config/config.js", function () {
-        if(typeof appConfig == 'undefined') config.version = appConfig.version;
-        if(typeof appConfig == 'undefined') config.header_title_text = appConfig.header_title_text;
-        if(typeof appConfig == 'undefined') config.copyright = appConfig.copyright;
+        if(typeof appConfig.version!= 'undefined') config.version = appConfig.version;
+        if(typeof appConfig.header_title_text != 'undefined') config.header_title_text = appConfig.header_title_text;
+        if(typeof appConfig.copyright != 'undefined') config.copyright = appConfig.copyright;
         console.log("config loaded");
         loadHephaestus(options);
     });
