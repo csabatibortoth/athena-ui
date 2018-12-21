@@ -7,3 +7,6 @@
 [submodule "src/libs/crypto-js"]
 	path = src/libs/crypto-js
 	url = https://github.com/brix/crypto-js.git
+[submodule "src/libs/js-cookie"]
+	path = src/libs/js-cookie
+	url = https://github.com/js-cookie/js-cookie.git
