@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.2.2
+//Version: 0.2.4
 
 function generateLoginForm(options) {
     generateFormDiv(options);
@@ -68,7 +68,7 @@ function generatePasswordElements(options) {
         text: "Password: "
     });
     HTMLControlGenerator({
-        inputType: "text",
+        inputType: "password",
         parent: "loginForm-password",
         id: "loginForm-password-control",
         class: "text-filed-class",
@@ -94,6 +94,14 @@ function generateSubmitElement(options) {
         text: "Login",
         value: "Login",
         id: "loginForm-submit-login",
-        class: "button-filed-class"
+        class: "button-filed-class",
+        onclick: function () {
+            $('#loginForm-password-control').val();
+            var password = $('#loginForm-password-control').val();
+            if(config.enable_encrypt_password) password = CryptoJS.SHA256($('#loginForm-password-control').val()).toString();
+            if(config.login_enabled) login({username: $('#loginForm-username-control').val(), password: password});
+            var data = {username: $('#loginForm-username-control').val(), password: password};
+            console.log(JSON.stringify(data));
+        }
     });
 }

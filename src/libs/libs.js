@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.2.2
+//Version: 0.2.4
 
 var libs = [
     { id: 0000, name: "HTMLControlGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/HTMLControlGenerator/src/HTMLControlGenerator.min.js' },
@@ -13,4 +13,5 @@ var libs = [
     { id: 0005, name: "footerContentGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/LayoutGenerator/footerContentGenerator.js' },
     { id: 0006, name: "basicMenuGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/MenuGenerator/basicMenuGenerator.js' },
     { id: 0007, name: "loginFormGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/formGenerator/loginFormGenerator.js' },
+    { id: 0007, name: "crypto-js", src: appConfig.athenaUIFolder + 'libs/crypto-js/crypto-js.js' },
 ];
