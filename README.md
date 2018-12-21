@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.2.5
+ #### Added
+  1. JS-Cookie
+
  ### 0.2.4
  #### Added
   1. Crypto-JS
