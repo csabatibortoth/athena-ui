@@ -17,6 +17,18 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.2.4
+ #### Added
+  1. Crypto-JS
+  2. Password encryption support
+
+ #### Bugfixes
+  1. Login form generation
+
+ ### 0.2.3
+ #### Bugfixes
+  1. Bugfixes on login form generation
+
  ### 0.2.2
  #### Added:
   1. Login Form generation

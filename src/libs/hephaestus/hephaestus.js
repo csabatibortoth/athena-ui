@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.2.2
+//Version: 0.2.4
 
 function loadLibs(options) {
     $.getScript(appConfig.athenaUIFolder + "libs/libs.js", function () {
