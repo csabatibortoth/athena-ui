@@ -20,6 +20,8 @@ var config = {
     generateHeadercontent: true,
     generateFooterContent: true,
     generateWrappercontent: true,
+    login_enabled: false,
+    enable_encrypt_password: false,
 
     header_title_text: "Athena UI",
     copyright: "Here is the bottom Copyright Text for website"

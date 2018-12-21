@@ -68,7 +68,7 @@ function generatePasswordElements(options) {
         text: "Password: "
     });
     HTMLControlGenerator({
-        inputType: "text",
+        inputType: "password",
         parent: "loginForm-password",
         id: "loginForm-password-control",
         class: "text-filed-class",
@@ -96,7 +96,12 @@ function generateSubmitElement(options) {
         id: "loginForm-submit-login",
         class: "button-filed-class",
         onclick: function () {
-            console.log("click")
+            $('#loginForm-password-control').val();
+            var password = $('#loginForm-password-control').val();
+            if(config.enable_encrypt_password) password = CryptoJS.SHA256($('#loginForm-password-control').val()).toString();
+            if(config.login_enabled) login({username: $('#loginForm-username-control').val(), password: password});
+            var data = {username: $('#loginForm-username-control').val(), password: password};
+            console.log(JSON.stringify(data));
         }
     });
 }
