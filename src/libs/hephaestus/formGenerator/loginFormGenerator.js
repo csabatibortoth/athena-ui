@@ -94,6 +94,9 @@ function generateSubmitElement(options) {
         text: "Login",
         value: "Login",
         id: "loginForm-submit-login",
-        class: "button-filed-class"
+        class: "button-filed-class",
+        onclick: function () {
+            console.log("click")
+        }
     });
 }
