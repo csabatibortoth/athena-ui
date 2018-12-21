@@ -13,5 +13,6 @@ var libs = [
     { id: 0005, name: "footerContentGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/LayoutGenerator/footerContentGenerator.js' },
     { id: 0006, name: "basicMenuGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/MenuGenerator/basicMenuGenerator.js' },
     { id: 0007, name: "loginFormGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/formGenerator/loginFormGenerator.js' },
-    { id: 0007, name: "crypto-js", src: appConfig.athenaUIFolder + 'libs/crypto-js/crypto-js.js' },
+    { id: 0008, name: "crypto-js", src: appConfig.athenaUIFolder + 'libs/crypto-js/crypto-js.js' },
+    { id: 0009, name: "js-cookie", src: appConfig.athenaUIFolder + 'libs/js-cookie/src/js.cookie.js' },
 ];
