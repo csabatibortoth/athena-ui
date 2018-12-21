@@ -12,5 +12,5 @@ var libs = [
     { id: 0004, name: "wrapperContentGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js' },
     { id: 0005, name: "footerContentGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/LayoutGenerator/footerContentGenerator.js' },
     { id: 0006, name: "basicMenuGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/MenuGenerator/basicMenuGenerator.js' },
-
+    { id: 0007, name: "loginFormGenerator", src: appConfig.athenaUIFolder + 'libs/hephaestus/formGenerator/loginFormGenerator.js' },
 ];

@@ -5,5 +5,5 @@
 //Version: 0.2.1
 
 function generateWrapperContent(options) {
-    
+    generateLoginForm(options);
 }

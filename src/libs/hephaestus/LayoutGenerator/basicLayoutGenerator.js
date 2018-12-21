@@ -49,6 +49,7 @@ function generateWrapper() {
         class: wrapper_class,
         //text: "wrapper"
     });
+    if(config.generateWrappercontent) generateWrapperContent();
 }
 
 /* FOOTER ELEMENT GENERATION */

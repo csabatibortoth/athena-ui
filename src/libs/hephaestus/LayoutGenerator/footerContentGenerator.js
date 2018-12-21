@@ -16,7 +16,7 @@ function generateFooterMenu() {
         { id: "footer_menu-item-3", class: "footer-menu-item-class", text: "", inner_text: "item-3" }
     ];
 
-    if(menuItems) items = menuItems.footerMenu;
+    if(typeof menuItems != 'undefined') items = menuItems.footerMenu;
 
     footer_menu_class = config.footer_menu_class;
     if (config.bordered) footer_menu_class += " default-cointainer-bordered";

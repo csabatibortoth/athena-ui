@@ -12,12 +12,14 @@ var config = {
     wrapper_class: "wrapper-container",
     footer_class: "footer-container",
     footer_menu_class: "footer-menu menu",
+    loginForm_class: "login-form form",
 
     bordered: true,
     generateHeader: true,
     generateFooter: true,
     generateHeadercontent: true,
     generateFooterContent: true,
+    generateWrappercontent: true,
 
     header_title_text: "Athena UI",
     copyright: "Here is the bottom Copyright Text for website"
