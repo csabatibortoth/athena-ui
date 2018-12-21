@@ -22,6 +22,7 @@ function loadConfig(options) {
         if(typeof appConfig.version!= 'undefined') config.version = appConfig.version;
         if(typeof appConfig.header_title_text != 'undefined') config.header_title_text = appConfig.header_title_text;
         if(typeof appConfig.copyright != 'undefined') config.copyright = appConfig.copyright;
+        if(typeof appConfig.login_enabled != 'undefined') config.login_enabled = appConfig.login_enabled;
         console.log("config loaded");
         loadHephaestus(options);
     });
