@@ -17,6 +17,13 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.2.2
+ #### Added:
+  1. Login Form generation
+
+ #### Bugfix:
+  1. Config loading error fixed
+
  ### 0.2.1
  #### Bugfix:
   1. Some bugfixes on element generation
