@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.2.1
+//Version: 0.2.2
 
 function generateHeaderContent() {
     generateHeaderTitle();
@@ -16,7 +16,7 @@ function generateHeaderMenu() {
         { id: "header_menu-item-3", class: "header-menu-item-class", text: "", inner_text: "item-3" }
     ];
 
-    if(menuItems) items = menuItems.headerMenu;
+    if(typeof menuItems != 'undefined') items = menuItems.headerMenu;
 
     header_menu_class = config.header_menu_class;
     if (config.bordered) header_menu_class += " default-cointainer-bordered";

@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.2.1
+//Version: 0.2.2
 
 function generateBasicLayout() {
     generateContainer();
@@ -49,6 +49,7 @@ function generateWrapper() {
         class: wrapper_class,
         //text: "wrapper"
     });
+    if(config.generateWrappercontent) generateWrapperContent();
 }
 
 /* FOOTER ELEMENT GENERATION */
