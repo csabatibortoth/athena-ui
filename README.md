@@ -17,6 +17,11 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.2.6
+ #### Added:
+  1. Header Logo
+  2. Updated Submodules
+
  ### 0.2.5
  #### Added
   1. JS-Cookie
