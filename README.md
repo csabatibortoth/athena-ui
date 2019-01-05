@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.2.9
+  #### Bugfix:
+   1. Login form generation bugfix 2
+
  ### 0.2.8
   #### Bugfix:
    1. Login form generation bugfix

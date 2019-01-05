@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.2.8
+//Version: 0.2.9
 
 /*            { id: "item-1", class: "header-menu-item-class", text: "" },
             { id: "item-2", class: "header-menu-item-class", text: "" },
