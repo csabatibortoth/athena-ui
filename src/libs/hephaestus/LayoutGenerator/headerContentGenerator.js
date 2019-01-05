@@ -5,6 +5,7 @@
 //Version: 0.2.5
 
 function generateHeaderContent() {
+    generateHeaderLogo();
     generateHeaderTitle();
     generateHeaderMenu();
 }
@@ -34,5 +35,15 @@ function generateHeaderTitle() {
         id: 'header_title_text',
         elementType: 'h1',
         text: config.header_title_text + " v" + config.version
+    });
+}
+
+function generateHeaderLogo() {
+    HTMLElementGenerator({
+        parent: 'header',
+        id: 'header_title_logo',
+        elementType: 'img',
+        src: appConfig.header_img_url,
+        alt: config.header_title_text + "_logo",
     });
 }
