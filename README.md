@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.2.8
+  #### Bugfix:
+   1. Login form generation bugfix
+
  ### 0.2.7
  #### Added:
   1. Basic layout div clear functions
