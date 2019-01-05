@@ -36,6 +36,9 @@ function addMenuItemToWireFrame(options) {
             text: element.inner_text,
             onclick: function () {
                 console.log("click");
+                if (typeof nav === "function") { 
+                    nav(element.inner_text);
+                }
             }
         });
         i++;
