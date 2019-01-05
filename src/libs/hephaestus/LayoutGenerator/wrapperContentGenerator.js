@@ -6,4 +6,7 @@
 
 function generateWrapperContent(options) {
     //if(!(JSON.parse(Cookies.get("loggedin")))) generateLoginForm(options);
+    if (typeof nav === "function") { 
+        nav();
+    }
 }
