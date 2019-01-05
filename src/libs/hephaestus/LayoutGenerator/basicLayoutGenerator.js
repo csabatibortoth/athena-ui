@@ -37,6 +37,10 @@ function generateHeader() {
     if(config.generateHeadercontent) generateHeaderContent();
 }
 
+function clearHeader(){
+    $('#header').empty();
+}
+
 /* WRAPPER ELEMENT GENERATION */
 
 function generateWrapper() {
@@ -52,6 +56,10 @@ function generateWrapper() {
     if(config.generateWrappercontent) generateWrapperContent();
 }
 
+function clearWrapper() {
+    $('#wrapper').empty();
+}
+
 /* FOOTER ELEMENT GENERATION */
 
 function generateFooter() {
@@ -65,4 +73,8 @@ function generateFooter() {
         //text: "footer"
     });
     if(config.generateFooterContent) generateFooterContent();
+}
+
+function clearFooter(){
+    $('#footer').empty();
 }
