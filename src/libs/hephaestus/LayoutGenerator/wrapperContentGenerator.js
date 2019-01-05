@@ -5,5 +5,5 @@
 //Version: 0.2.7
 
 function generateWrapperContent(options) {
-    generateLoginForm(options);
+    if(!(JSON.parse(Cookies.get("loggedin")))) generateLoginForm(options);
 }
