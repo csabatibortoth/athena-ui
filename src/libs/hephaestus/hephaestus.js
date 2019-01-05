@@ -15,6 +15,9 @@ function loadModules(options) {
     libs.forEach(lib => {
         $.getScript(lib.src, function () {
             console.log(lib.name + " module loaded.");
+            if (typeof nav === "function") { 
+                nav();
+            }
         });
     });
     loadThemes(options);
