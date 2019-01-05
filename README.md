@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.3.0
+  #### Added:
+   1. Navigation Function call for menu
+
  ### 0.2.9
   #### Bugfix:
    1. Login form generation bugfix 2

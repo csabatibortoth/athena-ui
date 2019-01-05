@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.2.9
+//Version: 0.3.0
 
 if(typeof appConfig == 'undefined') var appConfig = { athenaUIFolder: "" };
 
