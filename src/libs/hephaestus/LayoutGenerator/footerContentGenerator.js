@@ -28,6 +28,10 @@ function generateFooterMenu() {
     });
 }
 
+function clearFooterMenu(){
+    $('#footer_menu').empty();
+}
+
 function generateFooterCopyrightText() {
     HTMLElementGenerator({
         parent: 'footer',

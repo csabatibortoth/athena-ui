@@ -29,6 +29,10 @@ function generateHeaderMenu() {
     });
 }
 
+function clearHeaderMenu(){
+    $('#header_menu').empty();
+}
+
 function generateHeaderTitle() {
     HTMLElementGenerator({
         parent: 'header',
