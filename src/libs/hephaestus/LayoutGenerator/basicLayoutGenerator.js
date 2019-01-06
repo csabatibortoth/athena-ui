@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.2
+//Version: 0.3.3
 
 function generateBasicLayout() {
     generateContainer();
