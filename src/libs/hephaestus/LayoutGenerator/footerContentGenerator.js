@@ -37,6 +37,6 @@ function generateFooterCopyrightText() {
         parent: 'footer',
         id: 'copyright_text',
         elementType: 'h6',
-        text: config.copyright
+        text: config.copyright + " v" + config.version
     });
 }

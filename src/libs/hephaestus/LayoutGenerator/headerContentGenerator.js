@@ -41,7 +41,7 @@ function generateHeaderTitle() {
         parent: 'header_title_container',
         id: 'header_title_text',
         elementType: 'h1',
-        text: config.header_title_text + " v" + config.version
+        text: config.header_title_text
     });
 }
 
