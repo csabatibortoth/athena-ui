@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.3.3
+  #### Added:
+   1. Modal support
+
  ### 0.3.2
   #### Added:
   1. title change
