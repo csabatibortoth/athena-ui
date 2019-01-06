@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.2
+//Version: 0.3.3
 
 var libs = [{
         id: 0000,
@@ -53,5 +53,10 @@ var libs = [{
         id: 0011,
         name: "js-cookie",
         src: appConfig.athenaUIFolder + 'libs/js-cookie/src/js.cookie.js'
+    },
+    {
+        id: 0012,
+        name: "modalGenerator",
+        src: appConfig.athenaUIFolder + 'libs/hephaestus/modalGenerator/modalGenerator.js'
     },
 ];
