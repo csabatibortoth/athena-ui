@@ -17,8 +17,13 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.3.2
+  #### Added:
+  1. title change
+  2. copyright text change
+
  ### 0.3.1
-  ### Added:
+  #### Added:
   1. Header element container added
 
  ### 0.3.0
