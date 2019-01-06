@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.1
+//Version: 0.3.2
 
 function generateFooterContent() {
     generateFooterMenu();
@@ -37,6 +37,6 @@ function generateFooterCopyrightText() {
         parent: 'footer',
         id: 'copyright_text',
         elementType: 'h6',
-        text: config.copyright
+        text: config.copyright + " v" + config.version
     });
 }

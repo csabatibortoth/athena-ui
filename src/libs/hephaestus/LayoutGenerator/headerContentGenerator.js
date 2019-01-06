@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.1
+//Version: 0.3.2
 
 function generateHeaderContent() {
     generateContaninerForElements({parent:"header",id:"header_logo_container",text:""});
@@ -41,7 +41,7 @@ function generateHeaderTitle() {
         parent: 'header_title_container',
         id: 'header_title_text',
         elementType: 'h1',
-        text: config.header_title_text + " v" + config.version
+        text: config.header_title_text
     });
 }
 
