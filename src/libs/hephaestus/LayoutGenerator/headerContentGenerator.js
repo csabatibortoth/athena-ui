@@ -5,8 +5,11 @@
 //Version: 0.3.0
 
 function generateHeaderContent() {
+    generateContaninerForElements({parent:"header",id:"header_logo_container",text:""});
     generateHeaderLogo();
+    generateContaninerForElements({parent:"header",id:"header_title_container",text:""});
     generateHeaderTitle();
+    generateContaninerForElements({parent:"header",id:"header_menu_container",text:""});
     generateHeaderMenu();
 }
 
@@ -22,7 +25,7 @@ function generateHeaderMenu() {
     header_menu_class = config.header_menu_class;
     if (config.bordered) header_menu_class += " default-cointainer-bordered";
     generateBasicMenu({
-        parent: "header",
+        parent: "header_menu_container",
         menu_id: "header_menu",
         class: header_menu_class,
         items: items
@@ -30,12 +33,12 @@ function generateHeaderMenu() {
 }
 
 function clearHeaderMenu(){
-    $('#header_menu').empty();
+    $('#header_menu_container').empty();
 }
 
 function generateHeaderTitle() {
     HTMLElementGenerator({
-        parent: 'header',
+        parent: 'header_title_container',
         id: 'header_title_text',
         elementType: 'h1',
         text: config.header_title_text + " v" + config.version
@@ -44,10 +47,19 @@ function generateHeaderTitle() {
 
 function generateHeaderLogo() {
     HTMLElementGenerator({
-        parent: 'header',
+        parent: 'header_logo_container',
         id: 'header_title_logo',
         elementType: 'img',
         src: appConfig.header_img_url,
         alt: config.header_title_text + "_logo",
+    });
+}
+
+function generateContaninerForElements(params){
+    HTMLElementGenerator({
+        parent: params.parent,
+        id: params.id,
+        elementType: 'div',
+        text: params.text
     });
 }
