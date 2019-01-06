@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.3.1
+  ### Added:
+  1. Header element container added
+
  ### 0.3.0
   #### Added:
    1. Navigation Function call for menu

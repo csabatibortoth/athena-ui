@@ -2,10 +2,10 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.0
+//Version: 0.3.1
 
 var config = {
-    version: "0.3.0",
+    version: "0.3.1",
     container_class: "container",
     header_class: "header-container",
     header_menu_class: "header-menu menu",
