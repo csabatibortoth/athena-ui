@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.3
+//Version: 0.3.4
 
 var libs = [{
         id: 0000,
@@ -58,5 +58,10 @@ var libs = [{
         id: 0012,
         name: "modalGenerator",
         src: appConfig.athenaUIFolder + 'libs/hephaestus/modalGenerator/modalGenerator.js'
+    },
+    {
+        id: 9999,
+        name: "customLoader",
+        src: appConfig.customLoader
     },
 ];
