@@ -17,6 +17,12 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.3.4
+  #### Added:
+   1. support for custom JS loading
+  #### Bugfix:
+   1. Theme name fix
+
  ### 0.3.3
   #### Added:
    1. Modal support
