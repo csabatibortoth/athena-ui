@@ -59,4 +59,9 @@ var libs = [{
         name: "modalGenerator",
         src: appConfig.athenaUIFolder + 'libs/hephaestus/modalGenerator/modalGenerator.js'
     },
+    {
+        id: 9999,
+        name: "customLoader",
+        src: appConfig.customLoader
+    },
 ];
