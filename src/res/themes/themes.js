@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.4
+//Version: 0.3.5
 
 var themes = [
     { id: 0000, name: "Default", href: 'res/themes/default/style.css', description: 'Default Athena UI Theme' }
