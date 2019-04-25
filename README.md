@@ -17,6 +17,10 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Releases
 
+ ### 0.3.6
+  #### Added
+   1. submodule update
+
  ### 0.3.4
   #### Added:
    1. support for custom JS loading
