@@ -4,7 +4,7 @@ A small jQuery based UI framework for development and education purposes. It gen
 layout (header, menu, content wrapper, footer), a login form and modal support from a single
 `init()` call, and loads its own libraries and theme.
 
-Current version: **0.4.0**
+Current version: **0.4.1**
 
 ## Features
 
@@ -25,8 +25,8 @@ Bundled as git submodules:
 
 | Library | Version | Used for |
 | --- | --- | --- |
-| [HTMLControlGenerator](https://github.com/csabatibortoth/HTMLControlGenerator) | 0.3.3 | inputs, lists |
-| [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) | 0.2.1 | divs, headings, images |
+| [HTMLControlGenerator](https://github.com/csabatibortoth/HTMLControlGenerator) | 0.4.0 | inputs, lists |
+| [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) | 0.3.0 | divs, headings, images |
 | [crypto-js](https://github.com/brix/crypto-js) | 4.2.0 | password hashing |
 | [js-cookie](https://github.com/js-cookie/js-cookie) | 3.0.8 | cookie handling |
 
@@ -93,7 +93,7 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"0.4.0"` | Version shown in the footer |
+| `version` | `"0.4.1"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -117,6 +117,7 @@ Everything is exported from `athena-ui.js`:
 | `openModal(id)`, `closeModal(id)` | Show / hide a `.modal` element (default id: `myModal`). Elements with the `close` class close their modal. |
 | `loadScript(src)` | Load a classic script once, returns a Promise |
 | `Cookies` | The [js-cookie](https://github.com/js-cookie/js-cookie) API |
+| `HTMLElementGenerator(options)` | The [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) function |
 
 ### Usage from classic scripts
 
@@ -168,6 +169,16 @@ src/
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 0.4.1
+  #### Changed:
+   1. HTMLControlGenerator v0.4.0, HTMLElementGenerator v0.3.0, js-cookie updated to the latest master
+   2. HTMLElementGenerator is imported as an ES module instead of being loaded as a classic script
+   3. crypto-js follows the `master` branch, which holds the built release files
+  #### Added:
+   1. `HTMLElementGenerator` is exported from `athena-ui.js` (and stays available as a global)
+  #### Bugfix:
+   1. The label of a menu item without an `id` is not appended to the page body
 
  ### 0.4.0
   #### Changed:

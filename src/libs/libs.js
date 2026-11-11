@@ -9,6 +9,5 @@ const lib = (id, name, path) => ({ id, name, src: new URL(path, import.meta.url)
 
 export default [
     lib(0, "HTMLControlGenerator", "hephaestus/HTMLControlGenerator/src/HTMLControlGenerator.min.js"),
-    lib(1, "HTMLElementGenerator", "hephaestus/HTMLElementGenerator/src/HTMLElementGenerator.js"),
     lib(10, "crypto-js", "crypto-js/crypto-js.js")
 ];
