@@ -2,11 +2,9 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.6
 
-function generateWrapperContent(options) {
-    //if(!(JSON.parse(Cookies.get("loggedin")))) generateLoginForm(options);
-    if (typeof nav === "function") { 
-        nav();
-    }
+import { getNav } from "../../config/hooks.js";
+
+export function generateWrapperContent() {
+    getNav()?.();
 }

@@ -2,79 +2,63 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.6
 
-function generateBasicLayout() {
-    generateContainer();
-    if(config.generateHeader) generateHeader();
-    generateWrapper();
-    if(config.generateFooter) generateFooter();
+/* global $, HTMLElementGenerator */
+
+import config, { withBorder } from "../../config/config.js";
+import { generateHeaderContent } from "./headerContentGenerator.js";
+import { generateWrapperContent } from "./wrapperContentGenerator.js";
+import { generateFooterContent } from "./footerContentGenerator.js";
+
+function generateSection(id, className, parent = "container") {
+    HTMLElementGenerator({
+        elementType: "div",
+        parent,
+        id,
+        class: withBorder(className)
+    });
 }
 
-function generateContainer() {
-    var container_class = config.container_class;
-    if (config.bordered) container_class += " default-cointainer-bordered";
-    HTMLElementGenerator({
-        parent: "",
-        elementType: "div",
-        id: "container",
-        class: container_class
-    });
+export function generateBasicLayout() {
+    generateContainer();
+    if (config.generateHeader) generateHeader();
+    generateWrapper();
+    if (config.generateFooter) generateFooter();
+}
+
+export function generateContainer() {
+    generateSection("container", config.container_class, "");
 }
 
 /* HEADER ELEMENT GENERATION */
 
-function generateHeader() {
-    var header_class = config.header_class;
-    if (config.bordered) header_class += " default-cointainer-bordered";
-    HTMLElementGenerator({
-        elementType: "div",
-        parent: "container",
-        id: "header",
-        class: header_class,
-        //text: "header"
-    });
-    if(config.generateHeadercontent) generateHeaderContent();
+export function generateHeader() {
+    generateSection("header", config.header_class);
+    if (config.generateHeadercontent) generateHeaderContent();
 }
 
-function clearHeader(){
-    $('#header').empty();
+export function clearHeader() {
+    $("#header").empty();
 }
 
 /* WRAPPER ELEMENT GENERATION */
 
-function generateWrapper() {
-    var wrapper_class = config.wrapper_class;
-    if (config.bordered) wrapper_class += " default-cointainer-bordered";
-    HTMLElementGenerator({
-        elementType: "div",
-        parent: "container",
-        id: "wrapper",
-        class: wrapper_class,
-        //text: "wrapper"
-    });
-    if(config.generateWrappercontent) generateWrapperContent();
+export function generateWrapper() {
+    generateSection("wrapper", config.wrapper_class);
+    if (config.generateWrappercontent) generateWrapperContent();
 }
 
-function clearWrapper() {
-    $('#wrapper').empty();
+export function clearWrapper() {
+    $("#wrapper").empty();
 }
 
 /* FOOTER ELEMENT GENERATION */
 
-function generateFooter() {
-    var footer_class = config.footer_class;
-    if (config.bordered) footer_class += " default-cointainer-bordered";
-    HTMLElementGenerator({
-        elementType: "div",
-        parent: "container",
-        id: "footer",
-        class: footer_class,
-        //text: "footer"
-    });
-    if(config.generateFooterContent) generateFooterContent();
+export function generateFooter() {
+    generateSection("footer", config.footer_class);
+    if (config.generateFooterContent) generateFooterContent();
 }
 
-function clearFooter(){
-    $('#footer').empty();
+export function clearFooter() {
+    $("#footer").empty();
 }

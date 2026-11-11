@@ -1,26 +1,22 @@
-// Get the modal
-var modal = document.getElementById('myModal');
+//modalGenerator for Athena UI
+//Author: Csaba Tóth https://github.com/csabatibortoth/
+//LICENCE: MIT
+//Repository: https://github.com/csabatibortoth/athena-ui
 
-// Get the button that opens the modal
-var btn = document.getElementById("myBtn");
+/* global $ */
 
-// Get the <span> element that closes the modal
-var span = document.getElementsByClassName("close")[0];
+const DEFAULT_MODAL_ID = "myModal";
 
-// When the user clicks the button, open the modal 
-/*btn.onclick = function() {
-  modal.style.display = "block";
-}*/
-
-// When the user clicks on <span> (x), close the modal
-span.onclick = function() {
-  modal.style.display = "none";
+export function openModal(id = DEFAULT_MODAL_ID) {
+    $(`#${id}`).css("display", "block");
 }
 
-// When the user clicks anywhere outside of the modal, close it
-/*window.onclick = function(event) {
-  if (event.target == modal) {
-    modal.style.display = "none";
-  }
-}*/
+export function closeModal(id = DEFAULT_MODAL_ID) {
+    $(`#${id}`).css("display", "none");
+}
 
+// One delegated handler serves every close button (x), including modals added later.
+$(document).on("click.athenaModal", ".close", function () {
+    const modal = $(this).closest(".modal");
+    (modal.length ? modal : $(`#${DEFAULT_MODAL_ID}`)).css("display", "none");
+});

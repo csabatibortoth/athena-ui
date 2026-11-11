@@ -2,106 +2,88 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.6
 
-function generateLoginForm(options) {
-    generateFormDiv(options);
-    generateFormElements(options);
+/* global $, CryptoJS, HTMLControlGenerator, HTMLElementGenerator */
+
+import config from "../../config/config.js";
+import { getLogin } from "../../config/hooks.js";
+
+const FORM_ID = "loginForm";
+
+function generateRow(name) {
+    const id = `${FORM_ID}-${name}`;
+    HTMLElementGenerator({
+        elementType: "div",
+        parent: FORM_ID,
+        id,
+        class: "container"
+    });
+    return id;
 }
 
-function generateFormDiv(options){
+function generateField(name, label, inputType) {
+    const row = generateRow(name);
+    HTMLElementGenerator({
+        elementType: "span",
+        parent: row,
+        id: `${row}-label`,
+        class: "container",
+        text: label
+    });
+    HTMLControlGenerator({
+        inputType,
+        parent: row,
+        id: `${row}-control`,
+        class: "text-filed-class"
+    });
+}
+
+// Reads the form. The password is SHA-256 hashed when enable_encrypt_password is set.
+export function getLoginFormData() {
+    const username = $(`#${FORM_ID}-username-control`).val();
+    let password = $(`#${FORM_ID}-password-control`).val();
+    if (config.enable_encrypt_password) password = CryptoJS.SHA256(password).toString();
+    return { username, password };
+}
+
+export function generateLoginForm() {
+    generateFormDiv();
+    generateFormElements();
+}
+
+export function generateFormDiv() {
     HTMLElementGenerator({
         elementType: "div",
         parent: "wrapper",
-        id: "loginForm",
-        class: config.loginForm_class,
-        //text: "wrapper"
+        id: FORM_ID,
+        class: config.loginForm_class
     });
 }
 
-function generateFormElements(options){
-    generateUsernameElements(options);
-    generatePasswordElements(options);
-    generateSubmitElement(options);
+export function generateFormElements() {
+    generateUsernameElements();
+    generatePasswordElements();
+    generateSubmitElement();
 }
 
-function generateUsernameElements(options) {
-    HTMLElementGenerator({
-        elementType: "div",
-        parent: "loginForm",
-        id: "loginForm-username",
-        class: "container"
-    });
-    HTMLElementGenerator({
-        elementType: "span",
-        parent: "loginForm-username",
-        id: "loginForm-username-label",
-        class: "container",
-        text: "Username: "
-    });
-    HTMLControlGenerator({
-        inputType: "text",
-        parent: "loginForm-username",
-        id: "loginForm-username-control",
-        class: "text-filed-class",
-        change: function (data) {
-            console.log(data)
-        },
-        onclick: function () {
-            console.log("click")
-        }
-    });
+export function generateUsernameElements() {
+    generateField("username", "Username: ", "text");
 }
 
-function generatePasswordElements(options) {
-    HTMLElementGenerator({
-        elementType: "div",
-        parent: "loginForm",
-        id: "loginForm-password",
-        class: "container"
-    });
-    HTMLElementGenerator({
-        elementType: "span",
-        parent: "loginForm-password",
-        id: "loginForm-password-label",
-        class: "container",
-        text: "Password: "
-    });
-    HTMLControlGenerator({
-        inputType: "password",
-        parent: "loginForm-password",
-        id: "loginForm-password-control",
-        class: "text-filed-class",
-        change: function (data) {
-            console.log(data)
-        },
-        onclick: function () {
-            console.log("click")
-        }
-    });
+export function generatePasswordElements() {
+    generateField("password", "Password: ", "password");
 }
 
-function generateSubmitElement(options) {
-    HTMLElementGenerator({
-        elementType: "div",
-        parent: "loginForm",
-        id: "loginForm-submit",
-        class: "container"
-    });
+export function generateSubmitElement() {
     HTMLControlGenerator({
         inputType: "button",
-        parent: "loginForm-submit",
+        parent: generateRow("submit"),
         text: "Login",
         value: "Login",
-        id: "loginForm-submit-login",
+        id: `${FORM_ID}-submit-login`,
         class: "button-filed-class",
-        onclick: function () {
-            $('#loginForm-password-control').val();
-            var password = $('#loginForm-password-control').val();
-            if(config.enable_encrypt_password) password = CryptoJS.SHA256($('#loginForm-password-control').val()).toString();
-            if(config.login_enabled) login({username: $('#loginForm-username-control').val(), password: password});
-            var data = {username: $('#loginForm-username-control').val(), password: password};
-            console.log(JSON.stringify(data));
+        onclick: () => {
+            if (config.login_enabled) getLogin()?.(getLoginFormData());
         }
     });
 }
