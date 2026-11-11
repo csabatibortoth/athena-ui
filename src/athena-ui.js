@@ -17,6 +17,7 @@ import * as menu from "./libs/hephaestus/MenuGenerator/basicMenuGenerator.js";
 import * as loginForm from "./libs/hephaestus/formGenerator/loginFormGenerator.js";
 import * as modal from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 import Cookies from "./libs/js-cookie/src/api.mjs";
+import { HTMLElementGenerator } from "./libs/hephaestus/HTMLElementGenerator/src/HTMLElementGenerator.js";
 
 if (typeof $ !== "function") {
     throw new Error("Athena UI: jQuery has to be loaded before athena-ui.js");
@@ -52,6 +53,7 @@ const AthenaUI = {
     config,
     loadScript,
     Cookies,
+    HTMLElementGenerator,
     ...layout,
     ...header,
     ...wrapper,
@@ -65,7 +67,7 @@ const AthenaUI = {
 // stays reachable as globals, like in the pre-module versions.
 Object.assign(globalThis, AthenaUI, { AthenaUI });
 
-export { config, loadScript, Cookies };
+export { config, loadScript, Cookies, HTMLElementGenerator };
 export * from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/headerContentGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js";

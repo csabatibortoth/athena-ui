@@ -3,8 +3,9 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-/* global $, CryptoJS, HTMLControlGenerator, HTMLElementGenerator */
+/* global $, CryptoJS, HTMLControlGenerator */
 
+import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
 import config from "../../config/config.js";
 import { getLogin } from "../../config/hooks.js";
 

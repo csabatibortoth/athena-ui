@@ -3,8 +3,9 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-/* global HTMLControlGenerator, HTMLElementGenerator */
+/* global HTMLControlGenerator */
 
+import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
 import { BORDERED_CLASS } from "../../config/config.js";
 import { getNav } from "../../config/hooks.js";
 
@@ -38,6 +39,8 @@ export function generateMenuWireFrame(options) {
 
 export function addMenuItemToWireFrame(options) {
     options.items.forEach((item, index) => {
+        // Without a parent id HTMLElementGenerator would append the label to the body.
+        if (!item.id) return;
         HTMLElementGenerator({
             parent: item.id,
             id: `${options.menu_id}-item-${index}`,

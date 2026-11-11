@@ -25,8 +25,8 @@ Bundled as git submodules:
 
 | Library | Version | Used for |
 | --- | --- | --- |
-| [HTMLControlGenerator](https://github.com/csabatibortoth/HTMLControlGenerator) | 0.3.3 | inputs, lists |
-| [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) | 0.2.1 | divs, headings, images |
+| [HTMLControlGenerator](https://github.com/csabatibortoth/HTMLControlGenerator) | 0.4.0 | inputs, lists |
+| [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) | 0.3.0 | divs, headings, images |
 | [crypto-js](https://github.com/brix/crypto-js) | 4.2.0 | password hashing |
 | [js-cookie](https://github.com/js-cookie/js-cookie) | 3.0.8 | cookie handling |
 
@@ -117,6 +117,7 @@ Everything is exported from `athena-ui.js`:
 | `openModal(id)`, `closeModal(id)` | Show / hide a `.modal` element (default id: `myModal`). Elements with the `close` class close their modal. |
 | `loadScript(src)` | Load a classic script once, returns a Promise |
 | `Cookies` | The [js-cookie](https://github.com/js-cookie/js-cookie) API |
+| `HTMLElementGenerator(options)` | The [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) function |
 
 ### Usage from classic scripts
 
