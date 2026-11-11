@@ -2,10 +2,11 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.6
 
-var config = {
-    version: "0.3.6",
+export const BORDERED_CLASS = "default-cointainer-bordered";
+
+export const defaults = Object.freeze({
+    version: "0.4.0",
     container_class: "container",
     header_class: "header-container",
     header_menu_class: "header-menu menu",
@@ -24,5 +25,29 @@ var config = {
     enable_encrypt_password: false,
 
     header_title_text: "Athena UI",
-    copyright: "Here is the bottom Copyright Text for website"
+    header_img_url: undefined,
+    copyright: "Here is the bottom Copyright Text for website",
+
+    // URL (relative to the page) of an extra classic script, loaded before the layout is generated
+    customLoader: undefined
+});
+
+const config = { ...defaults };
+
+export default config;
+
+// Copies every known setting that is defined in the given sources onto the live config.
+export function applyConfig(...sources) {
+    for (const source of sources) {
+        if (!source) continue;
+        for (const key of Object.keys(defaults)) {
+            if (source[key] !== undefined) config[key] = source[key];
+        }
+    }
+    return config;
+}
+
+// Appends the border class to a class list when borders are enabled.
+export function withBorder(className) {
+    return config.bordered ? `${className} ${BORDERED_CLASS}` : className;
 }

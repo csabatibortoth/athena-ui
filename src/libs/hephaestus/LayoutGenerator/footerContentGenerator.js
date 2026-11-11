@@ -2,41 +2,36 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.6
 
-function generateFooterContent() {
+/* global $, HTMLElementGenerator */
+
+import config, { withBorder } from "../../config/config.js";
+import { getMenuItems } from "../../config/hooks.js";
+import { generateBasicMenu, defaultMenuItems } from "../MenuGenerator/basicMenuGenerator.js";
+
+export function generateFooterContent() {
     generateFooterMenu();
     generateFooterCopyrightText();
 }
 
-function generateFooterMenu() {
-    var items = [
-        { id: "footer_menu-item-1", class: "footer-menu-item-class", text: "", inner_text: "item-1" },
-        { id: "footer_menu-item-2", class: "footer-menu-item-class", text: "", inner_text: "item-2" },
-        { id: "footer_menu-item-3", class: "footer-menu-item-class", text: "", inner_text: "item-3" }
-    ];
-
-    if(typeof menuItems != 'undefined') items = menuItems.footerMenu;
-
-    footer_menu_class = config.footer_menu_class;
-    if (config.bordered) footer_menu_class += " default-cointainer-bordered";
+export function generateFooterMenu() {
     generateBasicMenu({
         parent: "footer",
         menu_id: "footer_menu",
-        class: footer_menu_class,
-        items: items
+        class: withBorder(config.footer_menu_class),
+        items: getMenuItems()?.footerMenu ?? defaultMenuItems("footer_menu")
     });
 }
 
-function clearFooterMenu(){
-    $('#footer_menu').empty();
+export function clearFooterMenu() {
+    $("#footer_menu").empty();
 }
 
-function generateFooterCopyrightText() {
+export function generateFooterCopyrightText() {
     HTMLElementGenerator({
-        parent: 'footer',
-        id: 'copyright_text',
-        elementType: 'h6',
-        text: config.copyright + " v" + config.version
+        parent: "footer",
+        id: "copyright_text",
+        elementType: "h6",
+        text: `${config.copyright} v${config.version}`
     });
 }

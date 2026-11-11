@@ -2,47 +2,48 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.3.6
 
-/*            { id: "item-1", class: "header-menu-item-class", text: "" },
-            { id: "item-2", class: "header-menu-item-class", text: "" },
-            { id: "item-3", class: "header-menu-item-class", text: "" } */
+/* global HTMLControlGenerator, HTMLElementGenerator */
 
-function generateBasicMenu(options) {
+import { BORDERED_CLASS } from "../../config/config.js";
+import { getNav } from "../../config/hooks.js";
+
+// Placeholder items used when the application does not provide menuItems.
+export function defaultMenuItems(menuId, count = 3) {
+    return Array.from({ length: count }, (_, index) => ({
+        id: `${menuId}-item-${index + 1}`,
+        class: `${menuId.replace("_", "-")}-item-class`,
+        text: "",
+        inner_text: `item-${index + 1}`
+    }));
+}
+
+export function generateBasicMenu(options) {
     generateMenuWireFrame(options);
     addMenuItemToWireFrame(options);
 }
 
-function generateMenuWireFrame(options) {
-    var menu_class = options.menu_class;
-    if (options.bordered) menu_class += " default-cointainer-bordered";
-    if (options.class) menu_class += " " + options.class;
+export function generateMenuWireFrame(options) {
+    const menuClass = [options.menu_class, options.bordered && BORDERED_CLASS, options.class]
+        .filter(Boolean)
+        .join(" ");
     HTMLControlGenerator({
         inputType: "ul",
         parent: options.parent,
         id: options.menu_id,
-        class: menu_class,
-        items: options.items,
+        class: menuClass,
+        items: options.items
     });
 }
 
-function addMenuItemToWireFrame(options) {
-    var i = 0;
-    options.items.forEach(element => {
+export function addMenuItemToWireFrame(options) {
+    options.items.forEach((item, index) => {
         HTMLElementGenerator({
-            parent: element.id,
-            id: options.menu_id + "-item-" + i,
-            elementType: 'span',
-            text: element.inner_text,
-            onclick: function () {
-                console.log("click");
-                if (typeof nav === "function") { 
-                    nav(element.inner_text);
-                }
-            }
+            parent: item.id,
+            id: `${options.menu_id}-item-${index}`,
+            elementType: "span",
+            text: item.inner_text,
+            onclick: () => getNav()?.(item.inner_text)
         });
-        i++;
     });
-
 }
-

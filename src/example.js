@@ -1,5 +1,5 @@
-$(document).ready(function () {
-    init({
-        themes: { id: 0000 }
-    });
+import { init } from "./athena-ui.js";
+
+init({
+    theme: { id: 0 }
 });
