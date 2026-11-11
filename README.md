@@ -1,12 +1,48 @@
-# athena-ui
+# Athena UI
 
-It's a JQuery based UI for developement and education purposes.
+A small jQuery based UI framework for development and education purposes. It generates a page
+layout (header, menu, content wrapper, footer), a login form and modal support from a single
+`init()` call, and loads its own libraries and theme.
 
-## Prerequisites:
-1. JQuery v4.0.0 loaded to the html file (before Athena UI).
-2. The git submodules checked out (`git submodule update --init`):
-   HTMLControlGenerator, HTMLElementGenerator, crypto-js v4.2.0, js-cookie v3.0.8
-3. A browser with ES module support. The page has to be served over HTTP(S), modules do not load from `file://`.
+Current version: **0.4.0**
+
+## Features
+
+- Generated page layout: container, header (logo, title, menu), wrapper, footer (menu, copyright text)
+- Menus built from your own item lists, with a navigation callback
+- Login form with optional SHA-256 password hashing
+- Modal open / close helpers
+- Themes loaded at runtime, custom stylesheets supported
+- Written as ES modules, no build step
+
+## Requirements
+
+- [jQuery](https://jquery.com/) v4.0.0, loaded before Athena UI
+- A browser with ES module support
+- The page has to be served over HTTP(S). Modules do not load from `file://`.
+
+Bundled as git submodules:
+
+| Library | Version | Used for |
+| --- | --- | --- |
+| [HTMLControlGenerator](https://github.com/csabatibortoth/HTMLControlGenerator) | 0.3.3 | inputs, lists |
+| [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) | 0.2.1 | divs, headings, images |
+| [crypto-js](https://github.com/brix/crypto-js) | 4.2.0 | password hashing |
+| [js-cookie](https://github.com/js-cookie/js-cookie) | 3.0.8 | cookie handling |
+
+## Installation
+
+```sh
+git clone --recurse-submodules https://github.com/csabatibortoth/athena-ui.git
+```
+
+In an existing clone, or after updating:
+
+```sh
+git submodule update --init
+```
+
+Serve the `src` folder with any static web server and open `index.html` to see the example.
 
 ## Usage
 
@@ -14,24 +50,114 @@ It's a JQuery based UI for developement and education purposes.
 <script src="https://code.jquery.com/jquery-4.0.0.min.js"
     integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
 <script type="module">
-    import { init } from "./athena-ui.js";
+    import { init, clearWrapper, generateLoginForm } from "./athena-ui.js";
 
     init({
-        theme: { id: 0 },                       // or { href: "my-theme.css" }
-        config: { header_title_text: "My App" }, // see libs/config/config.js
-        nav: page => console.log(page),          // called on load and on menu clicks
-        login: ({ username, password }) => {},   // called by the login form
-        menuItems: { headerMenu: [], footerMenu: [] }
+        theme: { id: 0 },
+        config: { header_title_text: "My App", login_enabled: true },
+        menuItems: {
+            headerMenu: [
+                { id: "menu-home", class: "menu-item", text: "", inner_text: "Home" },
+                { id: "menu-login", class: "menu-item", text: "", inner_text: "Login" }
+            ],
+            footerMenu: []
+        },
+        nav: page => {
+            if (page === "Login") {
+                clearWrapper();
+                generateLoginForm();
+            }
+        },
+        login: ({ username, password }) => console.log(`${username} logged in`)
     });
 </script>
 ```
 
-`init()` returns a Promise that resolves when the layout is generated.
+`init()` returns a Promise that resolves with the effective configuration once the libraries and
+the theme are loaded and the layout is generated.
 
-The old global style still works: load `athena-ui.js` with `type="module"`, then use the globals
-(`init`, `config`, `clearWrapper`, `generateLoginForm`, `Cookies`, ...) from classic scripts after
-the DOM is ready. The global `appConfig`, `menuItems`, `nav` and `login` are picked up as before.
-`appConfig.athenaUIFolder` is not needed anymore, paths are resolved relative to `athena-ui.js`.
+### init options
+
+| Option | Description |
+| --- | --- |
+| `theme` | `{ id }` of a theme registered in `res/themes/themes.js`, or `{ href }` of a custom stylesheet. Defaults to the default theme. |
+| `config` | Settings overriding the defaults, see [Configuration](#configuration). |
+| `menuItems` | `{ headerMenu, footerMenu }`, arrays of `{ id, class, text, inner_text }`. Placeholder items are generated without it. |
+| `nav` | Called without arguments when the wrapper is generated, and with the `inner_text` of the item on menu clicks. |
+| `login` | Called with `{ username, password }` when the login button is clicked and `login_enabled` is set. |
+
+### Configuration
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `header_title_text` | `"Athena UI"` | Title in the header |
+| `header_img_url` | | Header logo URL |
+| `copyright` | placeholder text | Footer text, the version is appended |
+| `version` | `"0.4.0"` | Version shown in the footer |
+| `bordered` | `true` | Draw a border around the layout blocks |
+| `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
+| `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
+| `login_enabled` | `false` | Call the `login` callback from the login form |
+| `enable_encrypt_password` | `false` | SHA-256 hash the password before it is passed to `login` |
+| `customLoader` | | URL of an extra classic script, loaded before the layout is generated |
+| `container_class`, `header_class`, `header_menu_class`, `wrapper_class`, `footer_class`, `footer_menu_class`, `loginForm_class` | | CSS classes of the generated blocks |
+
+### API
+
+Everything is exported from `athena-ui.js`:
+
+| Export | Description |
+| --- | --- |
+| `init(options)` | Loads everything and generates the layout |
+| `config` | The live configuration object |
+| `generateBasicLayout()`, `generateHeader()`, `generateWrapper()`, `generateFooter()` | Layout generation |
+| `clearHeader()`, `clearWrapper()`, `clearFooter()`, `clearHeaderMenu()`, `clearFooterMenu()` | Empty a block |
+| `generateBasicMenu(options)` | Generate a menu into any parent |
+| `generateLoginForm()`, `getLoginFormData()` | Login form into the wrapper, and its current values |
+| `openModal(id)`, `closeModal(id)` | Show / hide a `.modal` element (default id: `myModal`). Elements with the `close` class close their modal. |
+| `loadScript(src)` | Load a classic script once, returns a Promise |
+| `Cookies` | The [js-cookie](https://github.com/js-cookie/js-cookie) API |
+
+### Usage from classic scripts
+
+The same API is available as globals (and as `AthenaUI`), so scripts written for earlier versions
+keep working. Load `athena-ui.js` with `type="module"` and call the globals after the DOM is ready:
+
+```html
+<script>
+    var appConfig = { header_title_text: "My App", customLoader: "js/app.js" };
+</script>
+<script type="module" src="athena-ui/src/athena-ui.js"></script>
+<script>
+    $(function () {
+        init({ theme: { id: 0 } });
+    });
+</script>
+```
+
+The global `appConfig`, `menuItems`, `nav` and `login` are used when the matching `init` option is
+not given. `appConfig.athenaUIFolder` is not needed anymore, paths are resolved relative to
+`athena-ui.js`.
+
+## Themes
+
+A theme is a single stylesheet. Register it in `src/res/themes/themes.js` and select it with
+`theme: { id }`, or pass any stylesheet directly with `theme: { href: "css/my-theme.css" }`.
+The default theme is in `src/res/themes/default/style.css`.
+
+## Project structure
+
+```
+src/
+  athena-ui.js              entry point, exports the whole API
+  index.html, example.js    example page
+  libs/
+    config/                 default configuration, application hooks
+    hephaestus/             script and theme loader, layout / menu / form / modal generators
+    crypto-js/, js-cookie/  submodules
+    libs.js                 classic scripts loaded at runtime
+  res/themes/               themes
+```
 
 ## Authors
 
@@ -39,7 +165,7 @@ the DOM is ready. The global `appConfig`, `menuItems`, `nav` and `login` are pic
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
 
