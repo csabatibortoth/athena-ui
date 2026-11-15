@@ -7,8 +7,9 @@
 
 import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
 import config from "../../config/config.js";
+import { translate } from "../../core/i18n.js";
 
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export { EMAIL_PATTERN } from "../../core/validation.js";
 
 export function generateFormDiv(formId, className, parent = "wrapper") {
     return HTMLElementGenerator({ elementType: "div", parent, id: formId, class: className });
@@ -20,9 +21,10 @@ export function generateRow(formId, name) {
     return id;
 }
 
+// `label` is a translation key
 export function generateField(formId, name, label, inputType) {
     const row = generateRow(formId, name);
-    HTMLElementGenerator({ elementType: "span", parent: row, id: `${row}-label`, class: "container", text: label });
+    HTMLElementGenerator({ elementType: "span", parent: row, id: `${row}-label`, class: "container", text: `${translate(label)}: ` });
     HTMLControlGenerator({ inputType, parent: row, id: `${row}-control`, class: "text-filed-class" });
 }
 

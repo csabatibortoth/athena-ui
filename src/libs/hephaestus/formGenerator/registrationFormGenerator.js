@@ -5,9 +5,9 @@
 
 import config from "../../config/config.js";
 import { getRegister } from "../../config/hooks.js";
-import {
-    EMAIL_PATTERN, generateButton, generateField, generateFormDiv, generateMessage, hashPassword, readControl, showMessage
-} from "./formUtils.js";
+import { translate } from "../../core/i18n.js";
+import { validateAll } from "../../core/validation.js";
+import { generateButton, generateField, generateFormDiv, generateMessage, hashPassword, readControl, showMessage } from "./formUtils.js";
 
 const FORM_ID = "registrationForm";
 
@@ -20,22 +20,30 @@ export function getRegistrationFormData() {
     };
 }
 
-// Returns an error text, or "" when the form is valid.
+// Returns the first error text, or "" when the form is valid.
 export function validateRegistrationForm() {
-    if (!readControl(FORM_ID, "username").trim()) return "Username is required.";
-    if (!EMAIL_PATTERN.test(readControl(FORM_ID, "email"))) return "Enter a valid email address.";
-    if (!readControl(FORM_ID, "password")) return "Password is required.";
-    if (readControl(FORM_ID, "password") !== readControl(FORM_ID, "password2")) return "The passwords do not match.";
-    return "";
+    const values = {
+        username: readControl(FORM_ID, "username").trim(),
+        email: readControl(FORM_ID, "email"),
+        password: readControl(FORM_ID, "password"),
+        password2: readControl(FORM_ID, "password2")
+    };
+    const errors = validateAll({
+        username: { required: true },
+        email: { required: true, email: true },
+        password: { required: true },
+        password2: { required: true, match: "password" }
+    }, values);
+    return Object.values(errors)[0] ?? "";
 }
 
 export function generateRegistrationForm(parent = "wrapper") {
     generateFormDiv(FORM_ID, config.registrationForm_class, parent);
-    generateField(FORM_ID, "username", "Username: ", "text");
-    generateField(FORM_ID, "email", "Email: ", "email");
-    generateField(FORM_ID, "password", "Password: ", "password");
-    generateField(FORM_ID, "password2", "Confirm password: ", "password");
-    generateButton(FORM_ID, "register", "Register", submitRegistration);
+    generateField(FORM_ID, "username", "username", "text");
+    generateField(FORM_ID, "email", "email", "email");
+    generateField(FORM_ID, "password", "password", "password");
+    generateField(FORM_ID, "password2", "confirmPassword", "password");
+    generateButton(FORM_ID, "register", translate("register"), submitRegistration);
     generateMessage(FORM_ID);
 }
 
