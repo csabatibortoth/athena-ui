@@ -72,3 +72,89 @@
     text-decoration: none;
     cursor: pointer;
 }
+
+/* Forms */
+
+.form-message {
+    min-height: 1.2em;
+}
+
+.form-message-error {
+    color: #c0392b;
+}
+
+.form-message-success {
+    color: #27ae60;
+}
+
+/* Tables */
+
+.athena-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.athena-table th,
+.athena-table td {
+    border: 1px solid #ccc;
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.athena-table th {
+    background-color: #f2f2f2;
+}
+
+.athena-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.athena-table tbody tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.athena-table tr.clickable:hover {
+    background-color: #e8f0fe;
+    cursor: pointer;
+}
+
+.athena-table-filter {
+    margin-bottom: 8px;
+}
+
+.athena-table-pager {
+    margin-top: 8px;
+}
+
+/* Charts */
+
+.athena-chart {
+    max-width: 100%;
+    height: auto;
+    font-family: sans-serif;
+}
+
+.athena-chart .chart-title {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.athena-chart .chart-tick,
+.athena-chart .chart-legend {
+    font-size: 11px;
+    fill: #444;
+}
+
+.athena-chart .chart-grid {
+    stroke: #e0e0e0;
+}
+
+.athena-chart .chart-axis {
+    stroke: #666;
+}
+
+.athena-chart .chart-bar:hover,
+.athena-chart .chart-slice:hover {
+    opacity: 0.8;
+}

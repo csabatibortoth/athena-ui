@@ -4,13 +4,15 @@ A small jQuery based UI framework for development and education purposes. It gen
 layout (header, menu, content wrapper, footer), a login form and modal support from a single
 `init()` call, and loads its own libraries and theme.
 
-Current version: **0.4.1**
+Current version: **0.5.0**
 
 ## Features
 
 - Generated page layout: container, header (logo, title, menu), wrapper, footer (menu, copyright text)
 - Menus built from your own item lists, with a navigation callback
-- Login form with optional SHA-256 password hashing
+- Login, registration and lost password forms with optional SHA-256 password hashing
+- SVG charts (bar, line, pie, donut) without extra dependencies
+- Tables with sortable columns, filter box and pagination
 - Modal open / close helpers
 - Themes loaded at runtime, custom stylesheets supported
 - Written as ES modules, no build step
@@ -85,6 +87,8 @@ the theme are loaded and the layout is generated.
 | `menuItems` | `{ headerMenu, footerMenu }`, arrays of `{ id, class, text, inner_text }`. Placeholder items are generated without it. |
 | `nav` | Called without arguments when the wrapper is generated, and with the `inner_text` of the item on menu clicks. |
 | `login` | Called with `{ username, password }` when the login button is clicked and `login_enabled` is set. |
+| `register` | Called with `{ username, email, password }` when a valid registration form is submitted and `registration_enabled` is set. |
+| `lostPassword` | Called with `{ email }` when a valid lost password form is submitted and `lost_password_enabled` is set. |
 
 ### Configuration
 
@@ -93,14 +97,16 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"0.4.1"` | Version shown in the footer |
+| `version` | `"0.5.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
 | `login_enabled` | `false` | Call the `login` callback from the login form |
-| `enable_encrypt_password` | `false` | SHA-256 hash the password before it is passed to `login` |
+| `registration_enabled` | `false` | Call the `register` callback from the registration form |
+| `lost_password_enabled` | `false` | Call the `lostPassword` callback from the lost password form |
+| `enable_encrypt_password` | `false` | SHA-256 hash the password before it is passed to `login` / `register` |
 | `customLoader` | | URL of an extra classic script, loaded before the layout is generated |
-| `container_class`, `header_class`, `header_menu_class`, `wrapper_class`, `footer_class`, `footer_menu_class`, `loginForm_class` | | CSS classes of the generated blocks |
+| `container_class`, `header_class`, `header_menu_class`, `wrapper_class`, `footer_class`, `footer_menu_class`, `loginForm_class`, `registrationForm_class`, `lostPasswordForm_class` | | CSS classes of the generated blocks |
 
 ### API
 
@@ -114,10 +120,50 @@ Everything is exported from `athena-ui.js`:
 | `clearHeader()`, `clearWrapper()`, `clearFooter()`, `clearHeaderMenu()`, `clearFooterMenu()` | Empty a block |
 | `generateBasicMenu(options)` | Generate a menu into any parent |
 | `generateLoginForm()`, `getLoginFormData()` | Login form into the wrapper, and its current values |
+| `generateRegistrationForm(parent)`, `getRegistrationFormData()`, `validateRegistrationForm()` | Registration form (username, email, password, confirmation) into `parent` (default `wrapper`). Validated before the callback is called. |
+| `generateLostPasswordForm(parent)`, `getLostPasswordFormData()` | Lost password form (email) |
+| `generateChart(options)` | Draw a chart, see [Charts](#charts) |
+| `generateTable(options)` | Draw a table, see [Tables](#tables) |
 | `openModal(id)`, `closeModal(id)` | Show / hide a `.modal` element (default id: `myModal`). Elements with the `close` class close their modal. |
 | `loadScript(src)` | Load a classic script once, returns a Promise |
 | `Cookies` | The [js-cookie](https://github.com/js-cookie/js-cookie) API |
 | `HTMLElementGenerator(options)` | The [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) function |
+
+### Charts
+
+```js
+generateChart({
+    type: "bar",                 // "bar" | "line" | "pie" | "donut"
+    parent: "wrapper",           // id of the parent element (default)
+    title: "Revenue",
+    labels: ["Q1", "Q2", "Q3"],
+    series: [
+        { name: "2025", data: [12, 19, 8] },
+        { name: "2026", data: [14, 17, 12], color: "#e15759" }
+    ]
+});
+```
+
+Charts are inline SVG and support negative values. `pie` and `donut` use the first series, one slice per
+label. Other options: `id`, `width` (600), `height` (360), `legend` (shown for several series and for
+pie / donut). Returns the `<svg>` element, or `null` when the options are invalid.
+
+### Tables
+
+```js
+const { setRows } = generateTable({
+    parent: "wrapper",
+    caption: "Users",
+    columns: [{ key: "name", label: "Name" }, { key: "age", label: "Age", format: v => `${v} y` }],
+    rows: [{ name: "Anna", age: 31 }, { name: "Béla", age: 27 }],
+    filter: true,                // text filter box
+    pageSize: 10,                // 0 = no pagination
+    onRowClick: row => console.log(row)
+});
+```
+
+Click a header to sort (disable with `sortable: false`, or per column). Other options: `id`, `class`,
+`emptyText`. Returns `{ element, setRows(rows) }`.
 
 ### Usage from classic scripts
 
@@ -136,7 +182,7 @@ keep working. Load `athena-ui.js` with `type="module"` and call the globals afte
 </script>
 ```
 
-The global `appConfig`, `menuItems`, `nav` and `login` are used when the matching `init` option is
+The global `appConfig`, `menuItems`, `nav`, `login`, `register` and `lostPassword` are used when the matching `init` option is
 not given. `appConfig.athenaUIFolder` is not needed anymore, paths are resolved relative to
 `athena-ui.js`.
 
@@ -154,7 +200,7 @@ src/
   index.html, example.js    example page
   libs/
     config/                 default configuration, application hooks
-    hephaestus/             script and theme loader, layout / menu / form / modal generators
+    hephaestus/             script and theme loader, layout / menu / form / chart / table / modal generators
     crypto-js/, js-cookie/  submodules
     libs.js                 classic scripts loaded at runtime
   res/themes/               themes
@@ -169,6 +215,13 @@ src/
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 0.5.0
+  #### Added:
+   1. `generateChart`: bar, line, pie and donut charts as inline SVG
+   2. `generateTable`: sortable, filterable, paginated tables
+   3. `generateRegistrationForm` and `generateLostPasswordForm`, with the `register` / `lostPassword` callbacks and the `registration_enabled` / `lost_password_enabled` settings
+   4. Example page shows all of them
 
  ### 0.4.1
   #### Changed:
