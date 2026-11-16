@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Athena UI browser tests</title>
+    <script>
+        // jQuery is a peer dependency of Athena UI. ?jquery=<url> overrides the CDN (see run.mjs).
+        document.write(`<script src="${new URLSearchParams(location.search).get("jquery") ?? "https://code.jquery.com/jquery-4.0.0.min.js"}"><\/script>`);
+    </script>
+    <script type="module" src="suite.js"></script>
+</head>
+
+<body>
+</body>
+
+</html>
