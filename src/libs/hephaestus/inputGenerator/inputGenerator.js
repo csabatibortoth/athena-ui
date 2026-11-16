@@ -4,6 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { createCombobox } from "../../core/combobox.js";
+import { createDateRange } from "../../core/dateRange.js";
 import { cx, el, mount, setContent, uid } from "../../core/dom.js";
 import { formatBytes, matchesAccept } from "../../core/format.js";
 import { translate } from "../../core/i18n.js";
@@ -45,6 +46,33 @@ function wrapCombobox(options, mode) {
     wrapper.append(combo.element);
     mount(options.parent, wrapper);
     return combo;
+}
+
+/* ------------------DATE RANGE------------------- */
+
+/**
+ * Generates a from / to date picker (the native pickers of the browser). The end date cannot be picked before
+ * the start date, and validate() reports a reversed range typed by hand.
+ *
+ * @param {object} options
+ * @param {string|Element} [options.parent]
+ * @param {string} [options.label]
+ * @param {string} [options.from] initial start, "2026-01-31"
+ * @param {string} [options.to] initial end
+ * @param {string} [options.min] earliest date
+ * @param {string} [options.max] latest date
+ * @param {(value: {from: string, to: string}) => void} [options.onChange]
+ * @returns {{element: HTMLElement, getValue: () => {from: string, to: string}, setValue: Function, validate: () => string}}
+ */
+export function generateDateRange(options = {}) {
+    const range = createDateRange(options);
+    const wrapper = el("div", { class: "field" });
+    const error = el("div", { class: "field-error", attrs: { role: "alert" } });
+    if (options.label) wrapper.append(el("span", { class: "field-label", text: options.label }));
+    wrapper.append(range.element, error);
+    range.element.addEventListener("change", () => { error.textContent = range.validate(); });
+    mount(options.parent, wrapper);
+    return range;
 }
 
 /* ------------------FILE UPLOAD------------------- */

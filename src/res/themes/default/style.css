@@ -1218,3 +1218,238 @@ textarea {
         transition: none !important;
     }
 }
+
+/* Menu submenus */
+
+.has-submenu {
+    position: relative;
+}
+
+.menu-parent {
+    cursor: pointer;
+}
+
+.menu-parent::after {
+    content: " ▾";
+    font-size: 0.8em;
+}
+
+.submenu {
+    position: absolute;
+    z-index: 200;
+    top: 100%;
+    left: 0;
+    min-width: 160px;
+    margin: 2px 0 0;
+    padding: 4px 0;
+    list-style: none;
+    background-color: var(--athena-bg);
+    border: 1px solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    box-shadow: var(--athena-shadow);
+}
+
+.submenu[hidden] {
+    display: none;
+}
+
+.submenu-item {
+    padding: 6px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.submenu-item:hover:not([aria-disabled="true"]),
+.submenu-item:focus {
+    background-color: var(--athena-hover);
+}
+
+.submenu-item[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Table: resizable columns, virtual scrolling */
+
+.athena-table-resizable th {
+    position: relative;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.athena-col-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.athena-col-resizer:hover,
+.athena-col-resizer.resizing,
+.athena-col-resizer:focus-visible {
+    background-color: var(--athena-accent);
+    opacity: 0.6;
+}
+
+.athena-table-resizable td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.athena-table-scroll {
+    overflow: auto;
+    border: 1px solid var(--athena-line);
+}
+
+.athena-table-virtual {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.athena-table-virtual th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.athena-table-virtual tbody tr:not(.athena-table-spacer) {
+    height: var(--row-height, 36px);
+}
+
+/* The window of rows is computed from a fixed row height, so every row has to be exactly that high. */
+.athena-table-virtual td {
+    box-sizing: border-box;
+    height: var(--row-height, 36px);
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: calc(var(--row-height, 36px) - 2px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.athena-table-spacer td {
+    padding: 0;
+    border: 0;
+}
+
+/* Date range */
+
+.daterange {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+}
+
+.daterange-part {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Rich text editor */
+
+.richtext {
+    border: 1px solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background-color: var(--athena-bg);
+}
+
+.richtext:focus-within {
+    border-color: var(--athena-accent);
+}
+
+.rt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-bottom: 1px solid var(--athena-line);
+    background-color: var(--athena-surface);
+    border-radius: var(--athena-radius) var(--athena-radius) 0 0;
+}
+
+.rt-button {
+    min-width: 30px;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: none;
+    color: var(--athena-fg);
+    font: inherit;
+    cursor: pointer;
+}
+
+.rt-button:hover:not(:disabled) {
+    background-color: var(--athena-hover);
+}
+
+.rt-button[aria-pressed="true"] {
+    background-color: var(--athena-accent);
+    color: var(--athena-accent-fg);
+}
+
+.rt-bold {
+    font-weight: 700;
+}
+
+.rt-italic {
+    font-style: italic;
+}
+
+.rt-underline {
+    text-decoration: underline;
+}
+
+.rt-strike {
+    text-decoration: line-through;
+}
+
+.rt-separator {
+    width: 1px;
+    align-self: stretch;
+    margin: 2px 4px;
+    background-color: var(--athena-line);
+}
+
+.rt-editor {
+    padding: 8px 10px;
+    overflow-y: auto;
+    outline: none;
+}
+
+.rt-editor.rt-empty::before {
+    content: attr(data-placeholder);
+    color: var(--athena-muted);
+    pointer-events: none;
+    float: left;
+    height: 0;
+}
+
+.rt-editor blockquote {
+    margin: 8px 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--athena-line);
+    color: var(--athena-muted);
+}
+
+.rt-editor p {
+    margin: 0 0 8px;
+}
+
+.rt-disabled .rt-editor {
+    opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+    .submenu {
+        position: static;
+        box-shadow: none;
+    }
+}

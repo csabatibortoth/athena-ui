@@ -7,7 +7,7 @@ const {
     showToast, generateAlert, generateSpinner, generateProgress, alertDialog, confirmDialog, promptDialog,
     generateTabs, generateBreadcrumbs, generatePagination, generateAccordion, generateDropdown, generateSidebar,
     generateCard, generateBadge, generateAvatar, generateStat, generateGrid, generateTooltip, generateLink, generateSection,
-    generateAutocomplete, generateMultiSelect, generateFileUpload, generateStepper,
+    generateAutocomplete, generateMultiSelect, generateFileUpload, generateStepper, generateDateRange, generateRichText,
     setSession, getSession, logout, isLoggedIn
 } = ui;
 
@@ -45,6 +45,12 @@ const pages = {
         });
         generateButton({ parent: "wrapper", text: "Export CSV", variant: "secondary", onclick: () => table.exportCsv("users.csv") });
         document.getElementById("wrapper").append(selection);
+        section("Resizable columns and virtual scrolling (10 000 rows)");
+        generateTable({
+            id: "big-table", caption: "Drag a header edge, or focus it and use the arrow keys", resizableColumns: true, filter: true, virtual: { height: 320, rowHeight: 34 },
+            columns: [{ key: "id", label: "#", width: 80 }, { key: "name", label: "Name", width: 220 }, { key: "email", label: "Email", width: 280 }, { key: "score", label: "Score", width: 100 }],
+            rows: Array.from({ length: 10000 }, (_, i) => ({ id: i + 1, name: `User ${i + 1}`, email: `user${i + 1}@example.com`, score: (i * 37) % 101 }))
+        });
     },
 
     "/forms": () => {
@@ -66,6 +72,8 @@ const pages = {
                 { name: "interests", label: "Interests", type: "checkboxes", options: ["Music", "Sports", "Travel"] },
                 { name: "visited", label: "Visited countries", type: "multiselect", options: COUNTRIES },
                 { name: "home", label: "Home country (autocomplete)", type: "autocomplete", options: COUNTRIES },
+                { name: "period", label: "Stay (date range)", type: "daterange", required: true },
+                { name: "notes", label: "Notes (rich text)", type: "richtext", placeholder: "Write something..." },
                 { name: "news", label: "Send me the newsletter", type: "switch", value: true },
                 { name: "terms", label: "I accept the terms", type: "checkbox", required: true }
             ],
@@ -180,6 +188,11 @@ const pages = {
             parent: wrapper, label: "Async source (300 ms delay)", minChars: 2,
             options: async query => { await new Promise(r => setTimeout(r, 300)); return COUNTRIES.filter(c => c.toLowerCase().includes(query.toLowerCase())); }
         });
+        section("Date range");
+        generateDateRange({ parent: wrapper, label: "Period", from: "2026-01-01" });
+        section("Rich text");
+        const rich = generateRichText({ parent: wrapper, label: "Description", placeholder: "Write something...", value: "<p>Select text and use the toolbar. <strong>Safe HTML</strong> only.</p>" });
+        generateButton({ parent: wrapper, text: "Show HTML", variant: "secondary", onclick: () => alertDialog(rich.getValue() || "(empty)", { title: "HTML" }) });
         section("File upload (collects files, no server)");
         generateFileUpload({ parent: wrapper, accept: ".png,.jpg,image/*,.pdf", maxSize: 2 * 1024 * 1024, onSelect: files => showToast(`${files.length} file(s) added`) });
         section("Stepper");
@@ -215,14 +228,21 @@ const router = createRouter({
     notFound: () => generateAlert({ parent: "wrapper", type: "error", message: "Page not found" })
 });
 
-const MENU = ["Login", "Register", "Lost password", "Change password", "Charts", "Tables", "Forms", "Feedback", "Navigation", "Components", "Inputs", "Session"];
+// Submenus: a menu item with children opens a list
+const submenu = (label, children) => ({ id: `menu-${label}`, class: "menu-item", text: "", inner_text: label, children: children.map(inner_text => ({ inner_text })) });
+const item = label => ({ id: `menu-${label}`, class: "menu-item", text: "", inner_text: label });
 let darkTheme = false;
 
 init({
     theme: { id: 0 },
     config: { login_enabled: true, registration_enabled: true, lost_password_enabled: true, change_password_enabled: true, login_remember_me: true, header_title_text: "Athena UI" },
     menuItems: {
-        headerMenu: [...MENU, "Theme", "Language"].map(text => ({ id: `menu-${text}`, class: "menu-item", text: "", inner_text: text })),
+        headerMenu: [
+            submenu("Account", ["Login", "Register", "Lost password", "Change password", "Session"]),
+            submenu("Data", ["Charts", "Tables"]),
+            submenu("Library", ["Forms", "Feedback", "Navigation", "Components", "Inputs"]),
+            item("Theme"), item("Language")
+        ],
         footerMenu: []
     },
     nav: name => {

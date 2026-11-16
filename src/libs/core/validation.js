@@ -46,6 +46,23 @@ export function validateValue(value, rules = {}, values = {}) {
 }
 
 /**
+ * Checks a date range given as ISO dates ("2026-01-31"; they compare correctly as text).
+ * Returns the (translated) error text, or "" when the range is valid. Empty dates are not an error.
+ *
+ * @param {string} from
+ * @param {string} to
+ * @param {{min?: string, max?: string}} [limits]
+ */
+export function validateDateRange(from, to, { min, max } = {}) {
+    if (from && to && to < from) return translate("validation.dateRange");
+    for (const date of [from, to]) {
+        if (date && min && date < min) return translate("validation.dateMin", { min });
+        if (date && max && date > max) return translate("validation.dateMax", { max });
+    }
+    return "";
+}
+
+/**
  * Validates a whole form.
  *
  * @param {Object<string, object>} ruleSet rules by field name

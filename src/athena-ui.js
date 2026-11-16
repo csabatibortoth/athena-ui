@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 0.6.0
+//Version: 0.7.0
 
 /* global $ */
 
@@ -26,6 +26,8 @@ import * as dialog from "./libs/hephaestus/dialogGenerator/dialogGenerator.js";
 import * as navigation from "./libs/hephaestus/navigationGenerator/navigationGenerator.js";
 import * as components from "./libs/hephaestus/componentGenerator/componentGenerator.js";
 import * as inputs from "./libs/hephaestus/inputGenerator/inputGenerator.js";
+import * as richText from "./libs/hephaestus/inputGenerator/richTextGenerator.js";
+import * as sanitize from "./libs/core/sanitize.js";
 import * as router from "./libs/hephaestus/router/router.js";
 import * as session from "./libs/hephaestus/auth/session.js";
 import * as i18n from "./libs/core/i18n.js";
@@ -97,6 +99,8 @@ const AthenaUI = {
     ...navigation,
     ...components,
     ...inputs,
+    ...richText,
+    ...sanitize,
     ...router,
     ...session,
     ...i18n,
@@ -130,6 +134,8 @@ export * from "./libs/hephaestus/dialogGenerator/dialogGenerator.js";
 export * from "./libs/hephaestus/navigationGenerator/navigationGenerator.js";
 export * from "./libs/hephaestus/componentGenerator/componentGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/inputGenerator.js";
+export * from "./libs/hephaestus/inputGenerator/richTextGenerator.js";
+export * from "./libs/core/sanitize.js";
 export * from "./libs/hephaestus/router/router.js";
 export * from "./libs/hephaestus/auth/session.js";
 export * from "./libs/core/i18n.js";

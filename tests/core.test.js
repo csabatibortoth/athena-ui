@@ -5,7 +5,9 @@ import { toCsv } from "../src/libs/core/csv.js";
 import { formatBytes, matchesAccept } from "../src/libs/core/format.js";
 import { addMessages, setLocale, translate } from "../src/libs/core/i18n.js";
 import { pageRange } from "../src/libs/core/pagination.js";
-import { validateAll, validateValue } from "../src/libs/core/validation.js";
+import { isSafeUrl } from "../src/libs/core/sanitize.js";
+import { clampWidth, virtualWindow } from "../src/libs/core/tableMath.js";
+import { validateAll, validateDateRange, validateValue } from "../src/libs/core/validation.js";
 import { matchRoute, normalizePath, parseQuery } from "../src/libs/hephaestus/router/matchRoute.js";
 
 afterEach(() => setLocale("en"));
@@ -155,5 +157,75 @@ describe("format", () => {
         assert.equal(matchesAccept(png, "image/*"), true);
         assert.equal(matchesAccept(pdf, "image/*,.png"), false);
         assert.equal(matchesAccept(pdf, "application/pdf"), true);
+    });
+});
+
+describe("virtualWindow", () => {
+    const base = { viewportHeight: 100, rowHeight: 20, overscan: 2 };
+
+    test("window at the top", () => {
+        assert.deepEqual(virtualWindow({ ...base, scrollTop: 0, total: 1000 }), { start: 0, end: 7, offsetTop: 0, offsetBottom: 993 * 20 });
+    });
+
+    test("window in the middle keeps the total height", () => {
+        const w = virtualWindow({ ...base, scrollTop: 2000, total: 1000 });
+        assert.equal(w.start, 98);
+        assert.equal(w.end, 107);
+        assert.equal(w.offsetTop + (w.end - w.start) * 20 + w.offsetBottom, 1000 * 20);
+    });
+
+    test("window at the bottom does not run past the end", () => {
+        const w = virtualWindow({ ...base, scrollTop: 100000, total: 1000 });
+        assert.equal(w.end, 1000);
+        assert.equal(w.offsetBottom, 0);
+        assert.ok(w.start < w.end);
+    });
+
+    test("empty and short lists", () => {
+        assert.deepEqual(virtualWindow({ ...base, scrollTop: 0, total: 0 }), { start: 0, end: 0, offsetTop: 0, offsetBottom: 0 });
+        assert.deepEqual(virtualWindow({ ...base, scrollTop: 0, total: 3 }), { start: 0, end: 3, offsetTop: 0, offsetBottom: 0 });
+    });
+
+    test("negative scroll (elastic scrolling) is treated as the top", () => {
+        assert.equal(virtualWindow({ ...base, scrollTop: -50, total: 100 }).start, 0);
+    });
+
+    test("clampWidth", () => {
+        assert.equal(clampWidth(10), 40);
+        assert.equal(clampWidth(99.6), 100);
+        assert.equal(clampWidth(5000), 1200);
+        assert.equal(clampWidth(30, 50, 40), 50);
+    });
+});
+
+describe("validateDateRange", () => {
+    test("order", () => {
+        assert.equal(validateDateRange("2026-01-01", "2026-01-31"), "");
+        assert.equal(validateDateRange("2026-01-01", "2026-01-01"), "");
+        assert.match(validateDateRange("2026-02-01", "2026-01-31"), /must not be before/);
+    });
+
+    test("empty dates are not an error", () => {
+        assert.equal(validateDateRange("", ""), "");
+        assert.equal(validateDateRange("2026-01-01", ""), "");
+    });
+
+    test("limits", () => {
+        assert.match(validateDateRange("2025-12-31", "2026-01-05", { min: "2026-01-01" }), /2026-01-01 or later/);
+        assert.match(validateDateRange("2026-01-01", "2026-03-05", { max: "2026-02-01" }), /2026-02-01 or earlier/);
+    });
+});
+
+describe("isSafeUrl", () => {
+    test("accepts web, mail, phone and relative links", () => {
+        for (const url of ["https://a.com", "HTTP://a.com", "mailto:a@b.co", "tel:+3612345", "#top", "/path", "./a", "../a"]) {
+            assert.equal(isSafeUrl(url), true, url);
+        }
+    });
+
+    test("rejects script and data URLs, also when disguised", () => {
+        for (const url of ["javascript:alert(1)", "JaVaScRiPt:alert(1)", " javascript:alert(1)", "java\tscript:alert(1)", "java\nscript:alert(1)", "data:text/html,x", "vbscript:x", "//evil.com", "", null]) {
+            assert.equal(isSafeUrl(url), false, String(url));
+        }
     });
 });

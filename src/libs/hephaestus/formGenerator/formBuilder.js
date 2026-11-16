@@ -4,9 +4,11 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { createCombobox } from "../../core/combobox.js";
+import { createDateRange } from "../../core/dateRange.js";
 import { cx, el, mount, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
-import { validateValue } from "../../core/validation.js";
+import { validateDateRange, validateValue } from "../../core/validation.js";
+import { createRichText } from "../inputGenerator/richTextGenerator.js";
 
 const INPUT_TYPES = new Set([
     "text", "password", "email", "number", "date", "datetime-local", "time", "month", "week",
@@ -92,7 +94,7 @@ function choiceList(wrapper, kind, name, choices, value) {
  *
  * @param {object} options
  * @param {string} options.name key of the field in the form values
- * @param {"text"|"password"|"email"|"number"|"date"|"datetime-local"|"time"|"url"|"tel"|"search"|"color"|"range"|"file"|"hidden"|"textarea"|"select"|"checkbox"|"switch"|"radio"|"checkboxes"|"autocomplete"|"multiselect"} [options.type="text"]
+ * @param {"text"|"password"|"email"|"number"|"date"|"datetime-local"|"time"|"url"|"tel"|"search"|"color"|"range"|"file"|"hidden"|"textarea"|"select"|"checkbox"|"switch"|"radio"|"checkboxes"|"autocomplete"|"multiselect"|"daterange"|"richtext"} [options.type="text"]
  * @param {string} [options.label]
  * @param {string} [options.help] help text under the control
  * @param {*} [options.value] initial value (boolean for checkbox / switch, array for checkboxes / multiple select)
@@ -111,6 +113,11 @@ export function generateField(options = {}) {
     const { name, type = "text", label, help, placeholder, onChange } = options;
     const rules = { ...Object.fromEntries(RULE_KEYS.filter(key => options[key] != null).map(key => [key, options[key]])), ...options.rules };
     if (type === "email") rules.email = true;
+    // min / max of a date range are dates, not the numeric rules
+    if (type === "daterange") {
+        delete rules.min;
+        delete rules.max;
+    }
     const id = options.id ?? uid("field");
     const helpId = `${id}-help`;
     const errorId = `${id}-error`;
@@ -173,6 +180,21 @@ export function generateField(options = {}) {
         controlNodes = [combo.element];
         getValue = combo.getValue;
         setValue = combo.setValue;
+    } else if (type === "daterange") {
+        const range = createDateRange({ id, name, value: options.value, min: options.min, max: options.max, disabled: options.disabled });
+        controls = range.inputs;
+        controlNodes = [range.element];
+        getValue = range.getValue;
+        setValue = range.setValue;
+    } else if (type === "richtext") {
+        const rich = createRichText({
+            id, value: options.value, placeholder, minHeight: options.minHeight, toolbar: options.toolbar, disabled: options.disabled
+        });
+        rich.editor.setAttribute("aria-labelledby", `${id}-label`);
+        controls = [rich.editor];
+        controlNodes = [rich.element];
+        getValue = rich.getValue;
+        setValue = rich.setValue;
     } else if (INPUT_TYPES.has(type)) {
         const control = el("input", { id, attrs: { type, name, placeholder, multiple: options.multiple, accept: options.accept, min: options.min, max: options.max, step: options.step, autocomplete: options.autocomplete } });
         if (type !== "file" && options.value != null) control.value = options.value;
@@ -205,7 +227,7 @@ export function generateField(options = {}) {
     } else if (grouped) {
         wrapper.append(container);
     } else {
-        if (caption) wrapper.append(el("label", { class: "field-label", attrs: { for: id } }, caption));
+        if (caption) wrapper.append(el("label", { class: "field-label", id: `${id}-label`, attrs: { for: id } }, caption));
         wrapper.append(...(controlNodes ?? controls));
     }
     if (helpEl) wrapper.append(helpEl);
@@ -230,7 +252,11 @@ export function generateField(options = {}) {
         },
         validate() {
             const values = options.getValues?.() ?? { [name]: getValue() };
-            const error = validateValue(getValue(), rules, values);
+            const value = getValue();
+            // A date range counts as filled when both dates are given.
+            const filled = type === "daterange" && !(value.from && value.to) ? "" : value;
+            let error = validateValue(filled, rules, values);
+            if (!error && type === "daterange") error = validateDateRange(value.from, value.to, { min: options.min, max: options.max });
             field.setError(error);
             return error;
         },

@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **0.6.0**
+Current version: **0.7.0**
 
 ## Features
 
@@ -13,12 +13,13 @@ Current version: **0.6.0**
 - Menus built from your own item lists, with a navigation callback
 - Login, registration and lost password forms with optional SHA-256 password hashing
 - SVG charts (bar, line, pie, donut) without extra dependencies
-- Tables with sortable columns, filter box, pagination, row selection, inline editing and CSV export
+- Tables with sortable columns, filter box, pagination, row selection, inline editing, resizable columns, virtual scrolling for thousands of rows and CSV export
 - Form builder: text, number, date, textarea, select, radio / checkbox groups, switch, autocomplete, multi select, with validation
 - Buttons, toasts, alerts, spinner, progress bar, alert / confirm / prompt dialogs
 - Tabs, accordion, dropdown, sidebar, breadcrumbs, pagination and a hash / history router
 - Cards, grid, badges, avatars, KPI tiles, tooltips, links, sections
-- File upload with progress, stepper (wizard)
+- File upload with progress, stepper (wizard), date range picker, rich text editor
+- Menus with submenus
 - Session handling (login state in a cookie), change password form
 - Default and dark theme (switchable at runtime), responsive, translations (English, Hungarian), keyboard and ARIA support
 - Modal open / close helpers
@@ -106,7 +107,7 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"0.6.0"` | Version shown in the footer |
+| `version` | `"0.7.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -145,7 +146,8 @@ Everything is exported from `athena-ui.js`:
 | `generateTabs`, `generateBreadcrumbs`, `generatePagination`, `generateAccordion`, `generateDropdown`, `generateSidebar` | See [Navigation](#navigation) |
 | `createRouter(options)` | See [Router](#router) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
-| `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateStepper` | See [Inputs](#inputs) |
+| `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateStepper`, `generateDateRange`, `generateRichText` | See [Inputs](#inputs) |
+| `sanitizeHtml(html)`, `htmlToText(html)`, `isSafeUrl(url)` | The allow-list sanitizer behind the rich text editor |
 | `setSession`, `getSession`, `isLoggedIn`, `logout`, `onSessionChange` | See [Session](#session) |
 | `translate`, `setLocale`, `getLocale`, `addMessages` | See [Translations](#translations) |
 | `validateValue`, `validateAll` | The validator behind the form builder |
@@ -194,6 +196,8 @@ Click a header to sort (disable with `sortable: false`, or per column). Other op
 
 - `selectable: true` adds a checkbox column (the header checkbox selects every filtered row), `onSelectionChange(rows)` reports changes.
 - A column with `editable: true` can be edited with a double click, or Enter / F2 on the focused cell. `onEdit(row, key, value, oldValue)` is called after the edit; return `false` to reject it. Numeric cells stay numbers.
+- `resizableColumns: true` puts a drag handle on every header edge. The handle is focusable too: Left / Right resize by 10 px, Shift by 50 px, double click resets the column to its configured `width`. Columns take `width`, `minWidth` and `maxWidth`; `onColumnResize(key, width)` and `getColumnWidths()` let you persist the layout.
+- `virtual: { height: 400, rowHeight: 36, overscan: 5 }` (or `virtual: true`) renders only the rows in view and keeps the scroll bar the size of the whole list, so 10 000+ rows stay fast. Rows have a fixed height (the theme enforces it, one line per cell), the table scrolls inside `height` and its header stays visible. It replaces pagination; filtering, sorting, selection, editing and CSV export work as usual.
 - `exportCsv()` downloads the filtered and sorted rows. Cells that start with `=`, `+`, `-` or `@` are prefixed with `'` so a spreadsheet does not run them as formulas.
 
 ### Forms
@@ -217,7 +221,8 @@ const form = generateForm({
 
 Field types: `text`, `password`, `email`, `number`, `date`, `datetime-local`, `time`, `month`, `week`, `url`, `tel`,
 `search`, `color`, `range`, `file`, `hidden`, `textarea`, `select` (`multiple`), `checkbox`, `switch`, `radio`,
-`checkboxes`, `autocomplete`, `multiselect`. The date, time and color types use the native pickers of the browser.
+`checkboxes`, `autocomplete`, `multiselect`, `daterange` (value `{ from, to }`), `richtext` (value: safe HTML).
+The date, time and color types use the native pickers of the browser.
 
 Rules (`required`, `email`, `minLength`, `maxLength`, `pattern`, `min`, `max`, `match`, `validate(value, values)`) can be
 given on the field or in `rules`. A field is validated when it loses focus, then on every change. A rejected
@@ -265,6 +270,24 @@ generateSidebar({ parent: "wrapper", active: "home", onSelect: item => go(item.i
 
 Tabs, dropdown and the combobox inputs follow the WAI-ARIA keyboard patterns (arrow keys, Home / End, Esc).
 The sidebar collapses behind a toggle button on small screens.
+
+### Menus with submenus
+
+```js
+init({
+    menuItems: {
+        headerMenu: [
+            { id: "menu-home", class: "menu-item", text: "", inner_text: "Home" },
+            { id: "menu-more", class: "menu-item", text: "", inner_text: "More", children: [{ inner_text: "Reports" }, { inner_text: "Archive", disabled: true }] }
+        ],
+        footerMenu: []
+    },
+    nav: name => router.navigate(`/${name.toLowerCase()}`)   // called with the entry's inner_text
+});
+```
+
+A submenu opens with a click, Enter, Space or the Down arrow, closes with Esc, a click outside or by choosing an entry,
+and supports the arrow keys, Home and End. The same works in the footer menu.
 
 ### Router
 
@@ -314,6 +337,21 @@ generateStepper({ parent: "wrapper", onFinish: () => {}, steps: [
     { title: "Done", content: "Finished" }
 ] });
 ```
+
+```js
+generateDateRange({ parent: "wrapper", label: "Stay", from: "2026-06-01", min: "2026-01-01", onChange: ({ from, to }) => {} });
+const editor = generateRichText({ parent: "wrapper", label: "Description", placeholder: "Write...", value: "<p>Hello</p>",
+    toolbar: ["bold", "italic", "|", "ul", "ol", "link"], onChange: html => {} });
+editor.getValue();   // safe HTML, "" when empty
+```
+
+The date range uses the native date pickers; the end picker starts at the chosen start date and a reversed range typed by
+hand is reported. The rich text editor produces a restricted set of HTML (paragraphs, headings, bold / italic / underline /
+strike, lists, quotes, code, links). Everything else (scripts, styles, iframes, images, event attributes, `javascript:` and
+`data:` links) is removed when the content is set, pasted, dropped and read, so the value is safe to store and show with
+`innerHTML`; links get `rel="noopener noreferrer"`. Toolbar buttons: `bold`, `italic`, `underline`, `strike`, `h2`, `h3`,
+`quote`, `ul`, `ol`, `link`, `unlink`, `clear`, `undo`, `redo`. The editor is built on `contenteditable` and
+`document.execCommand`, which every browser still supports; sanitize on the server as well, as with any HTML you accept.
 
 Files are sent as a multipart POST (`fieldName`, `headers` are configurable). Without `url` the files are only collected,
 read them with `getFiles()`.
@@ -382,11 +420,15 @@ Switch themes at runtime with `setTheme({ id: 1 })`.
 ## Tests
 
 ```sh
-npm test
+npm test              # unit tests of the pure modules, run in Node
+npm run test:browser  # the components in headless Chrome
 ```
 
-The pure modules (validation, translations, router matching, CSV, pagination, formatting) are covered by unit tests
-that run in Node, no browser needed.
+The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges and the URL check.
+The browser tests start a small static server, open `tests/browser/index.html` in headless Chrome, Chromium or Edge and run every
+component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, toolbar, paste), tables (resizing, virtual scrolling), router,
+session, themes. Set `CHROME_PATH` if the browser is not found, and `JQUERY_URL` to load jQuery from somewhere else than the CDN
+(the machine needs internet access otherwise). `DEBUG=1` prints the browser log when the page does not report results.
 
 ## Project structure
 
@@ -396,13 +438,13 @@ src/
   index.html, example.js    example page
   libs/
     config/                 default configuration, application hooks
-    core/                   DOM / focus helpers, validation, translations, CSV, formatting
+    core/                   DOM / focus helpers, validation, translations, CSV, formatting, sanitizer, table math
     hephaestus/             script and theme loader, generators (layout, menu, forms, charts, tables, feedback,
                             dialogs, navigation, components, inputs), router, session
     crypto-js/, js-cookie/  submodules
     libs.js                 classic scripts loaded at runtime
   res/themes/               default and dark theme
-tests/                      unit tests
+tests/                      unit tests (Node) and browser tests (headless Chrome)
 ```
 
 ## Authors
@@ -414,6 +456,16 @@ tests/                      unit tests
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 0.7.0
+  #### Added:
+   1. Menus with submenus: `children` on a menu item, with keyboard support
+   2. Tables: resizable columns (mouse and keyboard) and virtual scrolling (`virtual`) for thousands of rows
+   3. `generateDateRange` and the `daterange` form field
+   4. `generateRichText` / `createRichText` and the `richtext` form field, with an allow-list sanitizer (`sanitizeHtml`, `isSafeUrl`)
+   5. Browser tests in headless Chrome (`npm run test:browser`), more unit tests
+  #### Changed:
+   1. English and Hungarian texts for the new components
 
  ### 0.6.0
   #### Added:
