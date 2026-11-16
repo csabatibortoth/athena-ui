@@ -5,7 +5,20 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **0.7.0**
+Current version: **1.0.0** (first stable release)
+
+[Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
+
+## Status
+
+1.0.0 is the first stable release. From here on the exported API of `src/athena-ui.js` follows
+[semantic versioning](https://semver.org/): breaking changes only come with a new major version.
+Known limits are listed below, so you can judge whether it fits your project:
+
+- Rich text uses the deprecated `document.execCommand`. Content is sanitized in the browser, but sanitize it on the server too.
+- The session cookie is readable from JavaScript. It is a UI state, not a security boundary: authenticate on the server.
+- Virtual table rows have to be a fixed height, one line per cell.
+- Translations: English and Hungarian.
 
 ## Features
 
@@ -107,7 +120,7 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"0.7.0"` | Version shown in the footer |
+| `version` | `"1.0.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -456,6 +469,13 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 1.0.0
+  #### Added:
+   1. Stable public API (semantic versioning from this release on)
+   2. README: status, known limits and quick links
+  #### Changed:
+   1. Version bumped to 1.0.0, no breaking changes since 0.7.0
 
  ### 0.7.0
   #### Added:
