@@ -10,6 +10,7 @@ import { formatBytes, matchesAccept } from "../../core/format.js";
 import { translate } from "../../core/i18n.js";
 import { generateButton } from "../formGenerator/formBuilder.js";
 import { generateProgress } from "../feedbackGenerator/feedbackGenerator.js";
+import { createDropZone } from "./dropZoneGenerator.js";
 
 /* ------------------COMBOBOX (autocomplete, multi select)------------------- */
 
@@ -98,11 +99,14 @@ export function generateDateRange(options = {}) {
 export function generateFileUpload(options = {}) {
     const { accept, multiple = true, maxSize, url, fieldName = "file", autoUpload = true } = options;
     const entries = [];
-    const input = el("input", { class: "dropzone-input", attrs: { type: "file", accept, multiple, tabindex: "-1", "aria-hidden": "true" } });
-    const zone = el("div", { class: "dropzone", attrs: { role: "button", tabindex: "0" } }, el("span", { text: translate("dropFiles") }));
+    const zone = createDropZone({
+        accept, multiple, maxSize,
+        onDrop: files => add(files),
+        onReject: rejected => { errors.textContent = rejected.map(item => item.reason).join(" "); }
+    });
     const list = el("ul", { class: "file-list" });
     const errors = el("div", { class: "field-error", attrs: { role: "alert" } });
-    const element = el("div", { id: options.id, class: cx("file-upload", options.class) }, zone, input, errors, list);
+    const element = el("div", { id: options.id, class: cx("file-upload", options.class) }, zone.element, errors, list);
 
     function render(entry) {
         entry.node ??= el("li", { class: "file-item" });
@@ -190,25 +194,6 @@ export function generateFileUpload(options = {}) {
             if (autoUpload) upload();
         }
     }
-
-    zone.addEventListener("click", () => input.click());
-    zone.addEventListener("keydown", event => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            input.click();
-        }
-    });
-    input.addEventListener("change", () => {
-        add(input.files);
-        input.value = "";
-    });
-    zone.addEventListener("dragover", event => { event.preventDefault(); zone.classList.add("dropzone-over"); });
-    zone.addEventListener("dragleave", () => zone.classList.remove("dropzone-over"));
-    zone.addEventListener("drop", event => {
-        event.preventDefault();
-        zone.classList.remove("dropzone-over");
-        add(event.dataTransfer.files);
-    });
 
     mount(options.parent, element);
     return {

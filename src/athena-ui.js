@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 1.0.0
+//Version: 1.1.0
 
 /* global $ */
 
@@ -26,6 +26,7 @@ import * as dialog from "./libs/hephaestus/dialogGenerator/dialogGenerator.js";
 import * as navigation from "./libs/hephaestus/navigationGenerator/navigationGenerator.js";
 import * as components from "./libs/hephaestus/componentGenerator/componentGenerator.js";
 import * as inputs from "./libs/hephaestus/inputGenerator/inputGenerator.js";
+import * as dropZone from "./libs/hephaestus/inputGenerator/dropZoneGenerator.js";
 import * as richText from "./libs/hephaestus/inputGenerator/richTextGenerator.js";
 import * as sanitize from "./libs/core/sanitize.js";
 import * as router from "./libs/hephaestus/router/router.js";
@@ -99,6 +100,7 @@ const AthenaUI = {
     ...navigation,
     ...components,
     ...inputs,
+    ...dropZone,
     ...richText,
     ...sanitize,
     ...router,
@@ -134,6 +136,7 @@ export * from "./libs/hephaestus/dialogGenerator/dialogGenerator.js";
 export * from "./libs/hephaestus/navigationGenerator/navigationGenerator.js";
 export * from "./libs/hephaestus/componentGenerator/componentGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/inputGenerator.js";
+export * from "./libs/hephaestus/inputGenerator/dropZoneGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/richTextGenerator.js";
 export * from "./libs/core/sanitize.js";
 export * from "./libs/hephaestus/router/router.js";
