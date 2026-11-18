@@ -56,7 +56,7 @@ async function reset() {
 test("every public function is exported and global", () => {
     const names = ["generateForm", "generateButton", "generateField", "showToast", "confirmDialog", "generateTabs", "createRouter",
         "generateAutocomplete", "generateMultiSelect", "generateFileUpload", "generateStepper", "generateDateRange", "generateRichText",
-        "createRichText", "sanitizeHtml", "setSession", "translate", "toCsv", "setTheme", "generateChangePasswordForm", "generateTable", "generateChart"];
+        "createRichText", "generateWysiwyg", "createWysiwyg", "generateDropZone", "createDropZone", "sanitizeHtml", "setSession", "translate", "toCsv", "setTheme", "generateChangePasswordForm", "generateTable", "generateChart"];
     for (const name of names) assert(typeof A[name] === "function" && typeof globalThis[name] === "function", `${name} missing`);
 });
 
@@ -309,6 +309,39 @@ test("file upload: accepts only valid files", () => {
     upload.add([new File(["hello"], "a.txt", { type: "text/plain" }), new File(["x".repeat(50)], "big.txt", { type: "text/plain" }), new File(["x"], "img.png", { type: "image/png" })]);
     equal(upload.getFiles().length, 1);
     assert($1(".field-error", upload.element).textContent.includes("big.txt"), "size error");
+});
+
+test("drop zone: validates dropped files and reports the rest", () => {
+    const dropped = [];
+    const rejected = [];
+    const zone = A.generateDropZone({ parent: "wrapper", accept: ".txt", maxSize: 10, maxFiles: 1, onDrop: files => dropped.push(...files), onReject: items => rejected.push(...items) });
+    const data = new DataTransfer();
+    for (const file of [new File(["a"], "a.txt"), new File(["b"], "b.txt"), new File(["x"], "c.png"), new File(["x".repeat(50)], "big.txt")]) data.items.add(file);
+    zone.element.dispatchEvent(new DragEvent("dragenter", { dataTransfer: data, bubbles: true, cancelable: true }));
+    assert(zone.element.classList.contains("dropzone-over"), "over state");
+    zone.element.dispatchEvent(new DragEvent("drop", { dataTransfer: data, bubbles: true, cancelable: true }));
+    assert(!zone.element.classList.contains("dropzone-over"), "over state cleared");
+    equal(dropped.map(file => file.name).join(), "a.txt");
+    equal(rejected.length, 3);
+    zone.setDisabled(true);
+    zone.element.dispatchEvent(new DragEvent("drop", { dataTransfer: data, bubbles: true, cancelable: true }));
+    equal(dropped.length, 1, "disabled zone ignores drops");
+});
+
+test("wysiwyg: source view round trips and sanitizes", () => {
+    const editor = A.generateWysiwyg({ parent: "wrapper", label: "Body", value: "<p>Hi <b>there</b></p>" });
+    const toggle = $1(".rt-source", editor.element);
+    assert(toggle, "source button");
+    toggle.click();
+    const source = $1(".rt-source-view", editor.element);
+    assert(!source.hidden && editor.editor.hidden, "source open");
+    assert(source.value.includes("there") && source.value.startsWith("<p>"), "source shows the HTML");
+    source.value = '<p>ok</p><script>alert(1)</script><img src=x onerror=alert(1)>';
+    toggle.click();
+    equal(editor.getValue(), "<p>ok</p>");
+    assert(source.hidden && !editor.editor.hidden, "source closed");
+    const form = A.generateForm({ parent: "wrapper", fields: [{ name: "body", type: "wysiwyg" }], onSubmit: () => {} });
+    assert($1(".rt-source", form.element), "wysiwyg form field has the source button");
 });
 
 test("date range: end picker follows the start, reversed range is reported", async () => {

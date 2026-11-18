@@ -8,7 +8,7 @@ import { createDateRange } from "../../core/dateRange.js";
 import { cx, el, mount, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { validateDateRange, validateValue } from "../../core/validation.js";
-import { createRichText } from "../inputGenerator/richTextGenerator.js";
+import { createRichText, createWysiwyg } from "../inputGenerator/richTextGenerator.js";
 
 const INPUT_TYPES = new Set([
     "text", "password", "email", "number", "date", "datetime-local", "time", "month", "week",
@@ -94,7 +94,7 @@ function choiceList(wrapper, kind, name, choices, value) {
  *
  * @param {object} options
  * @param {string} options.name key of the field in the form values
- * @param {"text"|"password"|"email"|"number"|"date"|"datetime-local"|"time"|"url"|"tel"|"search"|"color"|"range"|"file"|"hidden"|"textarea"|"select"|"checkbox"|"switch"|"radio"|"checkboxes"|"autocomplete"|"multiselect"|"daterange"|"richtext"} [options.type="text"]
+ * @param {"text"|"password"|"email"|"number"|"date"|"datetime-local"|"time"|"url"|"tel"|"search"|"color"|"range"|"file"|"hidden"|"textarea"|"select"|"checkbox"|"switch"|"radio"|"checkboxes"|"autocomplete"|"multiselect"|"daterange"|"richtext"|"wysiwyg"} [options.type="text"]
  * @param {string} [options.label]
  * @param {string} [options.help] help text under the control
  * @param {*} [options.value] initial value (boolean for checkbox / switch, array for checkboxes / multiple select)
@@ -186,8 +186,8 @@ export function generateField(options = {}) {
         controlNodes = [range.element];
         getValue = range.getValue;
         setValue = range.setValue;
-    } else if (type === "richtext") {
-        const rich = createRichText({
+    } else if (type === "richtext" || type === "wysiwyg") {
+        const rich = (type === "wysiwyg" ? createWysiwyg : createRichText)({
             id, value: options.value, placeholder, minHeight: options.minHeight, toolbar: options.toolbar, disabled: options.disabled
         });
         rich.editor.setAttribute("aria-labelledby", `${id}-label`);

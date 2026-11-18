@@ -992,6 +992,16 @@ textarea {
     display: none;
 }
 
+.dropzone-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dropzone-disabled:hover {
+    border-color: var(--athena-line);
+    background-color: transparent;
+}
+
 .file-list {
     list-style: none;
     padding: 0;
@@ -1441,6 +1451,24 @@ textarea {
 
 .rt-editor p {
     margin: 0 0 8px;
+}
+
+.rt-source-view {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    outline: none;
+    resize: vertical;
+    background: transparent;
+    color: var(--athena-fg);
+    font-family: monospace;
+}
+
+.rt-source-view[hidden],
+.rt-editor[hidden] {
+    display: none;
 }
 
 .rt-disabled .rt-editor {

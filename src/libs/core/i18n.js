@@ -44,6 +44,7 @@ const messages = {
         "validation.match": "The values do not match.",
         "validation.invalid": "The value is invalid.",
         "validation.fileSize": "{name} is larger than {max}.",
+        "validation.maxFiles": "At most {max} files are accepted.",
         "validation.url": "Enter a valid address (https://, mailto: or tel:).",
         "validation.dateRange": "The end date must not be before the start date.",
         "validation.dateMin": "The date must be {min} or later.",
@@ -68,7 +69,8 @@ const messages = {
         "rt.clear": "Clear formatting",
         "rt.undo": "Undo",
         "rt.redo": "Redo",
-        "rt.linkPrompt": "Link address"
+        "rt.linkPrompt": "Link address",
+        "rt.source": "HTML source"
     },
     hu: {
         username: "Felhasználónév",
@@ -107,6 +109,7 @@ const messages = {
         "validation.match": "Az értékek nem egyeznek.",
         "validation.invalid": "Érvénytelen érték.",
         "validation.fileSize": "{name} mérete meghaladja a {max} értéket.",
+        "validation.maxFiles": "Legfeljebb {max} fájl fogadható el.",
         "validation.url": "Adjon meg érvényes címet (https://, mailto: vagy tel:).",
         "validation.dateRange": "A záró dátum nem lehet korábbi a kezdő dátumnál.",
         "validation.dateMin": "A dátum legkorábban {min} lehet.",
@@ -131,7 +134,8 @@ const messages = {
         "rt.clear": "Formázás törlése",
         "rt.undo": "Visszavonás",
         "rt.redo": "Újra",
-        "rt.linkPrompt": "Hivatkozás címe"
+        "rt.linkPrompt": "Hivatkozás címe",
+        "rt.source": "HTML forrás"
     }
 };
 
