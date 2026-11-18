@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **1.0.0** (first stable release)
+Current version: **1.1.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -31,7 +31,7 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Buttons, toasts, alerts, spinner, progress bar, alert / confirm / prompt dialogs
 - Tabs, accordion, dropdown, sidebar, breadcrumbs, pagination and a hash / history router
 - Cards, grid, badges, avatars, KPI tiles, tooltips, links, sections
-- File upload with progress, stepper (wizard), date range picker, rich text editor
+- File upload with progress, drag-and-drop area, stepper (wizard), date range picker, rich text and WYSIWYG editor
 - Menus with submenus
 - Session handling (login state in a cookie), change password form
 - Default and dark theme (switchable at runtime), responsive, translations (English, Hungarian), keyboard and ARIA support
@@ -120,7 +120,7 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"1.0.0"` | Version shown in the footer |
+| `version` | `"1.1.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -159,7 +159,7 @@ Everything is exported from `athena-ui.js`:
 | `generateTabs`, `generateBreadcrumbs`, `generatePagination`, `generateAccordion`, `generateDropdown`, `generateSidebar` | See [Navigation](#navigation) |
 | `createRouter(options)` | See [Router](#router) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
-| `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateStepper`, `generateDateRange`, `generateRichText` | See [Inputs](#inputs) |
+| `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateDropZone`, `generateStepper`, `generateDateRange`, `generateRichText`, `generateWysiwyg` | See [Inputs](#inputs) |
 | `sanitizeHtml(html)`, `htmlToText(html)`, `isSafeUrl(url)` | The allow-list sanitizer behind the rich text editor |
 | `setSession`, `getSession`, `isLoggedIn`, `logout`, `onSessionChange` | See [Session](#session) |
 | `translate`, `setLocale`, `getLocale`, `addMessages` | See [Translations](#translations) |
@@ -234,7 +234,7 @@ const form = generateForm({
 
 Field types: `text`, `password`, `email`, `number`, `date`, `datetime-local`, `time`, `month`, `week`, `url`, `tel`,
 `search`, `color`, `range`, `file`, `hidden`, `textarea`, `select` (`multiple`), `checkbox`, `switch`, `radio`,
-`checkboxes`, `autocomplete`, `multiselect`, `daterange` (value `{ from, to }`), `richtext` (value: safe HTML).
+`checkboxes`, `autocomplete`, `multiselect`, `daterange` (value `{ from, to }`), `richtext` and `wysiwyg` (value: safe HTML).
 The date, time and color types use the native pickers of the browser.
 
 Rules (`required`, `email`, `minLength`, `maxLength`, `pattern`, `min`, `max`, `match`, `validate(value, values)`) can be
@@ -366,6 +366,17 @@ strike, lists, quotes, code, links). Everything else (scripts, styles, iframes, 
 `quote`, `ul`, `ol`, `link`, `unlink`, `clear`, `undo`, `redo`. The editor is built on `contenteditable` and
 `document.execCommand`, which every browser still supports; sanitize on the server as well, as with any HTML you accept.
 
+```js
+generateDropZone({ parent: "wrapper", accept: "image/*", maxSize: 2 * 1024 * 1024, maxFiles: 3,
+    onDrop: files => {}, onReject: rejected => rejected.forEach(({ file, reason }) => {}) });
+const wysiwyg = generateWysiwyg({ parent: "wrapper", label: "Body", value: "<p>Hello</p>" });   // rich text + HTML source view
+```
+
+`generateDropZone` is a bare drag-and-drop area (also reachable with Enter / Space and the file dialog). Dropped files are
+checked against `accept`, `maxSize` and `maxFiles`; valid ones go to `onDrop`, the others to `onReject` with a reason. It
+reads and sends nothing, and `setDisabled(true)` turns it off. `generateWysiwyg` is the rich text editor plus a `source`
+toolbar button that shows the sanitized HTML; what is typed there is sanitized again when you switch back.
+
 Files are sent as a multipart POST (`fieldName`, `headers` are configurable). Without `url` the files are only collected,
 read them with `getFiles()`.
 
@@ -469,6 +480,13 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 1.1.0
+  #### Added:
+   1. `generateDropZone` / `createDropZone`: drag-and-drop area with file type, size and count checks
+   2. `generateWysiwyg` / `createWysiwyg` and the `wysiwyg` form field: rich text editor with a sanitized HTML source view
+  #### Changed:
+   1. `generateFileUpload` is built on the drop zone; dragging over child elements no longer flickers
 
  ### 1.0.0
   #### Added:
