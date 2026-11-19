@@ -1,7 +1,7 @@
 /** Builds the control described by `options` without appending it. Returns the element, or null (an error is reported). */
 export function buildControl(options: any): any;
 /**
- * Registers a new input type. `factory(options)` returns the element to append (a jQuery object is accepted too).
+ * Registers a new input type. `factory(options)` returns the element to append.
  * Addons use this to plug in their controls, see registerHungarianInputControls.
  */
 export function registerControl(inputType: any, factory: any): void;
@@ -20,8 +20,8 @@ export function generateControl(options?: {}): HTMLElement | undefined;
 export function HTMLControlGenerator(options: any): void;
 export namespace HTMLControlGenerator {
     /**
-     * Builds the control without appending it. Like the standalone project it returns a jQuery object when jQuery is on the page
-     * (Odin NS Manager relies on that), and the plain element when it is not. Undefined when the options are not valid.
+     * Builds the control without appending it and returns the element (the standalone project returned a jQuery object: wrap it yourself with
+     * `$(HTMLControlGenerator.create(options))` if you still need one). Undefined when the options are not valid.
      */
     export function create(options: any): any;
     export { registerControl as register };
