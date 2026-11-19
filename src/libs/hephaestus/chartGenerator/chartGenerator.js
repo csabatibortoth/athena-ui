@@ -274,7 +274,7 @@ function drawLine(svg, ctx) {
             const outline = [`M${points[0][0]},${baseline}`, ...points.map(p => `L${p.join(",")}`), `L${points.at(-1)[0]},${baseline}`, "Z"];
             clipped.append(svgEl("path", { d: outline.join(" "), class: "chart-area" }));
         }
-        clipped.append(svgEl("polyline", { points: points.map(p => p.join(",")).join(" "), class: "chart-line", fill: "none" }));
+        clipped.append(svgEl("polyline", { points: points.map(p => p.join(",")).join(" "), class: "chart-line", fill: "none", pathLength: 1 }));
         group.append(clipped);
         if (dotted) {
             for (const i of inside) {
@@ -524,6 +524,7 @@ function buildDataTable({ labels, series, times, title, type }) {
  * @param {(range: ({from: number, to: number}|null)) => void} [options.onZoom] called when a person zooms or resets
  * @param {number} [options.maxPoints] `push` keeps at most this many points per series (the oldest are dropped)
  * @param {number[]} [options.hiddenSeries] the series (or slices) that are hidden at the start; a person hides and shows them with the legend, and a redraw keeps that
+ * @param {boolean} [options.animate=true] the first drawing animates: bars grow, a line is drawn, slices pop in (not when it is redrawn, and not under reduced motion)
  * @param {boolean} [options.interactive=true] line and area charts: false leaves out the pointer layer (tooltip that follows the pointer, zoom)
  * @returns {(SVGElement & {element: SVGElement, update: (options?: object) => SVGElement, destroy: () => void,
  *            zoom: (from: number, to: number) => void, resetZoom: () => void, getZoom: () => ({from: number, to: number}|null),
@@ -539,6 +540,8 @@ export function generateChart(options = {}) {
     if (options.labels) state.used.labels = [...options.labels];
     if (options.times) state.used.times = [...options.times];
     const hidden = new Set(options.hiddenSeries ?? []);
+    // Only the first drawing animates (bars grow, the line is drawn, slices pop in): a redraw while streaming or zooming must not start it again
+    let firstDrawing = options.animate !== false;
     const hooks = {
         legend: (series, off) => {
             if (off) hidden.add(series);
@@ -554,7 +557,7 @@ export function generateChart(options = {}) {
     const handle = {
         element: () => state.current.svg,
         redraw() {
-            const next = buildChart(state.used, hooks);
+            const next = buildChart(state.used, hooks, { animate: false });
             if (!next) return state.current?.svg;
             // A redraw replaces the whole SVG (every second while streaming, and when someone zooms). The keyboard focus would be lost
             // with it, so it goes to the same place in the new one: the same legend entry, the same point, or the plot.
@@ -623,7 +626,8 @@ export function generateChart(options = {}) {
         dataTable: { get: () => state.current.table ?? null, configurable: true }
     });
 
-    const built = buildChart(state.used, hooks);
+    const built = buildChart(state.used, hooks, { animate: firstDrawing });
+    firstDrawing = false;
     if (!built) return null;
     state.current = built;
     const host = resolveElement(options.parent ?? "wrapper") ?? document.body;
@@ -632,7 +636,7 @@ export function generateChart(options = {}) {
     return attach(built.svg);
 }
 
-function buildChart(options = {}, hooks) {
+function buildChart(options = {}, hooks, { animate = false } = {}) {
     const { type = "bar", id, title } = options;
     const sparkline = type === "sparkline";
     const width = options.width ?? (sparkline ? 120 : 600);
@@ -652,7 +656,7 @@ function buildChart(options = {}, hooks) {
         return null;
     }
 
-    const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, width, height, class: `athena-chart athena-chart-${type}`, role: "img" });
+    const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, width, height, class: `athena-chart athena-chart-${type}${animate && type !== "sparkline" ? " athena-chart-animated" : ""}`, role: "img" });
     if (id) svg.id = id;
     const summary = `${title ?? translate(`chart.${type}`)}: ${series.map(s => s.name ?? "").filter(Boolean).join(", ")}`.replace(/: $/, "");
     svg.setAttribute("aria-label", options.ariaLabel ?? summary);

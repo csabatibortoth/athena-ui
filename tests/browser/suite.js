@@ -39,6 +39,7 @@ window.addEventListener("error", event => results.push(`FAIL uncaught error: ${e
 window.addEventListener("unhandledrejection", event => results.push(`FAIL unhandled rejection: ${event.reason}`));
 
 const A = await import("../../src/athena-ui.js");
+A.setMotion("reduce");     // no motion in the tests: a dialog that fades out would still be in the page for a moment. The motion tests turn it on.
 const navCalls = [];
 const submitted = [];
 await A.init({
@@ -1287,6 +1288,308 @@ test("dropdown and tooltip without the popover API: the plain fallback (hidden, 
     }
 });
 
+// The motion tests turn the motion on for their own length (the rest of the suite runs with it off)
+const withMotion = async (fn, mode = "full") => {
+    A.setMotion(mode);
+    try {
+        await fn();
+    } finally {
+        A.setMotion("reduce");
+    }
+};
+const waitUntil = async (check, message, ms = 3000) => {
+    for (let i = 0; i < ms / 25 && !(await check()); i++) await tick(25);
+    assert(await check(), message);
+};
+
+test("motion: the preference lives on <html>, the tokens follow it, the functions read it", async () => {
+    const root = document.documentElement;
+    const seen = [];
+    const stop = A.onMotionChange(state => seen.push(state.preference + ":" + state.reduced));
+    A.setMotion("full");
+    equal(root.dataset.motion, "full");
+    equal(A.getMotion(), "full");
+    equal(A.prefersReducedMotion(), false);
+    equal(A.readDuration("--athena-duration-base"), 200);
+    equal(A.readDuration("--athena-duration-slow"), 360);
+    A.setMotion("reduce");
+    equal(root.dataset.motion, "reduce");
+    equal(A.prefersReducedMotion(), true);
+    equal(A.readDuration("--athena-duration-base"), 0, "the tokens are 0 under reduced motion");
+    equal(A.readDuration("--athena-duration-fast"), 0);
+    equal(A.setMotion("sideways"), false, "an unknown value is refused");
+    A.setMotion("system");
+    assert(!("motion" in root.dataset), "system: no attribute");
+    const systemReduced = A.prefersReducedMotion();     // what the system says (the machine of the test decides)
+    A.setMotion("reduce");
+    stop();
+    equal(seen.join(), "full:false,reduce:true,system:" + systemReduced + ",reduce:true");
+});
+
+test("motion: animate() runs a Web Animation and resolves at the end; under reduced motion it does nothing", async () => {
+    const box = document.createElement("div");
+    document.getElementById("wrapper").append(box);
+    await withMotion(async () => {
+        const running = A.animate(box, [{ opacity: 0 }, { opacity: 1 }], { duration: 120 });
+        equal(box.getAnimations().length, 1, "an animation is running");
+        const animation = await running;
+        assert(animation && animation.playState === "finished", "it finished: " + animation?.playState);
+        // cancelling with a signal: resolves, does not reject
+        const controller = new AbortController();
+        const cancelled = A.animate(box, [{ translate: "0 0" }, { translate: "40px 0" }], { duration: 2000, signal: controller.signal });
+        controller.abort();
+        await cancelled;
+        equal(box.getAnimations().length, 0, "cancelled");
+        // fadeOut removes the element
+        const gone = document.createElement("div");
+        document.getElementById("wrapper").append(gone);
+        await A.fadeOut(gone, { duration: 60 });
+        assert(!gone.isConnected, "fadeOut removed it");
+    });
+    equal(await A.animate(box, [{ opacity: 0 }, { opacity: 1 }], { duration: 5000 }), null, "reduced: nothing");
+    equal(box.getAnimations().length, 0);
+    const other = document.createElement("div");
+    document.getElementById("wrapper").append(other);
+    await A.fadeOut(other);
+    assert(!other.isConnected, "reduced: fadeOut removes at once");
+});
+
+test("motion: transition() waits for the CSS transition (and not longer than it lasts), flip() slides what moved, tween() counts", async () => {
+    // a constructed style sheet is allowed by the strict policy of this page
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(".mt { opacity: 1; transition: opacity 90ms linear; } .mt.off { opacity: 0; } .flip-list { display: flex; flex-direction: column; } .flip-list > div { height: 20px; }");
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    const box = document.createElement("div");
+    box.className = "mt";
+    document.getElementById("wrapper").append(box);
+    try {
+        await withMotion(async () => {
+            const t0 = performance.now();
+            await A.transition(box, () => box.classList.add("off"));
+            const took = performance.now() - t0;
+            assert(took >= 60 && took < 1000, "waited for the transition: " + Math.round(took) + " ms");
+            equal(A.transitionTime(box), 90);
+            // flip: reverse a list, the children that moved are animated, the promise resolves when they are over
+            const list = document.createElement("div");
+            list.className = "flip-list";
+            list.innerHTML = "<div>a</div><div>b</div><div>c</div>";
+            document.getElementById("wrapper").append(list);
+            const kids = [...list.children];
+            const done = A.flip(list, () => list.append(...[...list.children].reverse()), { duration: 150 });
+            assert(kids[0].getAnimations().length === 1 && kids[2].getAnimations().length === 1, "the first and the last moved and slide");
+            equal(kids[1].getAnimations().length, 0, "the one in the middle did not move");
+            await done;
+            equal(kids[0].getAnimations().length, 0, "over");
+            // a new child fades in
+            const fresh = document.createElement("div");
+            await A.flip(list, () => list.prepend(fresh), { duration: 60 });
+            assert(!fresh.getAnimations().length, "the new one has faded in");
+            list.remove();
+        });
+        // reduced motion: flip only does the change (nothing slides)
+        const list2 = document.createElement("div");
+        list2.className = "flip-list";
+        list2.innerHTML = "<div>a</div><div>b</div>";
+        document.getElementById("wrapper").append(list2);
+        const first = list2.children[0];
+        await A.flip(list2, () => list2.append(first));
+        equal(list2.lastElementChild, first, "the change was done");
+        equal(first.getAnimations().length, 0, "and nothing slides");
+        list2.remove();
+    } finally {
+        document.adoptedStyleSheets = document.adoptedStyleSheets.filter(item => item !== sheet);
+        box.remove();
+    }
+});
+
+test("motion: spring, easings, stagger, sequence, parallel, tween", async () => {
+    const { easing, duration } = A.spring();
+    assert(/^linear\(0, /.test(easing) && easing.endsWith("1)"), "a linear() easing: " + easing.slice(0, 40));
+    assert(duration > 150 && duration < 3000, "a duration: " + duration);
+    assert(A.spring({ stiffness: 400, damping: 40 }).duration < duration, "a stiffer, damped spring settles sooner");
+    equal(A.easings.linear(0.3), 0.3);
+    equal(A.easings.easeOutCubic(0), 0);
+    equal(A.easings.easeOutCubic(1), 1);
+    assert(A.easings.easeOutBack(0.7) > 1 || A.easings.easeOutBack(0.9) > 1, "back overshoots");
+    equal(A.staggerDelays(5, 40).join(), "0,40,80,120,160");
+    equal(A.staggerDelays(5, 40, "end").join(), "160,120,80,40,0");
+    equal(A.staggerDelays(5, 40, "center").join(), "80,40,0,40,80");
+    const log = [];
+    await A.sequence([async () => { await tick(30); log.push("a"); }, async () => { log.push("b"); }]);
+    equal(log.join(), "a,b", "one after the other");
+    log.length = 0;
+    await A.parallel([async () => { await tick(40); log.push("slow"); }, async () => { log.push("fast"); }]);
+    equal(log.join(), "fast,slow", "together");
+    const calls = [];
+    await A.stagger(["x", "y", "z"], (item, index, delay) => calls.push(item + index + ":" + delay), { step: 10 });
+    equal(calls.join(), "x0:0,y1:10,z2:20");
+    // tween
+    await withMotion(async () => {
+        const values = [];
+        const running = A.tween({ from: 0, to: 100, duration: 120, onUpdate: value => values.push(value) });
+        await running;
+        assert(values.length >= 2 && values.at(-1) === 100, "ends on the value: " + values.at(-1));
+        assert(values.every((value, index) => index === 0 || value >= values[index - 1]), "never goes back");
+        const point = [];
+        await A.tween({ from: { x: 0, y: 10 }, to: { x: 4, y: 0 }, duration: 60, onUpdate: value => point.push(value) });
+        assert(point.at(-1).x === 4 && point.at(-1).y === 0, "objects too");
+        const stopped = [];
+        const slow = A.tween({ from: 0, to: 1, duration: 5000, onUpdate: value => stopped.push(value) });
+        await tick(60);
+        slow.cancel();
+        await slow;
+        assert(stopped.length > 0 && stopped.at(-1) < 1, "cancelled on the way");
+    });
+    const jump = [];
+    await A.tween({ from: 0, to: 7, duration: 5000, onUpdate: value => jump.push(value) });
+    equal(jump.join(), "7", "reduced: one jump to the end");
+});
+
+test("motion: viewTransition() uses the API when there is one and motion is wanted", async () => {
+    const real = document.startViewTransition;
+    const calls = [];
+    document.startViewTransition = update => {
+        calls.push("start");
+        const done = Promise.resolve(update());
+        return { updateCallbackDone: done, finished: done };
+    };
+    try {
+        let ran = 0;
+        await withMotion(async () => {
+            await A.viewTransition(() => { ran++; });
+        });
+        equal(calls.length, 1, "used in full motion");
+        equal(ran, 1);
+        await A.viewTransition(() => { ran++; });
+        equal(calls.length, 1, "not used under reduced motion");
+        equal(ran, 2, "but the update was run");
+        let failure = null;
+        try {
+            await withMotion(() => A.viewTransition(() => { throw new Error("page failed"); }));
+        } catch (error) {
+            failure = error.message;
+        }
+        equal(failure, "page failed", "an error of the update comes out");
+        document.startViewTransition = undefined;
+        await withMotion(async () => { await A.viewTransition(() => { ran++; }); });
+        equal(ran, 3, "without the API the update is just run");
+    } finally {
+        document.startViewTransition = real;
+    }
+});
+
+test("motion: a dialog and a toast fade out before they are taken away; at once under reduced motion", async () => {
+    await withMotion(async () => {
+        const dialog = A.showDialog({ title: "Fading", content: "x" });
+        assert(getComputedStyle(dialog.element).transitionDuration.includes("0.2s"), "the dialog has a transition: " + getComputedStyle(dialog.element).transitionDuration);
+        await tick(300);
+        dialog.close("done");
+        assert(dialog.element.isConnected && !dialog.element.open, "closed, but still there while it fades");
+        equal(await dialog, "done", "the promise does not wait for the fade");
+        await waitUntil(() => !dialog.element.isConnected, "taken away after the fade");
+        const toast = A.showToast({ message: "Bye", duration: 0 });
+        const node = $1(".toast");
+        toast.close();
+        assert(node.classList.contains("is-leaving") && node.isConnected, "leaving");
+        await waitUntil(() => !node.isConnected, "removed after the fade");
+    });
+    const quick = A.showDialog({ title: "Quick", content: "x" });
+    quick.close();
+    assert(!quick.element.isConnected, "reduced: removed at once");
+    A.showToast({ message: "Quick", duration: 0 }).close();
+    assert(!$1(".toast"), "reduced: the toast is gone at once");
+});
+
+test("motion: a chart animates its first drawing only, a skeleton shimmers, both stand still under reduced motion", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="mc"></div>');
+    await withMotion(async () => {
+        const chart = A.generateChart({ parent: "mc", id: "m-chart", type: "bar", labels: ["a", "b"], series: [{ data: [3, 5] }] });
+        assert($1("#m-chart").classList.contains("athena-chart-animated"), "the first drawing animates");
+        equal(getComputedStyle($1("#m-chart .chart-bar")).animationName, "athena-grow");
+        equal(getComputedStyle($1("#m-chart .chart-bar")).animationDuration, "0.36s");
+        chart.update({ series: [{ data: [4, 6] }] });
+        assert(!$1("#m-chart").classList.contains("athena-chart-animated"), "a redraw does not animate again");
+        chart.destroy();
+        const still = A.generateChart({ parent: "mc", id: "m-still", type: "line", animate: false, labels: ["a", "b"], series: [{ data: [3, 5] }] });
+        assert(!$1("#m-still").classList.contains("athena-chart-animated"), "animate: false");
+        still.destroy();
+        const line = A.generateChart({ parent: "mc", id: "m-line", type: "line", labels: ["a", "b", "c"], series: [{ data: [1, 3, 2] }] });
+        equal(getComputedStyle($1("#m-line .chart-line")).animationName, "athena-draw");
+        equal($1("#m-line .chart-line").getAttribute("pathLength"), "1");
+        line.destroy();
+        const skeleton = A.generateSkeleton({ parent: "mc", lines: 3 });
+        equal($$(".athena-skeleton-line", skeleton.element).length, 3);
+        equal(skeleton.element.getAttribute("role"), "status");
+        equal(getComputedStyle($1(".athena-skeleton-line", skeleton.element)).animationName, "athena-shimmer");
+        skeleton.destroy();
+    });
+    const chart = A.generateChart({ parent: "mc", id: "m-reduced", type: "bar", labels: ["a"], series: [{ data: [3] }] });
+    equal(getComputedStyle($1("#m-reduced .chart-bar")).animationDuration, "0s", "reduced: the animation has no length");
+    chart.destroy();
+    const skeleton = A.generateSkeleton({ parent: "mc" });
+    equal(getComputedStyle($1(".athena-skeleton-line", skeleton.element)).animationName, "none");
+    $1("#mc").remove();
+});
+
+test("motion: a theme change cross-fades, the router can use a view transition, a table slides its rows", async () => {
+    // the theme manager
+    const root = document.documentElement;
+    const saved = { theme: root.dataset.theme, mode: root.dataset.mode };
+    const manager = A.createThemeManager({ themes: [{ id: "a" }, { id: "b" }], storageKey: "athena.test.motion" });
+    await withMotion(async () => {
+        manager.setTheme("b");
+        assert(root.classList.contains("athena-switching"), "crossfading");
+        await waitUntil(() => !root.classList.contains("athena-switching"), "the class goes away again", 2000);
+    });
+    manager.setMode("dark");
+    assert(!root.classList.contains("athena-switching"), "reduced: no cross-fade");
+    manager.destroy();
+    localStorage.removeItem("athena.test.motion");
+    if (saved.theme) root.dataset.theme = saved.theme; else delete root.dataset.theme;
+    if (saved.mode) root.dataset.mode = saved.mode; else delete root.dataset.mode;
+
+    // the router
+    const real = document.startViewTransition;
+    let started = 0;
+    document.startViewTransition = update => {
+        started++;
+        const done = Promise.resolve(update());
+        return { updateCallbackDone: done, finished: done };
+    };
+    const host = document.getElementById("wrapper");
+    const router = A.createRouter({ mode: "hash", outlet: "wrapper", transition: true, routes: { "/m1": () => { host.textContent = "page one"; }, "/m2": () => { host.textContent = "page two"; } } });
+    try {
+        await withMotion(async () => {
+            router.start();
+            location.hash = "#/m1";
+            await waitUntil(() => host.textContent === "page one", "page one is drawn");
+            location.hash = "#/m2";
+            await waitUntil(() => host.textContent === "page two", "page two is drawn");
+            assert(started >= 2, "both changes were view transitions: " + started);
+        });
+        const before = started;
+        location.hash = "#/m1";
+        await waitUntil(() => host.textContent === "page one", "reduced: page one again");
+        equal(started, before, "reduced: no view transition");
+    } finally {
+        router.stop();
+        document.startViewTransition = real;
+        location.hash = "";
+        await tick(60);
+    }
+
+    // the table
+    const table = A.generateTable({ parent: "wrapper", id: "anim-table", animateRows: true, columns: [{ key: "n", label: "N" }], rows: [{ n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }] });
+    await withMotion(async () => {
+        $1("#anim-table thead th").click();     // sort ascending: nothing moves
+        $1("#anim-table thead th").click();     // descending: the rows change places
+        const moving = $$("#anim-table tbody tr").filter(tr => tr.getAnimations().length > 0);
+        assert(moving.length >= 2, "rows slide: " + moving.length);
+        equal($1("#anim-table tbody tr td").textContent, "4");
+    });
+    table.destroy();
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
@@ -1678,6 +1981,7 @@ test("theme switch replaces the stylesheet", async () => {
 /* ------------------RUN------------------- */
 
 for (const { name, fn } of tests) {
+    document.title = `running: ${name}`;     // the runner prints it when the page does not finish
     await reset();
     const seen = violations.length;
     let failure = null;

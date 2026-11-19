@@ -4,6 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { cx, el, setContent, uid } from "../../core/dom.js";
+import { removeAfterTransition } from "../../core/motion.js";
 import { translate } from "../../core/i18n.js";
 import { generateButton, generateForm } from "../formGenerator/formBuilder.js";
 
@@ -48,8 +49,8 @@ export function showDialog(options = {}) {
                 return;
             }
             if (dialog.open) dialog.close();
-            dialog.remove();
             resolve(value);
+            removeAfterTransition(dialog);      // it fades out first (at once under reduced motion)
         };
 
         // Esc: the browser asks (cancel); a dialog that cannot be dismissed stays, and beforeClose can still say no

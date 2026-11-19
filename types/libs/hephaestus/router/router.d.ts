@@ -17,6 +17,9 @@
  * @param {boolean} [options.focusContent=false] after a page is shown the outlet gets the focus (it is made focusable for that), so a
  *        screen reader starts reading the new page and the keyboard continues there
  * @param {boolean} [options.scrollTop=false] scroll to the top after a page is shown
+ * @param {boolean} [options.transition=false] a page change is a view transition (document.startViewTransition): the old page cross-fades into the new one,
+ *        and elements with a `view-transition-name` move from one page to the next. Without the API, or under reduced motion, nothing changes. The old page
+ *        stays on the screen until the page function of the new one is done, so pages that need long to build should draw something quickly.
  * @param {object} [options.auth] sign-in rules for routes, see the route options below
  * @param {() => boolean} [options.auth.isSignedIn]
  * @param {(role: string) => boolean} [options.auth.hasRole]
@@ -49,6 +52,7 @@ export function createRouter(options?: {
     onShown?: (context: any, route: any) => void;
     focusContent?: boolean;
     scrollTop?: boolean;
+    transition?: boolean;
     auth?: {
         isSignedIn?: () => boolean;
         hasRole?: (role: string) => boolean;

@@ -36,7 +36,7 @@ export async function launch() {
     const portFile = join(profile, "DevToolsActivePort");
     const port = Number((await until(() => existsSync(portFile) && readFileSync(portFile, "utf8").split("\n")[0], { timeout: 60000, message: "the browser to start" })));
 
-    async function newPage() {
+    async function newPage({ front = false } = {}) {
         const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
         const socket = new WebSocket(target.webSocketDebuggerUrl);
         await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = () => reject(new Error("could not connect to the page")); });
@@ -74,6 +74,7 @@ export async function launch() {
             }
         });
         await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Log.enable"), send("Network.enable")]);
+        if (front) await send("Page.bringToFront");     // a tab in the background gets no animation frames (the component tests need them; the demo tests with real input work without)
 
         const page = {
             problems,

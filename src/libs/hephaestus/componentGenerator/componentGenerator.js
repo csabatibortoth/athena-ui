@@ -327,6 +327,23 @@ export function generateEmptyState(options = {}) {
 }
 
 /**
+ * A skeleton: grey lines with a shimmer where text or a card will be, so the page does not jump when it arrives. It is a live region that says
+ * "Loading..." to a screen reader; the shimmer stops under reduced motion.
+ *
+ * @param {object} [options]
+ * @param {string|Element} [options.parent]
+ * @param {number} [options.lines=3] the last of several lines is shorter
+ * @param {string} [options.class] e.g. "skeleton-card" in your own CSS gives the box a height
+ */
+export function generateSkeleton(options = {}) {
+    const lines = Array.from({ length: Math.max(1, options.lines ?? 3) }, () => el("span", { class: "athena-skeleton athena-skeleton-line", attrs: { "aria-hidden": "true" } }));
+    const element = el("div", { id: options.id, class: cx("athena-skeleton-box", options.class), attrs: { role: "status", "aria-live": "polite" } },
+        ...lines, el("span", { class: "athena-visually-hidden", text: translate("loading") }));
+    mount(options.parent, element);
+    return asHandle({ element });
+}
+
+/**
  * A placeholder while something loads: a spinner and a text (a live region, so a screen reader says it).
  *
  * @param {object} [options]
