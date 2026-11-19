@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { cx, el, mount, uid } from "../../core/dom.js";
+import { asHandle, cx, el, mount, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { htmlToText, isSafeUrl, sanitizeHtml } from "../../core/sanitize.js";
 
@@ -244,7 +244,7 @@ export function generateRichText(options = {}) {
     }
     wrapper.append(rich.element);
     mount(options.parent, wrapper);
-    return rich;
+    return asHandle(rich, { also: wrapper });
 }
 
 /**

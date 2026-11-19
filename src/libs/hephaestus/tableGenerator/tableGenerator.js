@@ -4,6 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { downloadFile, toCsv } from "../../core/csv.js";
+import { asHandle, resolveElement } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { clampWidth, virtualWindow } from "../../core/tableMath.js";
 
@@ -57,7 +58,7 @@ const compare = (a, b) =>
  * @param {boolean} [options.wrap] true lets long text wrap, false keeps one line with an ellipsis (default: wrap, except in virtual tables)
  * Column extras: `render(row, value)` returns text or a Node (built by the caller, so safe by construction), `align`
  * ("left" | "center" | "right"), `title` (false switches the tooltip with the full text off).
- * @returns {{element: HTMLElement, setRows: Function, getSelected: () => object[], clearSelection: Function,
+ * @returns {{element: HTMLElement, update: Function, destroy: Function, setRows: Function, getSelected: () => object[], clearSelection: Function,
  *            getColumnWidths: () => Object<string, number>, toCsv: () => string, exportCsv: (filename?: string) => void}}
  */
 export function generateTable(options = {}) {
@@ -69,7 +70,7 @@ export function generateTable(options = {}) {
         ? { height: 400, rowHeight: 36, overscan: 5, ...(options.virtual === true ? {} : options.virtual) }
         : null;
     const pageSize = virtual ? 0 : (options.pageSize ?? 0);
-    const host = (typeof parent === "string" ? document.getElementById(parent) : parent) ?? document.body;
+    const host = resolveElement(parent) ?? document.body;
     let rows = [...(options.rows ?? [])];
     let current = rows;                     // filtered and sorted rows
     const selected = new Set();
@@ -489,8 +490,14 @@ export function generateTable(options = {}) {
     }
 
     render();
-    return {
+    return asHandle({
         element: root,
+        // update() draws the table again; update({ rows }) also replaces the rows.
+        update(next) {
+            if (next?.rows) this.setRows(next.rows);
+            else render();
+            return this;
+        },
         setRows(newRows) {
             rows = [...newRows];
             selected.clear();
@@ -511,5 +518,5 @@ export function generateTable(options = {}) {
         exportCsv(filename = "table.csv") {
             downloadFile(filename, toCsv(columns, current));
         }
-    };
+    });
 }

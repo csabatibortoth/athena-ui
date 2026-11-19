@@ -47,11 +47,38 @@ export function setContent(node, content) {
     return node;
 }
 
-// Appends a node to a parent given as element or id. Falls back to the body.
+/**
+ * Finds an element from an element, an id or a CSS selector ("#list", ".panel > ul").
+ * An id wins over a selector with the same text. Returns null when nothing matches.
+ */
+export function resolveElement(target) {
+    if (target instanceof Element) return target;
+    if (typeof target !== "string" || !target) return null;
+    const byId = document.getElementById(target);
+    if (byId) return byId;
+    try {
+        return document.querySelector(target);
+    } catch {
+        return null; // not a valid selector
+    }
+}
+
+// Appends a node to a parent given as element, id or selector. Falls back to the body.
 export function mount(parent, node) {
-    const host = typeof parent === "string" ? document.getElementById(parent) : parent;
-    (host ?? document.body).append(node);
+    (resolveElement(parent) ?? document.body).append(node);
     return node;
+}
+
+/**
+ * Gives a component the same handle as every other one: { element, update(), destroy() }.
+ * What the component already has is kept. `update` does nothing unless the component supports it
+ * (it returns the handle), `destroy` removes the element (and `also`, e.g. a wrapper around it).
+ */
+export function asHandle(handle, { element = handle.element, also } = {}) {
+    handle.element ??= element;
+    handle.update ??= () => handle;
+    handle.destroy ??= () => (also ?? element)?.remove();
+    return handle;
 }
 
 export const cx = (...classes) => classes.filter(Boolean).join(" ");

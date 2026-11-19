@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { cx, el, mount, setContent, uid } from "../../core/dom.js";
+import { asHandle, cx, el, mount, resolveElement, setContent, uid } from "../../core/dom.js";
 
 /**
  * Generates a link. External links open in a new tab and get `rel="noopener noreferrer"`.
@@ -81,7 +81,7 @@ export function generateCard(options = {}) {
     card.append(body);
     if (options.footer) card.append(setContent(el("div", { class: "card-footer" }), options.footer));
     mount(options.parent, card);
-    return { element: card, body };
+    return asHandle({ element: card, body });
 }
 
 /**
@@ -155,7 +155,8 @@ export function generateStat(options = {}) {
         element.append(el("div", { class: cx("stat-delta", `stat-${kind}`), text: `${arrow} ${Math.abs(options.delta)}%` }));
     }
     mount(options.parent, element);
-    return { element, setValue: text => { value.textContent = String(text); } };
+    const setValue = text => { value.textContent = String(text); };
+    return asHandle({ element, setValue, update: ({ value: text } = {}) => { if (text != null) setValue(text); } });
 }
 
 /**
@@ -181,7 +182,7 @@ export function generateGrid(options = {}) {
  * @param {string} text
  */
 export function generateTooltip(target, text) {
-    const node = typeof target === "string" ? document.getElementById(target) : target;
+    const node = resolveElement(target);
     if (!node) return null;
     const id = uid("tooltip");
     const tip = el("span", { class: "tooltip-text", id, text, attrs: { role: "tooltip" } });

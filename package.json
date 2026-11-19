@@ -10,11 +10,13 @@
   },
   "exports": {
     ".": "./src/athena-ui.js",
+    "./testing": "./src/testing.js",
     "./themes/*": "./src/res/themes/*",
     "./package.json": "./package.json"
   },
   "files": [
     "src/athena-ui.js",
+    "src/testing.js",
     "src/libs/libs.js",
     "src/libs/config",
     "src/libs/hephaestus/hephaestus.js",

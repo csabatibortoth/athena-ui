@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { cx, el, mount, setContent } from "../../core/dom.js";
+import { asHandle, cx, el, mount, setContent } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 
 const TOAST_CONTAINER_ID = "athena-toasts";
@@ -134,5 +134,5 @@ export function generateProgress(options = {}) {
     };
     setValue(options.value);
     mount(options.parent, element);
-    return { element, setValue };
+    return asHandle({ element, setValue, update: ({ value } = {}) => setValue(value) });
 }

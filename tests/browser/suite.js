@@ -224,6 +224,26 @@ test("table: virtual list that starts empty fills the window when it gets rows a
     assert(count() >= 10, "window too small: " + count());
 });
 
+test("handles: parent as element, id or selector; update and destroy", () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="slot-a" class="slot"><span class="inner"></span></div><div id="slot-b"></div>');
+    const byId = A.generateStat({ parent: "slot-b", label: "L", value: 1 });
+    const bySelector = A.generateStat({ parent: "#slot-a > .inner", label: "L", value: 2 });
+    const byElement = A.generateStat({ parent: $1("#slot-b"), label: "L", value: 3 });
+    assert($1("#slot-b").contains(byId.element) && $1("#slot-b").contains(byElement.element), "id / element parent");
+    assert($1("#slot-a .inner").contains(bySelector.element), "selector parent");
+    bySelector.update({ value: 9 });
+    equal($1(".stat-value", bySelector.element).textContent, "9");
+    const chart = A.generateChart({ parent: "#slot-a", type: "bar", labels: ["a"], series: [{ data: [1] }] });
+    assert($1("#slot-a").contains(chart.element), "chart in selector parent");
+    chart.update({ series: [{ data: [5] }] });
+    assert($1("#slot-a svg") && $$("#slot-a svg").length === 1, "chart updated in place");
+    const tabs = A.generateTabs({ parent: $1("#slot-b"), tabs: [{ id: "t", label: "T", content: "x" }] });
+    tabs.destroy();
+    assert(!$1("#slot-b .tab-list"), "destroy removes the element");
+    A.generateTable({ parent: "#slot-b", id: "sel-table", columns: [{ key: "a" }], rows: [{ a: 1 }] }).destroy();
+    assert(!$1("#sel-table"), "table destroy");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

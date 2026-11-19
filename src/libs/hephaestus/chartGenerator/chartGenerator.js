@@ -5,6 +5,8 @@
 
 // Dependency free SVG charts: bar, line, pie and donut.
 
+import { resolveElement } from "../../core/dom.js";
+
 const NS = "http://www.w3.org/2000/svg";
 const PALETTE = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"];
 const MARGIN = { top: 40, right: 20, bottom: 50, left: 55 };
@@ -157,10 +159,42 @@ const DRAWERS = {
  * @param {number} [options.width=600]
  * @param {number} [options.height=360]
  * @param {boolean} [options.legend] default: shown for several series, and for pie / donut
- * @returns {SVGElement|null} null when the options are invalid
+ * @returns {(SVGElement & {element: SVGElement, update: (options?: object) => void, destroy: () => void})|null}
+ *          the SVG element, which also carries the handle ({ element, update(options), destroy() }) of the other
+ *          components; null when the options are invalid. `parent` is an element, an id or a selector.
  */
 export function generateChart(options = {}) {
-    const { type = "bar", parent = "wrapper", id, title, width = 600, height = 360 } = options;
+    const svg = buildChart(options);
+    if (!svg) return null;
+    (resolveElement(options.parent ?? "wrapper") ?? document.body).append(svg);
+    return withHandle(svg, options);
+}
+
+// update(changes) draws the chart again with the old options plus the changes, in the same place.
+function withHandle(svg, options) {
+    let current = svg;
+    let used = options;
+    const handle = {
+        get element() { return current; },
+        update(changes = {}) {
+            const next = buildChart({ ...used, ...changes });
+            if (!next) return current;
+            used = { ...used, ...changes };
+            current.replaceWith(next);
+            current = withHandle(next, used);
+            return current;
+        },
+        destroy() { current.remove(); }
+    };
+    return Object.defineProperties(svg, {
+        element: { get: () => handle.element, configurable: true },
+        update: { value: handle.update, configurable: true },
+        destroy: { value: handle.destroy, configurable: true }
+    });
+}
+
+function buildChart(options = {}) {
+    const { type = "bar", id, title, width = 600, height = 360 } = options;
     const draw = DRAWERS[type];
     const series = (options.series ?? []).filter(s => Array.isArray(s?.data) && s.data.length);
     if (!draw || !series.length) {
@@ -182,6 +216,5 @@ export function generateChart(options = {}) {
     if (options.legend ?? (Boolean(pieLegend) || series.length > 1)) {
         addLegend(svg, pieLegend ?? series.map((s, i) => ({ name: s.name ?? `Series ${i + 1}`, color: colorOf(s, i) })), width, height);
     }
-    (document.getElementById(parent) ?? document.body).append(svg);
     return svg;
 }

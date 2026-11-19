@@ -5,7 +5,7 @@
 
 import { createCombobox } from "../../core/combobox.js";
 import { createDateRange } from "../../core/dateRange.js";
-import { cx, el, mount, uid } from "../../core/dom.js";
+import { asHandle, cx, el, mount, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { validateDateRange, validateValue } from "../../core/validation.js";
 import { createRichText, createWysiwyg } from "../inputGenerator/richTextGenerator.js";
@@ -58,7 +58,7 @@ export function generateButton(options = {}) {
         sync();
     }
     mount(options.parent, element);
-    return {
+    return asHandle({
         element,
         setLoading(value) {
             loading = Boolean(value);
@@ -71,7 +71,7 @@ export function generateButton(options = {}) {
         setText(text) {
             label.textContent = text;
         }
-    };
+    });
 }
 
 /* ------------------FIELD------------------- */
@@ -277,7 +277,7 @@ export function generateField(options = {}) {
             if (event === "change" || event === "input") onChange?.(getValue(), field);
         }));
     });
-    return field;
+    return asHandle(field);
 }
 
 /* ------------------FORM------------------- */
@@ -375,5 +375,5 @@ export function generateForm(options = {}) {
     });
 
     mount(options.parent, element);
-    return form;
+    return asHandle(form);
 }

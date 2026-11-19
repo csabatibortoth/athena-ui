@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { cx, el, mount, setContent, uid } from "../../core/dom.js";
+import { asHandle, cx, el, mount, setContent, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { pageRange } from "../../core/pagination.js";
 
@@ -85,7 +85,7 @@ export function generateTabs(options = {}) {
 
     mount(options.parent, element);
     select(options.active ?? tabs.find(tab => !tab.disabled)?.id);
-    return { element, select, getActive: () => active };
+    return asHandle({ element, select, getActive: () => active });
 }
 
 /* ------------------BREADCRUMBS------------------- */
@@ -169,7 +169,7 @@ export function generatePagination(options = {}) {
 
     render();
     mount(options.parent, element);
-    return {
+    return asHandle({
         element,
         getPage: () => page,
         setPage: go,
@@ -177,7 +177,7 @@ export function generatePagination(options = {}) {
             total = value;
             render();
         }
-    };
+    });
 }
 
 /* ------------------ACCORDION------------------- */
@@ -226,7 +226,7 @@ export function generateAccordion(options = {}) {
     (options.items ?? []).forEach((item, index) => { if (item.open) toggle(index, true); });
 
     mount(options.parent, element);
-    return { element, toggle };
+    return asHandle({ element, toggle });
 }
 
 /* ------------------DROPDOWN------------------- */
@@ -314,7 +314,7 @@ export function generateDropdown(options = {}) {
     });
 
     mount(options.parent, element);
-    return { element, open, close };
+    return asHandle({ element, open, close });
 }
 
 /* ------------------SIDEBAR------------------- */
@@ -393,5 +393,5 @@ export function generateSidebar(options = {}) {
 
     mount(options.parent, element);
     if (options.active) select(options.active);
-    return { element, select, toggle };
+    return asHandle({ element, select, toggle });
 }
