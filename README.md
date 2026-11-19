@@ -1,26 +1,28 @@
 # Athena UI
 
-A small UI framework for development and education purposes (jQuery is optional). It generates a page
+A small UI framework for development and education purposes. It generates a page
 layout (header, menu, content wrapper, footer) from a single `init()` call, loads its own libraries
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **1.3.0**
+Current version: **2.0.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
 ## Status
 
-1.0.0 is the first stable release. From here on the exported API of `src/athena-ui.js` follows
-[semantic versioning](https://semver.org/): breaking changes only come with a new major version.
+The exported API of `src/athena-ui.js` follows [semantic versioning](https://semver.org/): breaking changes only come with a new major version.
+**Coming from 1.x? Read [docs/migration-2.0.md](docs/migration-2.0.md)** (no jQuery, no globals, no hashing in the browser, native dialogs, CSS layer).
 Known limits are listed below, so you can judge whether it fits your project:
 
 - Rich text uses the deprecated `document.execCommand`. Content is sanitized in the browser, but sanitize it on the server too.
 - The session cookie is readable from JavaScript. It is a UI state, not a security boundary: authenticate on the server.
 - Virtual table rows have to be a fixed height, one line per cell (set it with `virtual.rowHeight`; the CSS variable `--row-height` follows).
 - Translations: English and Hungarian.
-- jQuery is optional since 1.3.0. The older generators (`generateLoginForm`, the layout and the header / footer menu built from `menuItems`) still work, and
-  they no longer need it. Everything new (`generateMenu`, the sign in forms, dialogs, charts, tables, ...) is plain DOM.
+- Athena UI has **no dependencies**: no jQuery, no bundled library, nothing is loaded at run time, and nothing is put on `window` unless you opt in with
+  `athena-ui-js/classic`. The older generators (`generateLoginForm`, the layout and the header / footer menu built from `menuItems`) are plain DOM too.
+- The default theme follows the system's dark mode. Put `data-mode="light"` on `<html>` (or use `createThemeManager`) to choose.
+- Dialogs and the accordion use the native `<dialog>` and `<details>` elements, so they need a browser that supports cascade layers and `<dialog>` (2022 or later). The dropdown still has its own menu.
 
 ## Features
 
@@ -44,34 +46,31 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Default and dark theme (switchable at runtime), responsive, translations (English, Hungarian), keyboard and ARIA support
 - Modal open / close helpers
 - Themes loaded at runtime, custom stylesheets supported
-- Written as ES modules, no build step
+- Written as ES modules, no build step, no dependencies, TypeScript definitions, one entry point per component, and a cascade layer so your CSS always wins
+- Content-Security-Policy friendly: no inline script, no inline style, text from data is only ever inserted as text (the browser tests run under a strict policy)
 
 ## Requirements
 
-- jQuery is optional (v4.0.0, only if your own code or an older application uses it). Athena UI itself does not need it.
-- A browser with ES module support
+- A current browser: ES modules, the native `<dialog>` and `<details>` elements and cascade layers (`@layer`, `@import ... layer()`): Chrome / Edge 99, Safari 15.4, Firefox 97 or later
 - The page has to be served over HTTP(S). Modules do not load from `file://`.
-
-Bundled as git submodules (third party):
-
-| Library | Version | Used for |
-| --- | --- | --- |
-| [crypto-js](https://github.com/brix/crypto-js) | 4.2.0 | password hashing |
-| [js-cookie](https://github.com/js-cookie/js-cookie) | 3.0.8 | cookie handling |
+- Nothing else: Athena UI has no runtime dependencies. (TypeScript is a dev dependency, used to write the type definitions.)
 
 ## Installation
 
 ```sh
-git clone --recurse-submodules https://github.com/csabatibortoth/athena-ui.git
+npm install athena-ui-js
 ```
 
-In an existing clone, or after updating:
-
-```sh
-git submodule update --init
+```js
+import { init, generateTable } from "athena-ui-js";        // everything
+import { generateTable } from "athena-ui-js/table";        // or only what you use, so the rest is never downloaded
 ```
 
-Serve the `src` folder with any static web server and open `index.html` to see the example.
+The entry points are `table`, `chart`, `dialog`, `menu`, `navigation`, `forms`, `feedback`, `components`, `inputs`, `router`, `session`, `theme`, `i18n`, `format`,
+`validation`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
+The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, so a bundler drops everything you do not import.
+
+Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
 
 ## Usage
 
@@ -104,6 +103,18 @@ Serve the `src` folder with any static web server and open `index.html` to see t
 `init()` returns a Promise that resolves with the effective configuration once the libraries and
 the theme are loaded and the layout is generated.
 
+### Inside a page: createApp
+
+`init()` builds the page layout into the body. `createApp` builds it into an element of your own page, so Athena UI can be one part of a larger one:
+
+```js
+const app = await createApp({ root: "#my-section", config: { generateHeader: false, generateFooter: false } });
+generateTable({ parent: "wrapper", /* ... */ });      // the wrapper of the app is the default parent
+app.destroy();
+```
+
+It takes the options of `init()`. The header and footer follow the settings `generateHeader` and `generateFooter`. The parts have fixed ids, so use one app per page.
+
 ### init options
 
 | Option | Description |
@@ -124,7 +135,7 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"1.3.0"` | Version shown in the footer |
+| `version` | `"2.0.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -136,7 +147,6 @@ the theme are loaded and the layout is generated.
 | `locale` | `"en"` | Language of the generated texts (`en`, `hu`, or your own, see [Translations](#translations)) |
 | `session_cookie` | `"athena_session"` | Name of the session cookie |
 | `session_days` | `7` | Lifetime of a remembered session in days |
-| `enable_encrypt_password` | `false` | SHA-256 hash the password before it is passed to `login` / `register` |
 | `customLoader` | | URL of an extra classic script, loaded before the layout is generated |
 | `container_class`, `header_class`, `header_menu_class`, `wrapper_class`, `footer_class`, `footer_menu_class`, `loginForm_class`, `registrationForm_class`, `lostPasswordForm_class`, `changePasswordForm_class` | | CSS classes of the generated blocks |
 
@@ -180,12 +190,13 @@ Everything is exported from `athena-ui.js`:
 | `setTheme({ id })` | Switch the theme at runtime |
 | `openModal(id)`, `closeModal(id)` | Show / hide a `.modal` element (default id: `myModal`). Elements with the `close` class close their modal. |
 | `loadScript(src)` | Load a classic script once, returns a Promise |
-| `Cookies` | The [js-cookie](https://github.com/js-cookie/js-cookie) API |
+| `Cookies` | `get(name)`, `set(name, value, { expires, path, domain, sameSite, secure })`, `remove(name)`: a small cookie helper (`expires` is days or a Date) |
+| `createApp(options)` | `init` into any element, see [Inside a page](#inside-a-page-createapp) |
 | `HTMLElementGenerator(options)` | Generates a div, span, p, heading or img and appends it to the element with the id `parent` |
 | `HTMLControlGenerator(options)`, `HTMLControlGenerator.create(options)`, `HTMLControlGenerator.register(type, factory)` | Generates inputs, selects and lists from an options object. `create` builds without appending and returns the element (a jQuery object when the page has jQuery). `registerHungarianInputControls()` adds the types `hunPIN`, `hunCRID` and `hunTID` |
 
 HTMLElementGenerator and HTMLControlGenerator used to be projects of their own. They are part of Athena UI now (the calls and options are the
-same, and HTMLControlGenerator no longer needs jQuery); the old repositories are no longer developed.
+same, and HTMLControlGenerator has no jQuery in it); the old repositories are no longer developed.
 
 ### Charts
 
@@ -322,6 +333,10 @@ const saved = await showFormDialog({
 
 if (await showConfirm({ title: "Delete host", message: "This cannot be undone.", confirmText: "Delete", danger: true, typeToConfirm: host.name })) { /* ... */ }
 ```
+
+A dialog is the native `<dialog>` element opened with `showModal()`: the browser puts it above everything (the top layer), makes the page behind it inert, draws the backdrop
+(`dialog.dialog::backdrop`), and gives the focus back. Style `dialog.dialog` and `.dialog-inner`. In tests under jsdom use `installDom` from `athena-ui-js/testing`
+(it adds `showModal()`), and close a dialog with the `cancel` event, as the browser does for Esc.
 
 Dialogs trap the focus, close with Esc (resolving `null` / `false`) and restore the focus. Text content is
 never parsed as HTML. `openModal` / `closeModal` got the same focus handling.
@@ -509,24 +524,17 @@ Missing texts fall back to English. See `src/libs/core/i18n.js` for all keys.
 
 ### Usage from classic scripts
 
-The same API is available as globals (and as `AthenaUI`), so scripts written for earlier versions
-keep working. Load `athena-ui.js` with `type="module"` and call the globals after the DOM is ready:
+The ES module has no side effects. For a page that uses inline handlers or classic scripts there is an opt-in build that puts the whole API on `window`
+(and as `AthenaUI`):
 
 ```html
-<script>
-    var appConfig = { header_title_text: "My App", customLoader: "js/app.js" };
-</script>
-<script type="module" src="athena-ui/src/athena-ui.js"></script>
-<script>
-    $(function () {
-        init({ theme: { id: 0 } });
-    });
+<script type="module" src="node_modules/athena-ui-js/src/classic.js"></script>
+<script type="module">
+    init({ theme: { id: 0 } });      // globals: init, generateTable, AthenaUI, HTMLControlGenerator, ...
 </script>
 ```
 
-The global `appConfig`, `menuItems`, `nav`, `login`, `register` and `lostPassword` are used when the matching `init` option is
-not given. `appConfig.athenaUIFolder` is not needed anymore, paths are resolved relative to
-`athena-ui.js`.
+The global `appConfig`, `menuItems`, `nav`, `login`, `register` and `lostPassword` are used when the matching `init` option is not given.
 
 ### Signing in (recommended)
 
@@ -548,7 +556,7 @@ generateSignInForm({
 ```
 
 An error with a `fields` object (`{ username: "Already taken" }`) marks those fields as well. The password is sent as typed, over HTTPS: hash it on the server.
-Hashing it in the browser (`enable_encrypt_password`) only turns the hash into the password, so that setting is **deprecated** and will be removed in 2.0.
+Hashing it in the browser only turns the hash into the password, so Athena UI 2.0 does not do it any more (the setting `enable_encrypt_password` and crypto-js are gone; the old login, registration and change password forms return the password as typed).
 `createAuthState` keeps who is signed in **in memory only**: nothing readable is written to a cookie or the storage, the session itself is a server set `HttpOnly` cookie,
 and the server decides what a person may do. `auth.hasRole(role)`, `auth.onChange(listener)` and `auth.routerRules()` connect it to menus and the router.
 
@@ -565,6 +573,19 @@ The default theme is in `src/res/themes/default/style.css`; `{ id: 1 }` is a dar
 ```
 
 Switch themes at runtime with `setTheme({ id: 1 })`.
+
+### Styling: the cascade layer, tokens and dark mode
+
+All rules of the default theme are in the cascade layer `athena`. CSS that is not in a layer (the normal CSS of your application) beats it **whatever the specificity**, so
+`.my-table td { padding: 2px }` or even `td { padding: 2px }` is enough, with no `!important`. The design tokens are in `src/res/themes/tokens.css` and are the way to
+restyle everything at once:
+
+```css
+:root { --athena-accent: #8e44ad; --athena-radius: 2px; --athena-space-2: 6px; --athena-dialog-medium: 560px; }
+```
+
+The colours come in a light and a dark set. Without the attribute `data-mode` on `<html>` the page follows the system (`prefers-color-scheme`); `data-mode="dark"` or
+`"light"` chooses. [docs/styling.md](docs/styling.md) lists every token and, for every group of rules, the classes and variables it uses (it is generated from the CSS by `npm run docs`).
 
 ### Themes and modes (light / dark / like the system)
 
@@ -629,7 +650,7 @@ do not control (a plugin API).
 
 Both used to be projects of their own and are part of Athena UI since 1.3.0 (same calls and options, MIT, same author). `HTMLElementGenerator(options)` is in
 `src/libs/core/elementGenerator.js`, `HTMLControlGenerator(options)` / `.create()` / `.register()` in `src/libs/core/controls.js`; both are exported and global as before.
-`HTMLControlGenerator` no longer needs jQuery (`create` returns a jQuery object when the page has jQuery, otherwise the element).
+`HTMLControlGenerator` has no jQuery in it: `create` returns the element (wrap it yourself with `$(...)` if you still need a jQuery object).
 `registerHungarianInputControls()` adds the `hunPIN`, `hunCRID` and `hunTID` input types of its old addon. The old repositories are no longer developed.
 
 ### Parents and handles
@@ -665,28 +686,35 @@ npm run test:browser  # the components in headless Chrome
 The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges and the URL check.
 The browser tests start a small static server, open `tests/browser/index.html` in headless Chrome, Chromium or Edge and run every
 component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, toolbar, paste), tables (resizing, virtual scrolling), router,
-session, themes. Set `CHROME_PATH` if the browser is not found, and `JQUERY_URL` to load jQuery from somewhere else than the CDN
-(the machine needs internet access otherwise). `DEBUG=1` prints the browser log when the page does not report results.
+session, themes. Set `CHROME_PATH` if the browser is not found. `DEBUG=1` prints the browser log when the page does not report results.
 
-A test run without jQuery is the default; `WITH_JQUERY=1 npm run test:browser` loads jQuery from its CDN to check that an application that still has it works too.
+- **The page runs under a strict Content-Security-Policy** (`default-src 'none'; script-src 'self'; style-src 'self'`, set by `run.mjs`), and a `securitypolicyviolation` fails the test
+  that caused it. That is the guarantee that Athena UI needs no `'unsafe-inline'`. (Three tests that hand the sanitizer hostile markup are let through for the one report Chrome
+  makes while it parses an inline handler in an inert document.)
+- One test feeds markup to about 40 components and checks that text from data stays text.
+- `WITH_JQUERY=1 npm run test:browser` loads jQuery from its CDN, to check that an application that still has it works too (`JQUERY_URL` for another address).
+- The unit tests also check that `docs/styling.md` is up to date, and that a TypeScript file using the library compiles against `types/` (needs `npm install` for TypeScript).
 
 ## Project structure
 
 ```
 src/
-  athena-ui.js              entry point, exports the whole API
+  athena-ui.js              the whole API as ES module exports (no side effects)
+  classic.js                opt-in: the whole API on window, for classic scripts
+  table.js, dialog.js, ...  one entry point per component (athena-ui-js/table, athena-ui-js/dialog, ...)
+  theme-boot.js             classic script that sets the saved theme and mode before the page is drawn
+  testing.js                installDom, until, tick for the tests of an application
   index.html, example.js    example page
   libs/
     config/                 default configuration, application hooks
-    core/                   DOM / focus helpers, validation, translations, CSV, formatting, sanitizer, table math
-    hephaestus/             script and theme loader, generators (layout, menu, forms, charts, tables, feedback,
-                            dialogs, navigation, components, inputs), router, session
-    crypto-js/, js-cookie/  submodules (third party)
-    libs.js                 classic scripts loaded at runtime (only crypto-js, and only with the deprecated enable_encrypt_password)
-  res/themes/               default and dark theme, appearance.css (themes and modes)
-  theme-boot.js             classic script that sets the saved theme and mode before the page is drawn
-  testing.js                installDom, until, tick for the tests of an application
-tests/                      unit tests (Node) and browser tests (headless Chrome)
+    core/                   DOM / focus helpers, el, validation, translations, CSV, formatting, sanitizer, cookies, theme manager,
+                            HTMLElementGenerator, HTMLControlGenerator, table math
+    hephaestus/             theme loader, generators (layout, menus, forms, charts, tables, feedback, dialogs, navigation,
+                            components, inputs), router, session, auth state
+  res/themes/               tokens.css, default and dark theme, appearance.css (themes and modes)
+types/                      TypeScript definitions (npm run types)
+docs/                       styling.md (generated), migration-2.0.md
+tests/                      unit tests (Node) and browser tests (headless Chrome, strict CSP)
 ```
 
 ## Authors
@@ -698,6 +726,24 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.0.0
+  #### Breaking (see [docs/migration-2.0.md](docs/migration-2.0.md)):
+   1. No default export, and nothing on `window` unless you import `athena-ui-js/classic`; `athena-ui.js` has no side effects
+   2. No jQuery anywhere (not a peer dependency any more); `HTMLControlGenerator.create` returns the element
+   3. crypto-js and js-cookie are removed (own `Cookies` helper), and so are `enable_encrypt_password` and the hashing of passwords in the browser
+   4. Nothing is loaded at run time (`libs.js` and `loadLibs` are gone); `customLoader` still loads your own script
+   5. `showDialog` and the other dialogs use a native `<dialog>` (`showModal`), the accordion uses `<details>`: the markup and CSS classes changed
+   6. All default rules are in the cascade layer `athena`, and the default theme follows the system's dark mode
+   7. `package.json` has an `exports` map: deep imports of `src/libs/...` are not possible
+  #### Added:
+   1. One entry point per component (`athena-ui-js/table`, `/dialog`, `/menu`, ...), `"sideEffects"` for tree shaking
+   2. TypeScript definitions (`types/`, generated from the JSDoc)
+   3. `createApp({ root })`: the layout into any element
+   4. `tokens.css` (radius, spacing, border, focus ring, dialog widths, row height, colours), a built-in dark mode, `docs/styling.md`
+   5. Plural forms in messages (`Intl.PluralRules`), `{name:number}` and `{name:date}` in `translate`
+   6. The browser tests run under a strict Content-Security-Policy and fail on any violation; one test checks that every component inserts text as text
+   7. `docs/migration-2.0.md`
 
  ### 1.3.0
   #### Added:
