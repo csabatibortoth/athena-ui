@@ -632,6 +632,29 @@ dialog.dialog::backdrop {
     right: 0;
 }
 
+/* A popover (the dropdown menu, the tooltip) is in the top layer, placed next to its anchor by script through two variables */
+.athena-popover[popover] {
+    position: fixed;
+    inset: auto;
+    left: var(--athena-popover-left, 0);
+    top: var(--athena-popover-top, 0);
+    margin: 0;
+    width: max-content;
+    max-width: min(92vw, 36em);
+    overflow: visible;
+}
+
+.athena-popover-center { translate: -50% 0; }
+.athena-popover-end { translate: -100% 0; }
+.athena-popover-above { translate: 0 -100%; }
+.athena-popover-center.athena-popover-above { translate: -50% -100%; }
+.athena-popover-end.athena-popover-above { translate: -100% -100%; }
+
+.dropdown-menu[popover] {
+    max-height: min(70vh, 28em);
+    overflow-y: auto;
+}
+
 .dropdown-item {
     display: block;
     width: 100%;
@@ -880,6 +903,15 @@ dialog.dialog::backdrop {
 .has-tooltip:hover > .tooltip-text,
 .has-tooltip:focus-within > .tooltip-text,
 .has-tooltip:focus > .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* As a popover it is only drawn while it is open, so it is always visible; the position comes from placePopover() */
+.tooltip-text[popover] {
+    border: 0;
+    bottom: auto;
+    transform: none;
     visibility: visible;
     opacity: 1;
 }

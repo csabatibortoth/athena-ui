@@ -1146,6 +1146,147 @@ test("charts: a redraw (streaming, zoom) keeps the keyboard focus and the series
     $1("#fc").remove();
 });
 
+test("dropdown: a native popover in the top layer, placed next to the button, keyboard, flips above near the bottom", async () => {
+    const host = document.getElementById("wrapper");
+    const dropdown = A.generateDropdown({ parent: host, label: "Actions", items: [{ label: "One" }, { label: "Two" }, { divider: true }, { label: "Three" }] });
+    const toggle = $1(".dropdown-toggle", dropdown.element);
+    const menu = $1("[role=menu]", dropdown.element);
+    equal(menu.getAttribute("popover"), "auto");
+    equal(toggle.getAttribute("popovertarget"), menu.id, "the browser toggles it");
+    assert(!menu.matches(":popover-open") && getComputedStyle(menu).display === "none", "closed: not drawn");
+    equal(toggle.getAttribute("aria-expanded"), "false");
+    // open with the button: in the top layer, aria-expanded follows (synchronously), the menu sits just below the button
+    toggle.click();
+    assert(menu.matches(":popover-open"), "opened");
+    equal(toggle.getAttribute("aria-expanded"), "true");
+    await tick(30);
+    const t = toggle.getBoundingClientRect();
+    const m = menu.getBoundingClientRect();
+    assert(Math.abs(m.top - (t.bottom + 4)) < 3 && Math.abs(m.left - t.left) < 3, `next to the button: menu ${Math.round(m.left)},${Math.round(m.top)} button ${Math.round(t.left)},${Math.round(t.bottom)}`);
+    equal(getComputedStyle(menu).position, "fixed");
+    // the keyboard: arrows move, Esc closes and the focus goes back to the button
+    key(toggle, "ArrowDown");
+    equal(document.activeElement.textContent, "One");
+    key(document.activeElement, "ArrowDown");
+    equal(document.activeElement.textContent, "Two");
+    key(document.activeElement, "Escape");
+    assert(!menu.matches(":popover-open"), "closed by Esc");
+    equal(toggle.getAttribute("aria-expanded"), "false");
+    equal(document.activeElement, toggle, "the focus is back on the button");
+    // open() and close() of the handle
+    dropdown.open();
+    assert(menu.matches(":popover-open"), "open()");
+    dropdown.close();
+    assert(!menu.matches(":popover-open"), "close()");
+    // right aligned: the right edges line up
+    // (in the middle of the window: near an edge the menu is pushed back inside, which is another test)
+    const middle = document.createElement("div");
+    middle.id = "middle-box";
+    host.append(middle);
+    middle.style.marginLeft = "600px";
+    const right = A.generateDropdown({ parent: middle, label: "Right", align: "right", items: [{ label: "A long enough item to be wider than the button" }] });
+    const rightToggle = $1(".dropdown-toggle", right.element);
+    rightToggle.click();
+    await tick(30);
+    const rm = $1("[role=menu]", right.element).getBoundingClientRect();
+    assert(Math.abs(rm.right - rightToggle.getBoundingClientRect().right) < 3, "right edges line up");
+    right.close();
+    // near the left edge of the window a menu that does not fit is pushed back inside
+    const edge = A.generateDropdown({ parent: host, label: "Edge", align: "right", items: [{ label: "An item that is far wider than the room to the left of this button" }] });
+    $1(".dropdown-toggle", edge.element).click();
+    await tick(30);
+    assert($1("[role=menu]", edge.element).getBoundingClientRect().left >= 3, "kept inside the window");
+    edge.close();
+    middle.remove();
+    // near the bottom of the window there is no room below: it opens above
+    const low = el => { el.style.position = "fixed"; el.style.left = "20px"; el.style.bottom = "6px"; };
+    const lowDropdown = A.generateDropdown({ parent: document.body, label: "Low", items: [{ label: "x" }, { label: "y" }, { label: "z" }] });
+    low(lowDropdown.element);
+    $1(".dropdown-toggle", lowDropdown.element).click();
+    await tick(30);
+    const lm = $1("[role=menu]", lowDropdown.element).getBoundingClientRect();
+    const lt = $1(".dropdown-toggle", lowDropdown.element).getBoundingClientRect();
+    assert(lm.bottom <= lt.top + 1, `above the button: menu bottom ${Math.round(lm.bottom)}, button top ${Math.round(lt.top)}`);
+    lowDropdown.element.remove();
+    // destroy
+    dropdown.destroy();
+    assert(!document.contains(menu), "destroyed");
+});
+
+test("tooltip: a popover that shows on hover and focus, hides on leave, blur and Esc, never on touch", async () => {
+    const lane = document.createElement("div");
+    document.getElementById("wrapper").append(lane);
+    lane.style.marginLeft = "500px";     // away from the edge: near it a centred tooltip is pushed back inside
+    const button = A.generateButton({ parent: lane, text: "Help" }).element;
+    const tip = A.generateTooltip(button, "Opens the help");
+    equal(tip.getAttribute("role"), "tooltip");
+    equal(tip.getAttribute("popover"), "manual");
+    equal(button.getAttribute("aria-describedby"), tip.id);
+    assert(!tip.matches(":popover-open"), "hidden at the start");
+    const host = button.closest(".has-tooltip");
+    host.dispatchEvent(new PointerEvent("pointerenter", { pointerType: "touch" }));
+    assert(!tip.matches(":popover-open"), "a touch does not show it");
+    host.dispatchEvent(new PointerEvent("pointerenter", { pointerType: "mouse" }));
+    assert(tip.matches(":popover-open"), "shown on hover");
+    await tick(30);
+    const b = button.getBoundingClientRect();
+    const t = tip.getBoundingClientRect();
+    assert(t.bottom <= b.top + 1 && Math.abs((t.left + t.width / 2) - (b.left + b.width / 2)) < 3, "above the button, centred");
+    host.dispatchEvent(new PointerEvent("pointerleave"));
+    assert(!tip.matches(":popover-open"), "hidden on leave");
+    // (a headless window does not always have the focus, so the focusin event may not come by itself)
+    button.focus();
+    button.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    assert(tip.matches(":popover-open"), "shown on focus");
+    key(button, "Escape");
+    assert(!tip.matches(":popover-open"), "Esc hides it");
+    button.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    // not cut off by a parent that hides what overflows
+    const box = document.createElement("div");
+    box.id = "clip";
+    document.getElementById("wrapper").append(box);
+    const inner = A.generateButton({ parent: box, text: "In a box" }).element;
+    const innerTip = A.generateTooltip(inner, "Not cut off");
+    inner.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    assert(innerTip.matches(":popover-open") && innerTip.getBoundingClientRect().height > 0, "drawn in the top layer");
+    inner.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    box.remove();
+    lane.remove();
+});
+
+test("dropdown and tooltip without the popover API: the plain fallback (hidden, a click outside, CSS)", async () => {
+    // A browser without the popover API is made up by taking the method away for a moment
+    const real = HTMLElement.prototype.showPopover;
+    HTMLElement.prototype.showPopover = undefined;
+    try {
+        const dropdown = A.generateDropdown({ parent: "wrapper", label: "Old browser", items: [{ label: "One" }, { label: "Two" }] });
+        const toggle = $1(".dropdown-toggle", dropdown.element);
+        const menu = $1("[role=menu]", dropdown.element);
+        assert(!menu.hasAttribute("popover") && menu.hidden, "a plain, hidden menu");
+        assert(!toggle.hasAttribute("popovertarget"), "no popovertarget");
+        toggle.click();
+        assert(!menu.hidden, "opened by the click");
+        equal(toggle.getAttribute("aria-expanded"), "true");
+        document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        assert(menu.hidden, "a click outside closes it");
+        equal(toggle.getAttribute("aria-expanded"), "false");
+        toggle.click();
+        $1("[role=menuitem]", dropdown.element).click();
+        assert(menu.hidden && document.activeElement === toggle, "choosing closes it and the focus goes back");
+        key(toggle, "ArrowDown");
+        assert(!menu.hidden && document.activeElement.textContent === "One", "ArrowDown opens it and goes to the first item");
+        key(document.activeElement, "Escape");
+        assert(menu.hidden, "Esc closes it");
+
+        const button = A.generateButton({ parent: "wrapper", text: "Old help" }).element;
+        const tip = A.generateTooltip(button, "A tooltip");
+        assert(!tip.hasAttribute("popover") && tip.classList.contains("tooltip-text"), "a CSS tooltip");
+        equal(button.getAttribute("aria-describedby"), tip.id);
+    } finally {
+        HTMLElement.prototype.showPopover = real;
+    }
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
@@ -1182,10 +1323,11 @@ test("accordion, dropdown, pagination, sidebar", async () => {
 
     let picked = "";
     const dropdown = A.generateDropdown({ parent: "wrapper", label: "Menu", items: [{ label: "One", onclick: item => { picked = item.label; } }, { divider: true }, { label: "Two", disabled: true }] });
+    const menuOpen = () => $1("[role=menu]", dropdown.element).matches(":popover-open");
     $1(".dropdown-toggle", dropdown.element).click();
-    assert(!$1("[role=menu]", dropdown.element).hidden, "dropdown closed");
+    assert(menuOpen(), "dropdown closed");
     $1("[role=menuitem]", dropdown.element).click();
-    assert(picked === "One" && $1("[role=menu]", dropdown.element).hidden, "pick");
+    assert(picked === "One" && !menuOpen(), "pick");
 
     const pagination = A.generatePagination({ parent: "wrapper", total: 95, pageSize: 10 });
     pagination.setPage(10);

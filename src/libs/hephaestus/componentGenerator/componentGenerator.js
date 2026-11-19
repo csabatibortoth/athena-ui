@@ -7,6 +7,7 @@ import { asHandle, cx, el, mount, resolveElement, setContent, uid } from "../../
 import { generateBreadcrumbs } from "../navigationGenerator/navigationGenerator.js";
 import { generateSpinner } from "../feedbackGenerator/feedbackGenerator.js";
 import { translate } from "../../core/i18n.js";
+import { closePopover, followAnchor, openPopover, placePopover, settlePopover, supportsPopover } from "../../core/popover.js";
 
 /**
  * Generates a link. External links open in a new tab and get `rel="noopener noreferrer"`.
@@ -199,7 +200,9 @@ export function generateGrid(options = {}) {
 }
 
 /**
- * Adds a tooltip to an element. It shows on hover and on keyboard focus.
+ * Adds a tooltip to an element. It shows on hover and on keyboard focus, and Esc hides it.
+ * It is a native popover (`popover="manual"`), so it is drawn above everything and never cut off by a parent with `overflow: hidden`. A touch
+ * does not show it (a tap would hide the thing it describes). Browsers without the popover API show it with CSS, as before.
  *
  * @param {Element|string} target element or id
  * @param {string} text
@@ -208,7 +211,8 @@ export function generateTooltip(target, text) {
     const node = resolveElement(target);
     if (!node) return null;
     const id = uid("tooltip");
-    const tip = el("span", { class: "tooltip-text", id, text, attrs: { role: "tooltip" } });
+    const native = supportsPopover();
+    const tip = el("span", { class: "tooltip-text athena-popover", id, text, attrs: { role: "tooltip", popover: native ? "manual" : null } });
     // Inputs and images cannot hold the tooltip text, so they get a wrapper.
     let host = node;
     if (node.matches("input,img,select,textarea")) {
@@ -221,6 +225,26 @@ export function generateTooltip(target, text) {
     host.classList.add("has-tooltip");
     node.setAttribute("aria-describedby", id);
     host.append(tip);
+    if (native) {
+        let stop = null;
+        const show = () => {
+            if (tip.matches(":popover-open")) return;
+            placePopover(node, tip, { side: "top", align: "center", gap: 6, room: 40 });
+            openPopover(tip);
+            settlePopover(tip);
+            stop = followAnchor(node, tip, { side: "top", align: "center", gap: 6, room: 40 });
+        };
+        const hide = () => {
+            stop?.();
+            stop = null;
+            closePopover(tip);
+        };
+        host.addEventListener("pointerenter", event => { if (event.pointerType !== "touch") show(); });
+        host.addEventListener("pointerleave", hide);
+        host.addEventListener("focusin", show);
+        host.addEventListener("focusout", hide);
+        host.addEventListener("keydown", event => { if (event.key === "Escape") hide(); });
+    }
     return tip;
 }
 

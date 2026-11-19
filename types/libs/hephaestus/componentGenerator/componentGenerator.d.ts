@@ -132,7 +132,9 @@ export function generateGrid(options?: {
     gap?: string;
 }): HTMLElement;
 /**
- * Adds a tooltip to an element. It shows on hover and on keyboard focus.
+ * Adds a tooltip to an element. It shows on hover and on keyboard focus, and Esc hides it.
+ * It is a native popover (`popover="manual"`), so it is drawn above everything and never cut off by a parent with `overflow: hidden`. A touch
+ * does not show it (a tap would hide the thing it describes). Browsers without the popover API show it with CSS, as before.
  *
  * @param {Element|string} target element or id
  * @param {string} text

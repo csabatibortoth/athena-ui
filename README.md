@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.0.2**
+Current version: **2.1.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -22,7 +22,7 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Athena UI has **no dependencies**: no jQuery, no bundled library, nothing is loaded at run time, and nothing is put on `window` unless you opt in with
   `athena-ui-js/classic`. The older generators (`generateLoginForm`, the layout and the header / footer menu built from `menuItems`) are plain DOM too.
 - The default theme follows the system's dark mode. Put `data-mode="light"` on `<html>` (or use `createThemeManager`) to choose.
-- Dialogs and the accordion use the native `<dialog>` and `<details>` elements, so they need a browser that supports cascade layers and `<dialog>` (2022 or later). The dropdown still has its own menu.
+- Dialogs, the accordion, the dropdown menu and tooltips use the native `<dialog>`, `<details>` and popover elements, so they need a browser that supports cascade layers and `<dialog>` (2022 or later). The dropdown menu and the tooltips are native popovers (the `popover` attribute) in browsers that have them (Chrome / Edge 114, Safari 17, Firefox 125), and a plain fallback in older ones.
 
 ## Features
 
@@ -149,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.0.2"` | Version shown in the footer |
+| `version` | `"2.1.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -356,6 +356,11 @@ Dialogs trap the focus, close with Esc (resolving `null` / `false`) and restore 
 never parsed as HTML. `openModal` / `closeModal` got the same focus handling.
 
 ### Navigation
+
+The **dropdown** menu and the **tooltip** are native popovers: they are drawn in the top layer, so no parent with `overflow: hidden` can cut them off and no `z-index` fight is possible;
+a click outside and Esc close the dropdown, and the focus goes back to its button. They are placed next to their button by a small helper (it sets two CSS variables, which a strict
+Content-Security-Policy allows): below, or above when there is no room below, and always kept inside the window. A tooltip shows on hover and on focus and goes on Esc; a touch does not show it.
+Without the popover API the dropdown is a plain menu that is shown and hidden with `hidden`, and the tooltip a CSS one.
 
 ```js
 generateTabs({ parent: "wrapper", tabs: [{ id: "a", label: "A", content: "First" }, { id: "b", label: "B", content: () => lazyNode() }] });
