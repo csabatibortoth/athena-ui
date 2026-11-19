@@ -107,3 +107,30 @@ test("createThemeManager: saves the choice, follows the system, ignores unknown 
         dom.uninstall();
     }
 });
+
+test("createSafeBuilder: only the allowed tags and attributes get through", async t => {
+    const JSDOM = await findJsdom();
+    if (!JSDOM) return t.skip("no jsdom found");
+    const dom = installDom(JSDOM);
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+        const { createSafeBuilder } = await import("../src/libs/core/dom.js");
+        const h = createSafeBuilder({ tags: ["div", "a", "span"], attributes: ["class", "href"] });
+        const node = h("div", { class: "x", attrs: { href: "#a", title: "no", "data-id": "7", "aria-label": "ok", id: "no" } }, h("span", { text: "hi" }));
+        assert.equal(node.getAttribute("title"), null);
+        assert.equal(node.getAttribute("href"), "#a");
+        assert.equal(node.getAttribute("data-id"), "7");
+        assert.equal(node.getAttribute("aria-label"), "ok");
+        assert.equal(node.textContent, "hi");
+        assert.throws(() => h("img"), TypeError);
+        assert.throws(() => h("script"), TypeError);
+        // the rules of el() still apply on top of the list
+        const link = createSafeBuilder({ attributes: ["href", "onclick"] })("a", { attrs: { href: "javascript:alert(1)", onclick: "x()" } });
+        assert.equal(link.getAttribute("href"), null);
+        assert.equal(link.getAttribute("onclick"), null);
+    } finally {
+        console.warn = warn;
+        dom.uninstall();
+    }
+});

@@ -107,3 +107,28 @@ export function asHandle(handle, { element = handle.element, also } = {}) {
 }
 
 export const cx = (...classes) => classes.filter(Boolean).join(" ");
+
+/**
+ * A stricter el(): only the tags and attributes on your lists are allowed, everything else is refused (a tag throws, an attribute is
+ * skipped with a warning). For pages that are built from data you do not control, such as a plugin API. The refusals of el() still apply.
+ *
+ * @param {object} allow
+ * @param {string[]} [allow.tags] allowed tag names (default: any)
+ * @param {string[]} allow.attributes allowed attribute names, lower case: ["class", "title", "href"]
+ * @param {boolean} [allow.dataAndAria=true] data-* and aria-* attributes are allowed too
+ * @returns {typeof el}
+ */
+export function createSafeBuilder({ tags, attributes = [], dataAndAria = true } = {}) {
+    const allowedTags = tags ? new Set(tags.map(tag => tag.toLowerCase())) : null;
+    const allowedAttributes = new Set(attributes.map(name => name.toLowerCase()));
+    return (tag, props = {}, ...children) => {
+        if (allowedTags && !allowedTags.has(String(tag).toLowerCase())) throw new TypeError(`Athena UI: the tag "${tag}" is not allowed here`);
+        const attrs = {};
+        for (const [name, value] of Object.entries(props.attrs ?? {})) {
+            const lower = name.toLowerCase();
+            if (allowedAttributes.has(lower) || (dataAndAria && (lower.startsWith("data-") || lower.startsWith("aria-")))) attrs[name] = value;
+            else console.warn(`Athena UI: the attribute "${name}" is not on the allow-list`);
+        }
+        return el(tag, { ...props, attrs }, ...children);
+    };
+}

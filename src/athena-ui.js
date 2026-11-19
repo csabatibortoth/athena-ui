@@ -148,7 +148,7 @@ export * from "./libs/hephaestus/componentGenerator/componentGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/inputGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/dropZoneGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/richTextGenerator.js";
-export { el, setContent, resolveElement, asHandle } from "./libs/core/dom.js";
+export { el, setContent, resolveElement, asHandle, createSafeBuilder } from "./libs/core/dom.js";
 export * from "./libs/core/sanitize.js";
 export * from "./libs/hephaestus/router/router.js";
 export * from "./libs/hephaestus/auth/session.js";
