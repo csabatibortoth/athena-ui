@@ -1,0 +1,191 @@
+/* The CSS of the demo itself (Athena UI's own rules are in its cascade layer, so these plain rules win without fighting about specificity).
+   The page runs under style-src 'self': this file is the only stylesheet, and nothing sets an inline style. */
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+}
+
+#header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 24px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--athena-line);
+    background: var(--athena-surface);
+}
+
+.demo-brand {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--athena-fg);
+    font-size: 1.25em;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.demo-version {
+    color: var(--athena-muted);
+    font-size: 0.6em;
+    font-weight: normal;
+}
+
+#header .athena-menu {
+    flex: 1;
+}
+
+#wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 16px 16px 96px;
+}
+
+.demo-footer {
+    padding: 16px;
+    border-top: 1px solid var(--athena-line);
+    color: var(--athena-muted);
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.demo-block {
+    margin: 0 0 32px;
+}
+
+.demo-block > h2 {
+    margin: 0 0 4px;
+    font-size: 1.15em;
+}
+
+.demo-block > p {
+    margin: 0 0 12px;
+    color: var(--athena-muted);
+}
+
+.demo-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.demo-two {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+}
+
+.demo-note {
+    padding: 8px 12px;
+    border-left: 4px solid var(--athena-info);
+    background: var(--athena-surface);
+}
+
+.demo-code {
+    padding: 8px 12px;
+    overflow: auto;
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface);
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+}
+
+/* The colours of a cell that the table hooks (cellClass) put on it */
+.tone-ok { color: var(--athena-success); }
+.tone-warn { color: var(--athena-warning); font-weight: bold; }
+.tone-bad { color: var(--athena-danger); font-weight: bold; }
+
+.demo-status-ok { color: var(--athena-success); }
+.demo-status-warn { color: var(--athena-warning); }
+.demo-status-bad { color: var(--athena-danger); }
+
+.demo-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.demo-swatch {
+    width: 72px;
+    padding: 8px 4px;
+    border: 1px solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-bg);
+    color: var(--athena-fg);
+    font-size: 0.75em;
+    text-align: center;
+}
+
+.demo-swatch::before {
+    content: "";
+    display: block;
+    height: 28px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    background: var(--swatch);
+}
+
+.demo-swatch-bg { --swatch: var(--athena-bg); }
+.demo-swatch-surface { --swatch: var(--athena-surface); }
+.demo-swatch-accent { --swatch: var(--athena-accent); }
+.demo-swatch-success { --swatch: var(--athena-success); }
+.demo-swatch-warning { --swatch: var(--athena-warning); }
+.demo-swatch-danger { --swatch: var(--athena-danger); }
+.demo-swatch-info { --swatch: var(--athena-info); }
+
+/* A theme of the demo's own, to show how little a theme needs: two blocks of tokens (see appearance.css for the contract) */
+[data-theme="ocean"][data-mode="light"] {
+    color-scheme: light;
+    --athena-bg: #f3f9fb;
+    --athena-fg: #0e2a35;
+    --athena-muted: #4b6772;
+    --athena-border: #0e2a35;
+    --athena-line: #bcd4dc;
+    --athena-surface: #e3f0f4;
+    --athena-surface-alt: #eef6f8;
+    --athena-hover: #d3ebf2;
+    --athena-overlay: rgb(5 25 33 / 45%);
+    --athena-accent: #00769a;
+    --athena-accent-fg: #fff;
+    --athena-focus: #005a76;
+    --athena-danger: #b3261e;
+    --athena-success: #17673a;
+    --athena-warning: #8a5300;
+    --athena-info: #00769a;
+    --athena-shadow: 0 4px 14px rgb(5 25 33 / 18%);
+    --series-1: #00769a; --series-2: #d9731a; --series-3: #b3261e; --series-4: #2a9d8f;
+    --series-5: #5b8e2d; --series-6: #a98a00; --series-7: #7b4fa1; --series-8: #5c6f78;
+}
+
+[data-theme="ocean"][data-mode="dark"] {
+    color-scheme: dark;
+    --athena-bg: #08181e;
+    --athena-fg: #dcecf1;
+    --athena-muted: #94b0ba;
+    --athena-border: #2b4a56;
+    --athena-line: #244250;
+    --athena-surface: #102731;
+    --athena-surface-alt: #0c1f27;
+    --athena-hover: #17394a;
+    --athena-overlay: rgb(0 0 0 / 65%);
+    --athena-accent: #4fc3e8;
+    --athena-accent-fg: #04202b;
+    --athena-focus: #8fdcf5;
+    --athena-danger: #ff8a80;
+    --athena-success: #5fd39a;
+    --athena-warning: #f0c060;
+    --athena-info: #4fc3e8;
+    --athena-shadow: 0 4px 14px rgb(0 0 0 / 55%);
+    --series-1: #4fc3e8; --series-2: #f0a04b; --series-3: #ff8a80; --series-4: #6fcfc8;
+    --series-5: #8fd36a; --series-6: #f1d36a; --series-7: #c79bf0; --series-8: #a9bfc8;
+}

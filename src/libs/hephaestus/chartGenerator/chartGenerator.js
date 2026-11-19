@@ -94,7 +94,7 @@ function addLegend(svg, entries, width, height, ctx) {
     let x = MARGIN.left;
     const y = height - 12;
     entries.forEach(({ name, props, series }) => {
-        const group = svgEl("g", { class: "chart-legend-item", tabindex: 0, role: "button", "aria-pressed": "true", "aria-label": name });
+        const group = svgEl("g", { class: "chart-legend-item", tabindex: 0, role: "button", "aria-pressed": "true", "aria-label": name, "data-legend": series ?? "" });
         group.append(svgEl("rect", { x, y: y - 9, width: 10, height: 10, class: `chart-swatch ${props.class ?? ""}`.trim(), ...(props.color ? { color: props.color } : {}) }));
         group.append(svgEl("text", { x: x + 14, y, class: "chart-legend" }, name));
         if (series != null) {
@@ -103,6 +103,7 @@ function addLegend(svg, entries, width, height, ctx) {
                 group.setAttribute("aria-pressed", hidden ? "false" : "true");
                 group.classList.toggle("is-off", hidden);
                 for (const node of svg.querySelectorAll(`[data-series="${series}"]`)) node.classList.toggle("chart-hidden", hidden);
+                ctx.hooks?.legend?.(series, hidden);
                 ctx.tooltip.hide();
             };
             group.addEventListener("click", toggle);
@@ -522,6 +523,7 @@ function buildDataTable({ labels, series, times, title, type }) {
  *        `times`, otherwise the index of the point (-0.5 is the left edge of the first point)
  * @param {(range: ({from: number, to: number}|null)) => void} [options.onZoom] called when a person zooms or resets
  * @param {number} [options.maxPoints] `push` keeps at most this many points per series (the oldest are dropped)
+ * @param {number[]} [options.hiddenSeries] the series (or slices) that are hidden at the start; a person hides and shows them with the legend, and a redraw keeps that
  * @param {boolean} [options.interactive=true] line and area charts: false leaves out the pointer layer (tooltip that follows the pointer, zoom)
  * @returns {(SVGElement & {element: SVGElement, update: (options?: object) => SVGElement, destroy: () => void,
  *            zoom: (from: number, to: number) => void, resetZoom: () => void, getZoom: () => ({from: number, to: number}|null),
@@ -536,7 +538,13 @@ export function generateChart(options = {}) {
     const state = { used: { ...options, series: (options.series ?? []).map(s => ({ ...s, data: [...(s.data ?? [])] })) }, current: null, queued: false };
     if (options.labels) state.used.labels = [...options.labels];
     if (options.times) state.used.times = [...options.times];
+    const hidden = new Set(options.hiddenSeries ?? []);
     const hooks = {
+        legend: (series, off) => {
+            if (off) hidden.add(series);
+            else hidden.delete(series);
+            state.used.hiddenSeries = [...hidden];
+        },
         zoom: range => {
             state.used = { ...state.used, zoomRange: range ?? null };
             handle.redraw();
@@ -548,12 +556,22 @@ export function generateChart(options = {}) {
         redraw() {
             const next = buildChart(state.used, hooks);
             if (!next) return state.current?.svg;
+            // A redraw replaces the whole SVG (every second while streaming, and when someone zooms). The keyboard focus would be lost
+            // with it, so it goes to the same place in the new one: the same legend entry, the same point, or the plot.
+            const old = state.current?.svg;
+            const active = old && old.contains(document.activeElement) ? document.activeElement : null;
+            const focusables = active ? [...old.querySelectorAll("[tabindex]")] : [];
+            const position = active ? focusables.indexOf(active) : -1;
             if (state.current) {
-                state.current.svg.replaceWith(next.svg);
+                old.replaceWith(next.svg);
                 state.current.table?.remove();
                 if (next.table) next.svg.after(next.table);
             }
             state.current = next;
+            if (active) {
+                const now = [...next.svg.querySelectorAll("[tabindex]")];
+                (active.classList.contains("chart-hit") || active.classList.contains("chart-reset") ? next.svg.querySelector(".chart-hit") : now[position] ?? next.svg.querySelector(".chart-hit"))?.focus({ preventScroll: true });
+            }
             return attach(next.svg);
         },
         update(changes = {}) {
@@ -648,5 +666,11 @@ function buildChart(options = {}, hooks) {
         addLegend(svg, pieLegend ?? series.map((s, i) => ({ name: s.name ?? `${translate("series")} ${i + 1}`, props: seriesProps(s, i), series: i })), width, height, ctx);
     }
     svg.append(tooltip.group);
+    for (const index of options.hiddenSeries ?? []) {
+        for (const node of svg.querySelectorAll(`[data-series="${index}"]`)) node.classList.add("chart-hidden");
+        const entry = svg.querySelector(`.chart-legend-item[data-legend="${index}"]`);
+        entry?.setAttribute("aria-pressed", "false");
+        entry?.classList.add("is-off");
+    }
     return { svg, table: options.table ? buildDataTable({ labels, series, times, title, type }) : null };
 }

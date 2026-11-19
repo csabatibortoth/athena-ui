@@ -1114,6 +1114,35 @@ test("createApp: the layout is built into any element, header and footer are opt
     }
 });
 
+test("charts: a redraw (streaming, zoom) keeps the keyboard focus and the series a person hid", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="fc"></div>');
+    const t0 = Date.UTC(2026, 10, 19, 0, 0, 0);
+    const chart = A.generateChart({ parent: "fc", id: "focus-chart", type: "line", zoom: true, times: [t0, t0 + 1000, t0 + 2000], series: [{ name: "a", data: [1, 2, 3] }, { name: "b", data: [3, 2, 1] }] });
+    // the plot has the focus; zooming redraws the chart, and the focus stays on the plot of the new SVG
+    const hit = () => $1("#focus-chart .chart-hit");
+    hit().focus();
+    assert(document.activeElement === hit(), "focus on the plot");
+    key(hit(), "+");
+    assert(chart.getZoom(), "zoomed");
+    assert(document.activeElement === hit(), "the focus is on the plot of the new chart");
+    key(hit(), "0");
+    assert(document.activeElement === hit() && !chart.getZoom(), "still there after the reset");
+    // a legend entry has the focus: it keeps it, and what was hidden stays hidden through a push
+    const entry = () => $1("#focus-chart .chart-legend-item[data-legend='1']");
+    entry().focus();
+    key(entry(), "Enter");
+    assert($$("#focus-chart [data-series='1'].chart-hidden").length > 0, "series 1 hidden");
+    chart.push({ x: t0 + 3000, values: [4, 0] });
+    for (let i = 0; i < 40 && $$("#focus-chart .chart-point").length < 4; i++) await tick(25);
+    assert($$("#focus-chart [data-series='1'].chart-hidden").length > 0, "series 1 is still hidden after the redraw");
+    equal(entry().getAttribute("aria-pressed"), "false");
+    assert(document.activeElement === entry(), "the legend entry still has the focus");
+    key(entry(), "Enter");
+    assert($$("#focus-chart [data-series='1'].chart-hidden").length === 0, "shown again");
+    chart.destroy();
+    $1("#fc").remove();
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

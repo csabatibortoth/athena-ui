@@ -1,0 +1,132 @@
+// A very small client of the Chrome DevTools Protocol, for the tests of the demo: one headless browser, a page per test, no dependency
+// (Node 22 and later have WebSocket built in).
+
+import { spawn } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+export const chromePath = [
+    process.env.CHROME_PATH,
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+    "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"
+].filter(Boolean).find(existsSync);
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+export async function until(check, { timeout = 90000, interval = 100, message = "the condition" } = {}) {
+    const start = Date.now();
+    for (;;) {
+        const value = await check();
+        if (value) return value;
+        if (Date.now() - start > timeout) throw new Error(`Timed out after ${timeout} ms waiting for ${message}`);
+        await wait(interval);
+    }
+}
+
+/** Starts the browser. Returns { newPage(), close() }. */
+export async function launch() {
+    const profile = mkdtempSync(join(tmpdir(), "athena-demo-cdp-"));
+    const child = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-sandbox", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
+        "--window-size=1200,900", "--no-first-run", "about:blank"], { stdio: "ignore" });
+    const portFile = join(profile, "DevToolsActivePort");
+    const port = Number((await until(() => existsSync(portFile) && readFileSync(portFile, "utf8").split("\n")[0], { timeout: 60000, message: "the browser to start" })));
+
+    async function newPage() {
+        const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
+        const socket = new WebSocket(target.webSocketDebuggerUrl);
+        await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = () => reject(new Error("could not connect to the page")); });
+        let id = 0;
+        const pending = new Map();
+        const listeners = new Set();
+        const problems = [];
+        socket.onmessage = event => {
+            const message = JSON.parse(event.data);
+            if (message.id && pending.has(message.id)) {
+                const { resolve, reject } = pending.get(message.id);
+                pending.delete(message.id);
+                if (message.error) reject(new Error(`${message.error.message}`));
+                else resolve(message.result);
+            } else if (message.method) {
+                for (const listener of listeners) listener(message);
+            }
+        };
+        const send = (method, params = {}) => new Promise((resolve, reject) => {
+            const mine = ++id;
+            pending.set(mine, { resolve, reject });
+            socket.send(JSON.stringify({ id: mine, method, params }));
+        });
+
+        // Everything that goes wrong in the page is collected: exceptions, console errors and warnings, policy violations, failed requests
+        listeners.add(message => {
+            const { method, params } = message;
+            if (method === "Runtime.exceptionThrown") problems.push(`exception: ${params.exceptionDetails.exception?.description ?? params.exceptionDetails.text}`);
+            else if (method === "Runtime.consoleAPICalled" && (params.type === "error" || params.type === "warning" || params.type === "assert")) {
+                problems.push(`console.${params.type}: ${params.args.map(arg => arg.value ?? arg.description ?? "").join(" ")}`);
+            } else if (method === "Log.entryAdded" && (params.entry.level === "error" || params.entry.level === "warning")) {
+                problems.push(`${params.entry.source} ${params.entry.level}: ${params.entry.text} ${params.entry.url ?? ""}`.trim());
+            } else if (method === "Network.loadingFailed" && !params.canceled) {
+                problems.push(`request failed: ${params.errorText} ${params.blockedReason ?? ""}`.trim());
+            }
+        });
+        await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Log.enable"), send("Network.enable")]);
+
+        const page = {
+            problems,
+            send,
+            async goto(url) {
+                problems.length = 0;
+                await send("Page.navigate", { url });
+                await until(async () => (await page.eval("document.readyState")) === "complete", { timeout: 120000, message: `${url} to load` });
+            },
+            /** Evaluates an expression in the page (it may be async) and returns its value. */
+            async eval(expression) {
+                const { result, exceptionDetails } = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+                if (exceptionDetails) throw new Error(`in the page: ${exceptionDetails.exception?.description ?? exceptionDetails.text}`);
+                return result.value;
+            },
+            /** Waits until an expression is true in the page. */
+            waitFor: (expression, options = {}) => until(() => page.eval(`Boolean(${expression})`), { message: expression.slice(0, 80), ...options }),
+            /** A real key press (not a synthetic event). */
+            async press(key, code = key, keyCode = 0) {
+                const base = { key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode };
+                await send("Input.dispatchKeyEvent", { type: "keyDown", ...base });
+                await send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+            },
+            /** A real click in the middle of the element that matches the selector. */
+            async click(selector) {
+                const box = await page.eval(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+                if (!box) throw new Error(`nothing matches ${selector}`);
+                for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: box.x, y: box.y, button: "left", clickCount: 1 });
+            },
+            /** A real click on the first button, link or tab whose text is exactly this (inside the selector, default: the whole page). */
+            async clickText(text, scope = "body") {
+                const box = await page.eval(`(() => { const found = [...document.querySelector(${JSON.stringify(scope)}).querySelectorAll("button, a, [role=button], [role=tab], summary, label")].find(el => el.textContent.trim() === ${JSON.stringify(text)} && el.getClientRects().length); if (!found) return null; found.scrollIntoView({ block: "center" }); const r = found.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+                if (!box) throw new Error(`no button with the text "${text}"`);
+                for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: box.x, y: box.y, button: "left", clickCount: 1 });
+            },
+            /** Types into an input the way a person does: the value, the input event and the change event. */
+            fill: (selector, value) => page.eval(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) throw new Error("nothing matches ${selector.replace(/"/g, '\\"')}"); el.focus(); el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`),
+            async close() {
+                try { await fetch(`http://127.0.0.1:${port}/json/close/${target.id}`); } catch { /* the browser is gone already */ }
+                socket.close();
+            }
+        };
+        return page;
+    }
+
+    return {
+        newPage,
+        async close() {
+            child.kill();
+            await wait(300);
+            try {
+                rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+            } catch { /* Windows keeps a file of the profile locked for a while: the temporary folder is cleaned up later */ }
+        }
+    };
+}

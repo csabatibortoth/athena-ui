@@ -32,6 +32,7 @@ export function decimate(indices: any, values: any, buckets: any): any;
  *        `times`, otherwise the index of the point (-0.5 is the left edge of the first point)
  * @param {(range: ({from: number, to: number}|null)) => void} [options.onZoom] called when a person zooms or resets
  * @param {number} [options.maxPoints] `push` keeps at most this many points per series (the oldest are dropped)
+ * @param {number[]} [options.hiddenSeries] the series (or slices) that are hidden at the start; a person hides and shows them with the legend, and a redraw keeps that
  * @param {boolean} [options.interactive=true] line and area charts: false leaves out the pointer layer (tooltip that follows the pointer, zoom)
  * @returns {(SVGElement & {element: SVGElement, update: (options?: object) => SVGElement, destroy: () => void,
  *            zoom: (from: number, to: number) => void, resetZoom: () => void, getZoom: () => ({from: number, to: number}|null),
@@ -69,6 +70,7 @@ export function generateChart(options?: {
         to: number;
     } | null)) => void;
     maxPoints?: number;
+    hiddenSeries?: number[];
     interactive?: boolean;
 }): (SVGElement & {
     element: SVGElement;
