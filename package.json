@@ -7,32 +7,99 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "test:browser": "node tests/browser/run.mjs",
-    "docs": "node scripts/styling-docs.mjs"
+    "docs": "node scripts/styling-docs.mjs",
+    "types": "tsc -p tsconfig.types.json"
   },
   "exports": {
-    ".": "./src/athena-ui.js",
-    "./classic": "./src/classic.js",
-    "./testing": "./src/testing.js",
+    ".": {
+      "types": "./types/athena-ui.d.ts",
+      "default": "./src/athena-ui.js"
+    },
+    "./classic": {
+      "types": "./types/classic.d.ts",
+      "default": "./src/classic.js"
+    },
+    "./testing": {
+      "types": "./types/testing.d.ts",
+      "default": "./src/testing.js"
+    },
     "./theme-boot.js": "./src/theme-boot.js",
-    "./table": "./src/table.js",
-    "./chart": "./src/chart.js",
-    "./dialog": "./src/dialog.js",
-    "./menu": "./src/menu.js",
-    "./navigation": "./src/navigation.js",
-    "./forms": "./src/forms.js",
-    "./feedback": "./src/feedback.js",
-    "./components": "./src/components.js",
-    "./inputs": "./src/inputs.js",
-    "./router": "./src/router.js",
-    "./session": "./src/session.js",
-    "./theme": "./src/theme.js",
-    "./i18n": "./src/i18n.js",
-    "./format": "./src/format.js",
-    "./validation": "./src/validation.js",
-    "./sanitize": "./src/sanitize.js",
-    "./csv": "./src/csv.js",
-    "./dom": "./src/dom.js",
-    "./controls": "./src/controls.js",
+    "./table": {
+      "types": "./types/table.d.ts",
+      "default": "./src/table.js"
+    },
+    "./chart": {
+      "types": "./types/chart.d.ts",
+      "default": "./src/chart.js"
+    },
+    "./dialog": {
+      "types": "./types/dialog.d.ts",
+      "default": "./src/dialog.js"
+    },
+    "./menu": {
+      "types": "./types/menu.d.ts",
+      "default": "./src/menu.js"
+    },
+    "./navigation": {
+      "types": "./types/navigation.d.ts",
+      "default": "./src/navigation.js"
+    },
+    "./forms": {
+      "types": "./types/forms.d.ts",
+      "default": "./src/forms.js"
+    },
+    "./feedback": {
+      "types": "./types/feedback.d.ts",
+      "default": "./src/feedback.js"
+    },
+    "./components": {
+      "types": "./types/components.d.ts",
+      "default": "./src/components.js"
+    },
+    "./inputs": {
+      "types": "./types/inputs.d.ts",
+      "default": "./src/inputs.js"
+    },
+    "./router": {
+      "types": "./types/router.d.ts",
+      "default": "./src/router.js"
+    },
+    "./session": {
+      "types": "./types/session.d.ts",
+      "default": "./src/session.js"
+    },
+    "./theme": {
+      "types": "./types/theme.d.ts",
+      "default": "./src/theme.js"
+    },
+    "./i18n": {
+      "types": "./types/i18n.d.ts",
+      "default": "./src/i18n.js"
+    },
+    "./format": {
+      "types": "./types/format.d.ts",
+      "default": "./src/format.js"
+    },
+    "./validation": {
+      "types": "./types/validation.d.ts",
+      "default": "./src/validation.js"
+    },
+    "./sanitize": {
+      "types": "./types/sanitize.d.ts",
+      "default": "./src/sanitize.js"
+    },
+    "./csv": {
+      "types": "./types/csv.d.ts",
+      "default": "./src/csv.js"
+    },
+    "./dom": {
+      "types": "./types/dom.d.ts",
+      "default": "./src/dom.js"
+    },
+    "./controls": {
+      "types": "./types/controls.d.ts",
+      "default": "./src/controls.js"
+    },
     "./themes/*": "./src/res/themes/*",
     "./package.json": "./package.json"
   },
@@ -55,7 +122,9 @@
     "src/libs/hephaestus/modalGenerator",
     "src/res",
     "src/*.js",
-    "!src/example.js"
+    "!src/example.js",
+    "types",
+    "docs/styling.md"
   ],
   "sideEffects": [
     "./src/classic.js",
@@ -103,5 +172,9 @@
     "url": "https://github.com/csabatibortoth/athena-ui/issues"
   },
   "author": "Csaba Tóth (https://github.com/csabatibortoth)",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "types": "./types/athena-ui.d.ts"
 }

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "outDir": "types",
+    "rootDir": "src",
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "noEmitOnError": false
+  },
+  "include": ["src/*.js", "src/libs/**/*.js"],
+  "exclude": ["src/example.js", "src/libs/hephaestus/HTMLElementGenerator", "src/libs/hephaestus/HTMLControlGenerator"]
+}

@@ -8,6 +8,20 @@ import { translate } from "../../core/i18n.js";
 import { isSafeUrl } from "../../core/sanitize.js";
 import { initialsOf } from "../componentGenerator/componentGenerator.js";
 
+/**
+ * @typedef {object} MenuItem
+ * @property {string} id
+ * @property {string} label
+ * @property {string|Node} [icon]
+ * @property {string} [href]
+ * @property {boolean} [disabled]
+ * @property {"end"} [align]
+ * @property {number|string|{text: (number|string), tone?: "info"|"ok"|"warn"|"bad"}} [badge]
+ * @property {string} [badgeLabel]
+ * @property {{name: string, src?: string}} [avatar]
+ * @property {MenuItem[]} [children]
+ */
+
 const ENABLED = "[role=menuitem]:not([aria-disabled=true]):not(:disabled)";
 
 /** The text of a badge: numbers above 99 become "99+", 0 / null / false / "" mean no badge. */
@@ -22,15 +36,13 @@ export function badgeText(value) {
  *
  * @param {object} options
  * @param {string|Element} [options.parent]
- * @param {{id: string, label: string, icon?: string|Node, href?: string, disabled?: boolean, align?: "end",
- *          badge?: number|string|{text: (number|string), tone?: "info"|"ok"|"warn"|"bad"}, badgeLabel?: string,
- *          avatar?: {name: string, src?: string}, children?: object[]}[]} options.items
+ * @param {MenuItem[]} options.items
  *        `icon` is shown before the label (text, or a Node such as an SVG; it is hidden from screen readers).
  *        `badge` is a small count or word after the label (0, null and "" show nothing, numbers above 99 show "99+").
  *        `badgeLabel` is what a screen reader hears for it ("3 unread"); without it the badge text is read after the label.
  *        `avatar` shows the picture (or the initials) of a person: for the user menu, usually with `align: "end"` and children.
  *        An item with `children` opens a group; a child can have children too (a group inside a group, any depth).
- * @param {(item: object, event: Event) => void} [options.onNavigate] called when a PERSON uses an item (click, Enter, Space).
+ * @param {(item: MenuItem, event: Event) => void} [options.onNavigate] called when a PERSON uses an item (click, Enter, Space).
  *        It is never called by select() or while the menu is built.
  * @param {string} [options.active] id of the item that is the current page at the start
  * @param {boolean} [options.followHash=false] the item whose `href` equals location.hash is the active one, and follows hashchange
