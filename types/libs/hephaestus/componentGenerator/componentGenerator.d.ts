@@ -212,6 +212,20 @@ export function generateEmptyState(options?: {
     };
 }): any;
 /**
+ * A skeleton: grey lines with a shimmer where text or a card will be, so the page does not jump when it arrives. It is a live region that says
+ * "Loading..." to a screen reader; the shimmer stops under reduced motion.
+ *
+ * @param {object} [options]
+ * @param {string|Element} [options.parent]
+ * @param {number} [options.lines=3] the last of several lines is shorter
+ * @param {string} [options.class] e.g. "skeleton-card" in your own CSS gives the box a height
+ */
+export function generateSkeleton(options?: {
+    parent?: string | Element;
+    lines?: number;
+    class?: string;
+}): any;
+/**
  * A placeholder while something loads: a spinner and a text (a live region, so a screen reader says it).
  *
  * @param {object} [options]

@@ -189,3 +189,38 @@ body {
     --series-1: #4fc3e8; --series-2: #f0a04b; --series-3: #ff8a80; --series-4: #6fcfc8;
     --series-5: #8fd36a; --series-6: #f1d36a; --series-7: #c79bf0; --series-8: #a9bfc8;
 }
+
+/* The Motion page */
+.motion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 320px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+}
+
+.motion-item {
+    padding: 8px 12px;
+    border: 1px solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface);
+}
+
+.motion-track {
+    width: 300px;
+    padding: 8px;
+    margin-bottom: 12px;
+    border: 1px solid var(--athena-line);
+    border-radius: 999px;
+    background: var(--athena-surface);
+}
+
+.motion-ball {
+    display: block;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--athena-accent);
+}

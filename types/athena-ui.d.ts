@@ -87,6 +87,7 @@ export * from "./libs/core/validation.js";
 export * from "./libs/core/csv.js";
 export * from "./libs/core/dateRange.js";
 export * from "./libs/core/format.js";
+export * from "./libs/core/motion.js";
 export * from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 export * from "./libs/core/theme.js";
 export * from "./libs/hephaestus/componentGenerator/themePicker.js";

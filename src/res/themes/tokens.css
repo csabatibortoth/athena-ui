@@ -47,6 +47,31 @@
     --athena-dialog-medium: 480px;
     --athena-dialog-large: 720px;
     --athena-row-height: 36px;   /* rows of a virtual table; generateTable({ virtual: { rowHeight } }) sets --row-height on the table */
+
+    /* motion: every transition and animation of Athena UI reads these, so one variable slows down or switches off all of it */
+    --athena-duration-fast: 120ms;
+    --athena-duration-base: 200ms;
+    --athena-duration-slow: 360ms;
+    --athena-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --athena-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --athena-ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --athena-ease-spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017 19.4%, 1.077 22.8%, 1.121 26.7%, 1.149 31.2%, 1.159 36.2%, 1.138 49.9%, 1.115 56.3%, 1.043 69.7%, 1.009 81.2%, 0.998 92.1%, 1);
+}
+
+/* Less motion: the durations are 0. The system asks for it (prefers-reduced-motion), or the person does (data-motion="reduce" on <html>, see setMotion
+   in athena-ui-js/motion); data-motion="full" keeps the motion although the system asks for less. */
+@media (prefers-reduced-motion: reduce) {
+    :root:not([data-motion="full"]) {
+        --athena-duration-fast: 0ms;
+        --athena-duration-base: 0ms;
+        --athena-duration-slow: 0ms;
+    }
+}
+
+:root[data-motion="reduce"] {
+    --athena-duration-fast: 0ms;
+    --athena-duration-base: 0ms;
+    --athena-duration-slow: 0ms;
 }
 
 /* The dark colours: chosen with data-mode="dark" ... */

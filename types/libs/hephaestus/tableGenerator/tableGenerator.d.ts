@@ -39,6 +39,8 @@
  *        in chunks of `chunkSize` (`page` is the chunk number), rows that have not arrived yet show a placeholder, and sorting or the filter
  *        start again from the top.
  * @param {number} [options.chunkSize=50] rows per request of a data source with `virtual`
+ * @param {boolean} [options.animateRows=false] rows slide to their new place when the table is sorted, filtered or changes page, and new rows fade in
+ *        (at most 60 rows are animated, none under reduced motion, none in a virtual table)
  * @param {number} [options.filterDelay=300] ms to wait after typing before the data source is asked
  * @param {{label: string, onclick: (row: object) => void, danger?: boolean, hidden?: (row: object) => boolean, ariaLabel?: (row: object) => string}[]} [options.rowActions]
  *        a column of buttons at the end of every row
@@ -97,6 +99,7 @@ export function generateTable(options?: {
         nextCursor?: any;
     }>;
     chunkSize?: number;
+    animateRows?: boolean;
     filterDelay?: number;
     rowActions?: {
         label: string;

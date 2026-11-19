@@ -6,6 +6,7 @@
 import { downloadFile, toCsv } from "../../core/csv.js";
 import { asHandle, resolveElement } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
+import { animate, fadeIn, prefersReducedMotion } from "../../core/motion.js";
 import { clampWidth, virtualWindow } from "../../core/tableMath.js";
 
 const el = (tag, className, text) => {
@@ -65,6 +66,8 @@ const compare = (a, b) =>
  *        in chunks of `chunkSize` (`page` is the chunk number), rows that have not arrived yet show a placeholder, and sorting or the filter
  *        start again from the top.
  * @param {number} [options.chunkSize=50] rows per request of a data source with `virtual`
+ * @param {boolean} [options.animateRows=false] rows slide to their new place when the table is sorted, filtered or changes page, and new rows fade in
+ *        (at most 60 rows are animated, none under reduced motion, none in a virtual table)
  * @param {number} [options.filterDelay=300] ms to wait after typing before the data source is asked
  * @param {{label: string, onclick: (row: object) => void, danger?: boolean, hidden?: (row: object) => boolean, ariaLabel?: (row: object) => string}[]} [options.rowActions]
  *        a column of buttons at the end of every row
@@ -355,8 +358,12 @@ export function generateTable(options = {}) {
         return tr;
     }
 
+    const rowOf = new WeakMap();     // the element of a row -> its row object, to find the same row again after a redraw (animateRows)
+    let rendered = false;
+
     function renderRow(row, index) {
         const tr = el("tr");
+        if (row !== undefined) rowOf.set(tr, row);
         if (virtual) tr.setAttribute("aria-rowindex", String(index + 2));
         if (row === undefined) {
             // A row of a data source that has not arrived yet
@@ -558,10 +565,28 @@ export function generateTable(options = {}) {
         root.classList.toggle("athena-table-is-loading", remote && server.loading);
         renderPager(current.length);
         if (virtual) table.setAttribute("aria-rowcount", String(current.length + 1));
+        // Where the rows were before (FLIP): the same row object is the same row
+        const before = options.animateRows && rendered && !virtual && !prefersReducedMotion()
+            ? new Map([...(table.tBodies[0]?.rows ?? [])].slice(0, 60).map(tr => [rowOf.get(tr), tr.getBoundingClientRect()]).filter(([row]) => row !== undefined))
+            : null;
         const parts = [renderHead(current), renderBody()];
         if (resizableColumns || Object.keys(widths).length) parts.unshift(renderColgroup());
         if (options.caption) parts.unshift(el("caption", null, options.caption));
         table.replaceChildren(...parts);
+        if (before?.size) {
+            for (const tr of [...table.tBodies[0].rows].slice(0, 60)) {
+                const row = rowOf.get(tr);
+                if (row === undefined) continue;
+                const old = before.get(row);
+                if (!old) {
+                    fadeIn(tr);
+                    continue;
+                }
+                const now = tr.getBoundingClientRect();
+                if (Math.abs(old.top - now.top) > 1) animate(tr, [{ translate: `0 ${old.top - now.top}px` }, { translate: "0 0" }], { easing: "cubic-bezier(0.2, 0, 0, 1)" });
+            }
+        }
+        rendered = true;
         if (Object.keys(widths).length) applyWidths();
         if (scroller) scroller.scrollTop = scrollTop;
     }

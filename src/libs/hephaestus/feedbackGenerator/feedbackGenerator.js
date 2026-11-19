@@ -4,6 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { asHandle, cx, el, mount, setContent } from "../../core/dom.js";
+import { removeAfterTransition } from "../../core/motion.js";
 import { translate } from "../../core/i18n.js";
 
 const TOAST_CONTAINER_ID = "athena-toasts";
@@ -38,7 +39,8 @@ export function showToast(options) {
     let timer;
     const close = () => {
         clearTimeout(timer);
-        toast.remove();
+        toast.classList.add("is-leaving");
+        removeAfterTransition(toast);
     };
     const toast = el("div", {
         class: cx("toast", `alert-${type}`),

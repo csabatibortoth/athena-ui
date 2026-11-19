@@ -74,6 +74,7 @@ export async function launch() {
             }
         });
         await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Log.enable"), send("Network.enable")]);
+        await send("Page.bringToFront");     // a tab in the background gets no animation frames
 
         const page = {
             problems,

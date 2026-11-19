@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.1.0**
+Current version: **2.2.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -67,7 +67,7 @@ import { generateTable } from "athena-ui-js/table";        // or only what you u
 ```
 
 The entry points are `table`, `chart`, `dialog`, `menu`, `navigation`, `forms`, `feedback`, `components`, `inputs`, `router`, `session`, `theme`, `i18n`, `format`,
-`validation`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
+`validation`, `motion`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
 The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, so a bundler drops everything you do not import.
 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
@@ -149,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.1.0"` | Version shown in the footer |
+| `version` | `"2.2.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -194,6 +194,7 @@ Everything is exported from `athena-ui.js`:
 | `generatePageHeader`, `generateFacts`, `generateEmptyState`, `generateLoading`, `copyToClipboard` | See [Page parts and formatting](#page-parts-and-formatting) |
 | `formatBytes`, `formatNumber`, `formatDuration`, `formatRelativeTime`, `formatDate` | Format helpers on top of `Intl`, in the current language |
 | `el`, `setContent`, `resolveElement`, `asHandle`, `createSafeBuilder` | See [Safe DOM building](#safe-dom-building) |
+| `animate`, `flip`, `stagger`, `spring`, `tween`, `transition`, `viewTransition`, `setMotion`, `prefersReducedMotion`, `easings`, `generateSkeleton` | See [Motion](#motion-animations-and-transitions) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
 | `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateDropZone`, `generateStepper`, `generateDateRange`, `generateRichText`, `generateWysiwyg` | See [Inputs](#inputs) |
 | `sanitizeHtml(html)`, `htmlToText(html)`, `isSafeUrl(url)` | The allow-list sanitizer behind the rich text editor |
@@ -657,6 +658,41 @@ generateStat({ parent: "wrapper", label: "CPU", value: "91 %", tone: "bad", note
 await copyToClipboard(token);                                              // and says "Copied" in a toast
 formatBytes(1536); formatNumber(1234567.891); formatDuration(7500000); formatRelativeTime(date); formatDate(date, { time: true });   // Intl, in the current language
 ```
+
+### Motion: animations and transitions
+
+Motion is an enhancement. Every transition and animation of Athena UI reads the tokens `--athena-duration-fast` (120 ms), `--athena-duration-base` (200 ms) and `--athena-duration-slow` (360 ms),
+and `--athena-ease-standard`, `-in`, `-out` and `-spring`, so one variable slows down or switches off all of it. They are **0 under reduced motion**: when the system asks for it
+(`prefers-reduced-motion`), or the person does (`data-motion="reduce"` on `<html>`, which `setMotion("reduce")` sets; `"full"` keeps the motion although the system asks for less).
+Nothing waits for a transition before it works, and nothing needs an inline style (a strict Content-Security-Policy is fine: CSS classes, custom properties and the Web Animations API).
+
+What the components do by themselves:
+- a **dialog** fades and rises in and fades out; the **dropdown menu** and the **tooltip** fade; a **toast** slides in and out; an **accordion** opens smoothly;
+  a **progress bar** moves smoothly; a **skeleton** (`generateSkeleton`) shimmers;
+- a **chart** draws itself the first time (bars grow, the line is drawn, slices pop in; `animate: false` turns it off, and it never replays while streaming or zooming);
+- the **theme manager** cross-fades colours when the theme or the mode changes (`createThemeManager({ transition: false })` turns it off);
+- a **table** with `animateRows: true` slides its rows to their new place when sorted, filtered or paged (at most 60 rows, not in a virtual table);
+- the **router** with `transition: true` makes a page change a view transition (`document.startViewTransition`): the old page cross-fades into the new one, and elements with a
+  `view-transition-name` move from one page to the next. The old page stays until the page function of the new one has finished, so a page that needs long should draw something first.
+
+`athena-ui-js/motion` has the same tools for your own code; all of them resolve at once under reduced motion:
+
+```js
+import { animate, flip, stagger, spring, tween, easings, transition, viewTransition, setMotion, prefersReducedMotion } from "athena-ui-js/motion";
+
+await animate(card, [{ opacity: 0, translate: "0 16px" }, { opacity: 1, translate: "0 0" }]);   // the Web Animations API, with the tokens as defaults; resolves at the end
+await flip(list, () => list.append(...sorted));                    // rows slide from where they were to where they are; new ones fade in
+await stagger(items, (item, index, delay) => animate(item, frames, { delay }), { step: 40 });   // one after the other
+const { easing, duration } = spring({ stiffness: 220, damping: 12 });                           // a spring as a CSS easing (linear()), it overshoots
+await animate(ball, [{ translate: "0 0" }, { translate: "240px 0" }], { easing, duration });
+tween({ from: 0, to: 100, duration: 600, easing: easings.easeOutCubic, onUpdate: value => counter.textContent = Math.round(value) });   // numbers over time (games, counters)
+await transition(panel, () => panel.classList.add("open"));        // a change made with CSS: resolves when its transition is over
+await viewTransition(() => swapContent());                         // cross-fades the change where the browser can
+setMotion("reduce");                                                // "system" | "reduce" | "full"
+```
+
+In a page that is not drawn (a hidden tab) there are no frames: `animate` and `tween` finish by a timer, so nothing hangs. Dialogs and toasts stay in the page for the length of their
+exit transition (none under reduced motion); in your tests call `setMotion("reduce")` first, so they are gone at once.
 
 ### Safe DOM building
 

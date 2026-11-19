@@ -38,6 +38,7 @@ const pages = [
     { id: "/forms", label: "Forms", icon: "✎" },
     { id: "/dialogs", label: "Dialogs", icon: "❐" },
     { id: "/navigation", label: "Navigation", icon: "☰" },
+    { id: "/motion", label: "Motion", icon: "↯" },
     { id: "/themes", label: "Themes", icon: "◐" },
     { id: "/about", label: "About", icon: "ⓘ" }
 ];
@@ -91,6 +92,7 @@ const router = createRouter({
     outlet: "wrapper",
     focusContent: true,
     scrollTop: true,
+    transition: true,          // a page change is a view transition: the old page cross-fades into the new one (not under reduced motion)
     titlePrefix: "Athena UI demo · ",
     auth: auth.routerRules({ loginPath: "/account", homePath: "/", forbiddenPath: "/forbidden" }),
     routes: {
@@ -100,6 +102,7 @@ const router = createRouter({
         "/forms": { handler: page("forms"), title: "Forms" },
         "/dialogs": { handler: page("dialogs"), title: "Dialogs" },
         "/navigation": { handler: page("navigation"), title: "Navigation" },
+        "/motion": { handler: page("motion"), title: "Motion" },
         "/themes": { handler: page("themes"), title: "Themes" },
         "/about": { handler: page("about"), title: "About" },
         "/account": { handler: page("account"), title: "Account" },

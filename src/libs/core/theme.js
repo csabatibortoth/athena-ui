@@ -15,6 +15,8 @@
 // Nothing is sent to a server. theme-boot.js (a classic script of its own) sets the two attributes before the page is
 // drawn, so the wrong colours never flash.
 
+import { prefersReducedMotion, readDuration } from "./motion.js";
+
 export const DEFAULT_MODES = [
     { id: "system", name: "Like the system" },
     { id: "light", name: "Light" },
@@ -29,6 +31,7 @@ export const DEFAULT_MODES = [
  * @param {string} [options.themeColorVariable] CSS variable whose value becomes <meta name="theme-color"> (the bar of a phone browser)
  * @param {HTMLElement} [options.root] element that gets the attributes (default: <html>)
  * @param {Storage} [options.storage] default: localStorage
+ * @param {boolean} [options.transition=true] colours cross-fade when the theme or the mode changes (not under reduced motion)
  * @returns {{themes, modes, appearance: () => object, setTheme: (id) => boolean, setMode: (id) => boolean,
  *            onChange: (listener) => Function, refresh: Function, destroy: Function}}
  */
@@ -58,7 +61,16 @@ export function createThemeManager(options = {}) {
     let current = read();
     const appearance = () => ({ ...current, dark: root.dataset.mode === "dark" });
 
+    let fade = 0;
+    let started = false;
     function apply() {
+        // A change after the first one cross-fades: the class makes every colour transition for a moment
+        if (started && options.transition !== false && !prefersReducedMotion()) {
+            root.classList.add("athena-switching");
+            clearTimeout(fade);
+            fade = setTimeout(() => root.classList.remove("athena-switching"), readDuration("--athena-duration-slow", root) + 60);
+        }
+        started = true;
         const dark = current.mode === "dark" || (current.mode === "system" && Boolean(systemDark()?.matches));
         root.dataset.theme = current.theme;
         root.dataset.mode = dark ? "dark" : "light";

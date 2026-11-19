@@ -261,7 +261,7 @@ textarea {
     border-radius: 10px;
     background-color: var(--athena-line);
     position: relative;
-    transition: background-color 0.15s;
+    transition: background-color var(--athena-duration-fast) var(--athena-ease-standard);
 }
 
 .switch-track::after {
@@ -273,7 +273,7 @@ textarea {
     height: 16px;
     border-radius: 50%;
     background-color: #fff;
-    transition: transform 0.15s;
+    transition: transform var(--athena-duration-fast) var(--athena-ease-standard);
 }
 
 .switch input:checked + .switch-track {
@@ -395,7 +395,7 @@ textarea {
 .progress-fill {
     height: 100%;
     background-color: var(--progress-color, var(--athena-accent));
-    transition: width 0.2s;
+    transition: width var(--athena-duration-base) var(--athena-ease-standard);
 }
 
 .progress-success {
@@ -595,7 +595,7 @@ dialog.dialog::backdrop {
 .accordion-icon::before {
     content: "▾";
     display: inline-block;
-    transition: transform 0.15s;
+    transition: transform var(--athena-duration-fast) var(--athena-ease-standard);
 }
 
 .accordion-item[open] > .accordion-header .accordion-icon::before,
@@ -897,7 +897,7 @@ dialog.dialog::backdrop {
     pointer-events: none;
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.12s;
+    transition: opacity var(--athena-duration-fast) var(--athena-ease-standard);
 }
 
 .has-tooltip:hover > .tooltip-text,
@@ -1282,15 +1282,17 @@ dialog.dialog::backdrop {
     }
 }
 
+/* Reduced motion: a spinner and an indeterminate bar still have to say "busy", but slowly. The transitions read the duration tokens (0). */
 @media (prefers-reduced-motion: reduce) {
-    .spinner,
-    .progress-indeterminate .progress-fill {
+    :root:not([data-motion="full"]) .spinner,
+    :root:not([data-motion="full"]) .progress-indeterminate .progress-fill {
         animation-duration: 3s;
     }
+}
 
-    * {
-        transition: none !important;
-    }
+:root[data-motion="reduce"] .spinner,
+:root[data-motion="reduce"] .progress-indeterminate .progress-fill {
+    animation-duration: 3s;
 }
 
 /* Menu submenus */
@@ -2155,5 +2157,221 @@ dialog.dialog::backdrop {
 .stat.is-ok .stat-value { color: var(--athena-success); }
 .stat.is-warn .stat-value { color: var(--athena-warning); }
 .stat.is-bad .stat-value { color: var(--athena-danger); }
+
+
+/* ------------------------------------------------------------ Motion
+   Everything reads the --athena-duration-* and --athena-ease-* tokens: 0 under reduced motion. Entering uses @starting-style, leaving
+   uses transition-behavior: allow-discrete, so a closed dialog or popover fades out before it is taken off the screen. A browser that
+   does not know them just shows and hides without motion. */
+
+dialog.dialog {
+    opacity: 0;
+    translate: 0 8px;
+    transition:
+        opacity var(--athena-duration-base) var(--athena-ease-out),
+        translate var(--athena-duration-base) var(--athena-ease-out),
+        overlay var(--athena-duration-base) allow-discrete,
+        display var(--athena-duration-base) allow-discrete;
+}
+
+dialog.dialog[open] {
+    opacity: 1;
+    translate: 0 0;
+}
+
+dialog.dialog::backdrop {
+    opacity: 0;
+    transition:
+        opacity var(--athena-duration-base) var(--athena-ease-out),
+        overlay var(--athena-duration-base) allow-discrete,
+        display var(--athena-duration-base) allow-discrete;
+}
+
+dialog.dialog[open]::backdrop {
+    opacity: 1;
+}
+
+@starting-style {
+    dialog.dialog[open] {
+        opacity: 0;
+        translate: 0 8px;
+    }
+
+    dialog.dialog[open]::backdrop {
+        opacity: 0;
+    }
+}
+
+.athena-popover[popover] {
+    opacity: 0;
+    scale: 0.97;
+    transform-origin: top;
+    transition:
+        opacity var(--athena-duration-fast) var(--athena-ease-out),
+        scale var(--athena-duration-fast) var(--athena-ease-out),
+        overlay var(--athena-duration-fast) allow-discrete,
+        display var(--athena-duration-fast) allow-discrete;
+}
+
+.athena-popover[popover]:popover-open {
+    opacity: 1;
+    scale: 1;
+}
+
+.athena-popover-above[popover] {
+    transform-origin: bottom;
+}
+
+@starting-style {
+    .athena-popover[popover]:popover-open {
+        opacity: 0;
+        scale: 0.97;
+    }
+}
+
+/* Toasts slide in from the side, and out again when they are closed */
+.toast {
+    transition:
+        opacity var(--athena-duration-base) var(--athena-ease-out),
+        translate var(--athena-duration-base) var(--athena-ease-out);
+}
+
+@starting-style {
+    .toast {
+        opacity: 0;
+        translate: 16px 0;
+    }
+}
+
+.toast.is-leaving {
+    opacity: 0;
+    translate: 16px 0;
+}
+
+/* The panel of an accordion opens and closes smoothly (a browser without ::details-content opens it at once) */
+.accordion-item {
+    interpolate-size: allow-keywords;
+}
+
+.accordion-item::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+        block-size var(--athena-duration-base) var(--athena-ease-standard),
+        content-visibility var(--athena-duration-base) allow-discrete;
+}
+
+.accordion-item[open]::details-content {
+    block-size: auto;
+}
+
+/* The mark of the active item, and hover, move gently */
+.athena-menu .menu-control {
+    transition:
+        background-color var(--athena-duration-fast) var(--athena-ease-standard),
+        box-shadow var(--athena-duration-fast) var(--athena-ease-standard);
+}
+
+/* A place holder for what is loading: a skeleton with a shimmer (generateSkeleton) */
+.athena-skeleton {
+    display: block;
+    min-height: 1em;
+    border-radius: var(--athena-radius);
+    background: linear-gradient(90deg, var(--athena-surface) 25%, var(--athena-hover) 50%, var(--athena-surface) 75%);
+    background-size: 200% 100%;
+    animation: athena-shimmer 1.4s linear infinite;
+}
+
+.athena-skeleton-line + .athena-skeleton-line {
+    margin-top: var(--athena-space-2);
+}
+
+.athena-skeleton-line:last-child:not(:only-child) {
+    width: 60%;
+}
+
+@keyframes athena-shimmer {
+    to {
+        background-position: -200% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root:not([data-motion="full"]) .athena-skeleton {
+        animation: none;
+    }
+}
+
+:root[data-motion="reduce"] .athena-skeleton {
+    animation: none;
+}
+
+/* A theme or mode change cross-fades instead of flashing (the theme manager sets the class for a moment) */
+.athena-switching,
+.athena-switching *,
+.athena-switching *::before,
+.athena-switching *::after {
+    transition:
+        background-color var(--athena-duration-slow) var(--athena-ease-standard),
+        color var(--athena-duration-slow) var(--athena-ease-standard),
+        border-color var(--athena-duration-slow) var(--athena-ease-standard),
+        fill var(--athena-duration-slow) var(--athena-ease-standard),
+        stroke var(--athena-duration-slow) var(--athena-ease-standard);
+}
+
+/* Page transitions of the router (router({ transition: true })) */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: var(--athena-duration-base);
+    animation-timing-function: var(--athena-ease-standard);
+}
+
+/* Charts draw themselves when they appear: bars grow, lines are drawn, slices pop in (only the first time, not when a chart streams or is zoomed) */
+@keyframes athena-grow {
+    from {
+        scale: 1 0;
+    }
+}
+
+@keyframes athena-draw {
+    from {
+        stroke-dashoffset: 1;
+    }
+}
+
+@keyframes athena-appear {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes athena-pop {
+    from {
+        opacity: 0;
+        scale: 0.6;
+    }
+}
+
+.athena-chart-animated .chart-bar {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: athena-grow var(--athena-duration-slow) var(--athena-ease-out) backwards;
+}
+
+.athena-chart-animated .chart-line {
+    stroke-dasharray: 1;
+    animation: athena-draw var(--athena-duration-slow) var(--athena-ease-out) backwards;
+}
+
+.athena-chart-animated .chart-area,
+.athena-chart-animated .chart-point {
+    animation: athena-appear var(--athena-duration-slow) var(--athena-ease-out) backwards;
+}
+
+.athena-chart-animated .chart-slice {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: athena-pop var(--athena-duration-slow) var(--athena-ease-out) backwards;
+}
 
 }

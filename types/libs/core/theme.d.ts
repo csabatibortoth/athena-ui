@@ -6,6 +6,7 @@
  * @param {string} [options.themeColorVariable] CSS variable whose value becomes <meta name="theme-color"> (the bar of a phone browser)
  * @param {HTMLElement} [options.root] element that gets the attributes (default: <html>)
  * @param {Storage} [options.storage] default: localStorage
+ * @param {boolean} [options.transition=true] colours cross-fade when the theme or the mode changes (not under reduced motion)
  * @returns {{themes, modes, appearance: () => object, setTheme: (id) => boolean, setMode: (id) => boolean,
  *            onChange: (listener) => Function, refresh: Function, destroy: Function}}
  */
@@ -23,6 +24,7 @@ export function createThemeManager(options?: {
     themeColorVariable?: string;
     root?: HTMLElement;
     storage?: Storage;
+    transition?: boolean;
 }): {
     themes: any;
     modes: any;

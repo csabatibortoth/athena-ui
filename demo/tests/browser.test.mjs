@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { createDemoServer } from "../server.mjs";
-import { chromePath, launch, until } from "./cdp.mjs";
+import { chromePath, launch, until } from "../../tests/cdp.mjs";
 
 const skip = chromePath ? false : "no Chrome / Chromium / Edge found (set CHROME_PATH)";
 let server;
@@ -41,7 +41,7 @@ const title = page => page.eval(`document.querySelector(".page-title")?.textCont
 
 describe("every page draws, without a single error, under the strict policy", { skip }, () => {
     const pages = [
-        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
+        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/motion", "Motion"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
         ["/themes", "Themes, modes and tokens"], ["/about", "About this demo"], ["/account", "Account"],
         ["/admin", "Account"],                  // not signed in: the router sends the visitor to the sign in page
         ["/nowhere", "Page not found"]
@@ -195,6 +195,61 @@ describe("what a person does", { skip }, () => {
         assert.ok(await page.eval(`document.querySelector(".tooltip-text").getBoundingClientRect().bottom <= [...document.querySelectorAll("button")].find(x => x.querySelector(".button-text")?.textContent === "Hover or focus me").getBoundingClientRect().top + 1`), "above the button");
         await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
         await page.waitFor(`!document.querySelector(".tooltip-text").matches(":popover-open")`);
+    }));
+
+    test("motion: things move when motion is on, stand still when it is off, and the switch is respected by the page change", { timeout: 240000 }, () => withPage("/motion", async page => {
+        await page.waitFor(`document.querySelector(".page-title")?.textContent === "Motion"`, { timeout: 90000 });
+        // An animation of 200 ms can be over between two looks: count the calls of Element.animate instead
+        await page.eval(`(() => { window.__animated = 0; const real = Element.prototype.animate; Element.prototype.animate = function (...args) { window.__animated++; return real.apply(this, args); }; })()`);
+        const animated = () => page.eval("window.__animated");
+        // full motion: the choice is on <html>, the tokens follow
+        await page.eval(`(() => { const select = document.querySelector("select[name=motion]"); select.value = "full"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+        await page.waitFor(`document.documentElement.dataset.motion === "full"`);
+        assert.match(await page.eval(`document.getElementById("motion-status").textContent`), /off: everything below moves/);
+        assert.equal(await page.eval(`getComputedStyle(document.documentElement).getPropertyValue("--athena-duration-base").trim()`), "200ms");
+        // a list: shuffled, the rows slide
+        let calls = await animated();
+        await page.clickText("Add one");                      // a new row fades in, the others slide down
+        assert.ok((await animated()) > calls, "the list animates");
+        calls = await animated();
+        // stagger: every chip has its own animation, one after the other
+        await page.clickText("Play");
+        assert.ok((await animated()) - calls >= 8, "eight chips, eight animations");
+        calls = await animated();
+        // a spring, and a tween that counts
+        await page.clickText("Move");
+        assert.ok((await animated()) > calls, "the spring animates");
+        const before = await page.eval(`document.querySelector(".stat-value").textContent`);
+        await page.clickText("Count");
+        await page.waitFor(`document.querySelector(".stat-value").textContent.trim() !== "0" && document.querySelector(".stat-value").textContent !== ${JSON.stringify(before)}`, { timeout: 15000 });
+        // a dialog fades: after Close it is still there for a moment, then gone
+        await page.clickText("Open a dialog");
+        await page.waitFor(`document.querySelector("dialog.dialog[open]")`);
+        await page.press("Escape", "Escape", 27);
+        await page.waitFor(`!document.querySelector("dialog.dialog[open]")`);
+        await page.waitFor(`!document.querySelector("dialog.dialog")`, { timeout: 5000 });
+        // a page change is a view transition when motion is on
+        await page.eval(`(() => { window.__transitions = 0; const real = document.startViewTransition.bind(document); document.startViewTransition = update => { window.__transitions++; return real(update); }; })()`);
+        await page.eval(`location.hash = "#/about"`);
+        await page.waitFor(`document.querySelector(".page-title")?.textContent === "About this demo"`);
+        assert.ok((await page.eval("window.__transitions")) >= 1, "the page change was a view transition");
+
+        // reduced motion: nothing moves, and the page change is not a view transition
+        await page.eval(`location.hash = "#/motion"`);
+        await page.waitFor(`document.querySelector(".page-title")?.textContent === "Motion"`);
+        await page.eval(`(() => { const select = document.querySelector("select[name=motion]"); select.value = "reduce"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+        await page.waitFor(`document.documentElement.dataset.motion === "reduce"`);
+        assert.match(await page.eval(`document.getElementById("motion-status").textContent`), /ON: nothing below moves/);
+        assert.equal(await page.eval(`getComputedStyle(document.documentElement).getPropertyValue("--athena-duration-base").trim()`), "0ms");
+        calls = await animated();
+        await page.clickText("Add one");
+        await page.clickText("Play");
+        await page.clickText("Move");
+        assert.equal(await animated(), calls, "reduced: nothing is animated (no call of Element.animate)");
+        const count = await page.eval("window.__transitions");
+        await page.eval(`location.hash = "#/about"`);
+        await page.waitFor(`document.querySelector(".page-title")?.textContent === "About this demo"`);
+        assert.equal(await page.eval("window.__transitions"), count, "reduced: no view transition");
     }));
 
     test("navigation: the menu with groups inside groups works with the keyboard", { timeout: 240000 }, () => withPage("/navigation", async page => {
