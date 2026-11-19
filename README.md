@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.0.1**
+Current version: **2.0.2**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -73,6 +73,8 @@ The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
 
 ### The demo application
+
+**Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
 `demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, every field type, native dialogs, a menu with groups inside groups, themes
 and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy.
@@ -147,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.0.1"` | Version shown in the footer |
+| `version` | `"2.0.2"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |

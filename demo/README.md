@@ -7,6 +7,8 @@ Content-Security-Policy (`script-src 'self'; style-src 'self'`): no inline scrip
 It is also the end to end test of the library: the tests in `demo/tests` open every page in a real browser, click, type and press keys, and fail on any error,
 failed request or policy violation.
 
+**Live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (deployed from `master` by GitHub Actions; on the Free plan of Azure App Service it sleeps when idle, so the first request can take a few seconds).
+
 ```sh
 npm run demo            # http://localhost:3000   (PORT=8080 npm run demo for another port)
 npm run test:demo       # the server, the API, and every page in headless Chrome
