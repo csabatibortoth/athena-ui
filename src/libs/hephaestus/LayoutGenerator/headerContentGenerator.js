@@ -3,8 +3,6 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-/* global $ */
-
 import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
 import config, { withBorder } from "../../config/config.js";
 import { getMenuItems } from "../../config/hooks.js";
@@ -26,7 +24,7 @@ export function generateHeaderContent() {
  */
 export function generateHeaderMenu(options) {
     if (options?.items) {
-        $("#header_menu_container").empty();
+        document.getElementById("header_menu_container")?.replaceChildren();
         return generateMenu({ ...options, parent: "header_menu_container", id: options.id ?? "header_menu" });
     }
     generateBasicMenu({
@@ -38,7 +36,7 @@ export function generateHeaderMenu(options) {
 }
 
 export function clearHeaderMenu() {
-    $("#header_menu_container").empty();
+    document.getElementById("header_menu_container")?.replaceChildren();
 }
 
 export function generateHeaderTitle() {

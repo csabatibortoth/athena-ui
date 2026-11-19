@@ -3,8 +3,6 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-/* global $ */
-
 import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
 import config, { withBorder } from "../../config/config.js";
 import { generateHeaderContent } from "./headerContentGenerator.js";
@@ -39,7 +37,7 @@ export function generateHeader() {
 }
 
 export function clearHeader() {
-    $("#header").empty();
+    document.getElementById("header")?.replaceChildren();
 }
 
 /* WRAPPER ELEMENT GENERATION */
@@ -50,7 +48,7 @@ export function generateWrapper() {
 }
 
 export function clearWrapper() {
-    $("#wrapper").empty();
+    document.getElementById("wrapper")?.replaceChildren();
 }
 
 /* FOOTER ELEMENT GENERATION */
@@ -61,5 +59,5 @@ export function generateFooter() {
 }
 
 export function clearFooter() {
-    $("#footer").empty();
+    document.getElementById("footer")?.replaceChildren();
 }

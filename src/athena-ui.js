@@ -4,8 +4,6 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 //Version: 1.3.0
 
-/* global $ */
-
 import config, { applyConfig } from "./libs/config/config.js";
 import { getAppConfig, setHooks } from "./libs/config/hooks.js";
 import { loadLibs, loadScript, loadTheme } from "./libs/hephaestus/hephaestus.js";
@@ -45,9 +43,6 @@ import * as modal from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 import Cookies from "./libs/js-cookie/src/api.mjs";
 import { HTMLElementGenerator } from "./libs/hephaestus/HTMLElementGenerator/src/HTMLElementGenerator.js";
 
-if (typeof $ !== "function") {
-    throw new Error("Athena UI: jQuery has to be loaded before athena-ui.js");
-}
 
 /**
  * Loads the libraries and the theme in parallel, then generates the layout.
@@ -69,9 +64,9 @@ export async function init(options = {}) {
     setHooks(options);
 
     await Promise.all([
-        loadLibs(config.customLoader ? [config.customLoader] : []),
+        loadLibs(config.customLoader ? [config.customLoader] : [], { jquery: typeof globalThis.jQuery === "function", crypto: config.enable_encrypt_password }),
         loadTheme(options.theme ?? options.themes),
-        new Promise(resolve => $(resolve))
+        new Promise(resolve => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", resolve, { once: true }) : resolve()))
     ]);
 
     layout.generateBasicLayout();

@@ -1,7 +1,7 @@
 {
   "name": "athena-ui-js",
   "version": "1.3.0",
-  "description": "A small jQuery based UI framework: generated page layout, menus, login / registration / lost password forms, charts, tables, modals and themes, written as ES modules.",
+  "description": "A small UI framework (jQuery is optional): generated page layout, menus, login / registration / lost password forms, charts, tables, modals and themes, written as ES modules.",
   "type": "module",
   "main": "./src/athena-ui.js",
   "scripts": {
@@ -71,6 +71,11 @@
   ],
   "peerDependencies": {
     "jquery": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "jquery": {
+      "optional": true
+    }
   },
   "publishConfig": {
     "access": "public"

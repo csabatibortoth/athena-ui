@@ -1045,6 +1045,7 @@ test("autocomplete: filter, keyboard, async source ignores stale answers", async
 test("multi select: choose, chips, backspace", async () => {
     const select = A.generateMultiSelect({ parent: "wrapper", options: [{ value: "h", text: "Hungary" }, { value: "i", text: "Italy" }] });
     select.input.focus();
+    select.input.dispatchEvent(new Event("focus"));   // a headless window does not always have the focus, so the event may not come by itself
     await tick();
     for (const option of $$("[role=option]", select.element)) option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
     equal(JSON.stringify(select.getValue()), '["h","i"]');
@@ -1202,7 +1203,7 @@ test("table: columns resize with the mouse and the keyboard, double click resets
     });
     const handles = $$("#rt .athena-col-resizer");
     equal(handles.length, 3);
-    const startA = $("#rt thead th")[0].offsetWidth;
+    const startA = $1("#rt thead th").offsetWidth;
     pointer(handles[0], "pointerdown", 100);
     pointer(handles[0], "pointermove", 160);
     pointer(handles[0], "pointerup", 160);

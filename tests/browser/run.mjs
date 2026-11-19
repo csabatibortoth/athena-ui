@@ -7,7 +7,8 @@
 //
 // Environment:
 //   CHROME_PATH   browser executable (default: found in the usual install locations)
-//   JQUERY_URL    where the page loads jQuery from (default: the jQuery CDN, so the machine needs internet access)
+//   WITH_JQUERY   1: load jQuery from the jQuery CDN (needs internet access) to check Athena UI together with it. Default: no jQuery.
+//   JQUERY_URL    load jQuery from this address instead
 //   TEST_TIMEOUT  virtual time budget of the page in ms (default 120000; it passes much faster in real time)
 
 import { spawn } from "node:child_process";
@@ -50,7 +51,7 @@ const { port } = server.address();
 
 const profile = mkdtempSync(join(tmpdir(), "athena-ui-chrome-"));
 const timeout = Number(process.env.TEST_TIMEOUT ?? 120000);
-const url = `http://127.0.0.1:${port}/tests/browser/index.html${process.env.JQUERY_URL ? `?jquery=${encodeURIComponent(process.env.JQUERY_URL)}` : ""}`;
+const url = `http://127.0.0.1:${port}/tests/browser/index.html${process.env.JQUERY_URL ? `?jquery=${encodeURIComponent(process.env.JQUERY_URL)}` : process.env.WITH_JQUERY ? "?jquery=cdn" : ""}`;
 // Asynchronous on purpose: a blocking spawn would also block the server that Chrome loads the page from.
 const run = await new Promise(done => {
     const child = spawn(chrome, [
