@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.4.0**
+Current version: **2.4.1**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -149,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.4.0"` | Version shown in the footer |
+| `version` | `"2.4.1"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -862,6 +862,28 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.4.1
+  #### Fixed:
+   1. **2.3.0 and 2.4.0 were published without two folders** (`src/libs/hephaestus/widgetGrid` and `.../codeGenerator`): `import "athena-ui-js"`, `athena-ui-js/widgets` and `athena-ui-js/code` failed with "module not found". Both folders are in the package now. **Use 2.4.1 or later**; 2.3.0 and 2.4.0 should be deprecated.
+  #### Added:
+   1. `npm run check:package` (`scripts/check-package.mjs`): reads what `npm pack --dry-run` would publish and follows the imports of every entry point through that list; it runs in CI and in `npm test`, so a folder that is not on the `files` list fails the build instead of the users
+
+ ### 2.4.0
+  #### Added:
+   1. `athena-ui-js/code`: `highlightCode`, `generateCodeBlock` (language label, copy button), `createDiffView`, `createCodeEditor` (a textarea over highlighted lines: indentation, closing brackets, comments, find and replace, completions, markers, read-only lines, own undo), ten languages and `registerLanguage`; token colours are theme tokens with a contrast test
+   2. The Code page of the demo
+
+ ### 2.3.0
+  #### Added:
+   1. `athena-ui-js/widgets`: `registerWidget` and `createWidgetGrid`: a dashboard of widgets that can be added, configured, moved and resized with the pointer or the keyboard, locked, undone, saved and loaded as validated JSON, with a layout per breakpoint
+   2. The grid maths (`placeItem`, `compact`, `findFreeSpot`, `normalize`) as exports, and the Widgets page of the demo
+
+ ### 2.2.0
+  #### Added:
+   1. Motion: the tokens `--athena-duration-*` and `--athena-ease-*` (0 under reduced motion), `athena-ui-js/motion` (`animate`, `flip`, `stagger`, `spring`, `tween`, `viewTransition`, `setMotion`), transitions of dialogs, toasts, popovers, the accordion and the menu, the first drawing of charts, a cross-fade of theme changes, `createRouter({ transition: true })`, `generateTable({ animateRows: true })` and `generateSkeleton`
+  #### Changed:
+   1. The blanket `transition: none` under reduced motion is gone: the durations are 0 instead; a closed dialog or toast stays in the page for the length of its exit transition (none under reduced motion)
 
  ### 2.1.0
   #### Changed:
