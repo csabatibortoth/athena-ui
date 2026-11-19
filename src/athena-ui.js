@@ -32,6 +32,8 @@ import * as richText from "./libs/hephaestus/inputGenerator/richTextGenerator.js
 import * as sanitize from "./libs/core/sanitize.js";
 import * as router from "./libs/hephaestus/router/router.js";
 import * as session from "./libs/hephaestus/auth/session.js";
+import * as authState from "./libs/hephaestus/auth/authState.js";
+import * as authForms from "./libs/hephaestus/formGenerator/authForms.js";
 import * as i18n from "./libs/core/i18n.js";
 import * as validation from "./libs/core/validation.js";
 import * as format from "./libs/core/format.js";
@@ -111,6 +113,8 @@ const AthenaUI = {
     ...sanitize,
     ...router,
     ...session,
+    ...authState,
+    ...authForms,
     ...i18n,
     ...validation,
     ...csv,
@@ -153,6 +157,8 @@ export { el, setContent, resolveElement, asHandle } from "./libs/core/dom.js";
 export * from "./libs/core/sanitize.js";
 export * from "./libs/hephaestus/router/router.js";
 export * from "./libs/hephaestus/auth/session.js";
+export * from "./libs/hephaestus/auth/authState.js";
+export * from "./libs/hephaestus/formGenerator/authForms.js";
 export * from "./libs/core/i18n.js";
 export * from "./libs/core/validation.js";
 export * from "./libs/core/csv.js";

@@ -830,6 +830,76 @@ test("date and time range: presets fill the inputs, custom edits clear the prese
     range.destroy();
 });
 
+test("auth: sign in form with autocomplete tokens, server errors, auth state in memory", async () => {
+    let attempt = 0;
+    const form = A.generateSignInForm({
+        parent: "wrapper", remember: true,
+        onSubmit: async values => {
+            attempt++;
+            if (attempt === 1) throw new Error("Wrong password");
+            if (attempt === 2) throw Object.assign(new Error("Check the fields"), { fields: { username: "Unknown user" } });
+            submitted.push(values);
+        }
+    });
+    const inputs = name => $1("[name=" + name + "]", form.element);
+    equal(form.element.tagName, "FORM");
+    equal(inputs("username").getAttribute("autocomplete"), "username");
+    equal(inputs("password").getAttribute("autocomplete"), "current-password");
+    equal(inputs("password").type, "password");
+    equal(inputs("remember").type, "checkbox");
+    inputs("username").value = "anna";
+    inputs("password").value = "secret!!";
+    form.element.requestSubmit();
+    for (let i = 0; i < 40 && !$1(".form-message", form.element).textContent; i++) await tick(25);
+    equal($1(".form-message", form.element).textContent, "Wrong password");
+    form.element.requestSubmit();
+    for (let i = 0; i < 40 && !$1(".field-error", form.fields.username.element).textContent; i++) await tick(25);
+    equal($1(".field-error", form.fields.username.element).textContent, "Unknown user");
+    form.element.requestSubmit();
+    for (let i = 0; i < 40 && attempt < 3; i++) await tick(25);
+    await tick(30);
+    equal(submitted.at(-1).password, "secret!!", "the password is sent as typed, not hashed");
+    form.destroy();
+
+    const signUp = A.generateSignUpForm({ parent: "wrapper", onSubmit: values => { submitted.push(values); } });
+    equal(signUp.fields.password.element.querySelector("input").getAttribute("autocomplete"), "new-password");
+    $1("[name=username]", signUp.element).value = "bela";
+    $1("[name=email]", signUp.element).value = "bela@example.org";
+    $1("[name=password]", signUp.element).value = "longenough1";
+    $1("[name=confirmPassword]", signUp.element).value = "different11";
+    signUp.element.requestSubmit();
+    await tick(40);
+    assert($1(".field-error", signUp.fields.confirmPassword.element).textContent.length > 0, "confirmation mismatch");
+    $1("[name=confirmPassword]", signUp.element).value = "longenough1";
+    signUp.element.requestSubmit();
+    await tick(60);
+    assert(!("confirmPassword" in submitted.at(-1)) && submitted.at(-1).email === "bela@example.org", "the confirmation is not sent");
+    signUp.destroy();
+
+    const change = A.generatePasswordChangeForm({ parent: "wrapper", username: "anna", onSubmit() {} });
+    equal($1("[name=username]", change.element).hidden, true);
+    equal($1("[name=newPassword]", change.element).getAttribute("autocomplete"), "new-password");
+    change.destroy();
+    equal($1("[name=email]", A.generatePasswordResetForm({ parent: "wrapper", onSubmit() {} }).element).type, "email");
+
+    // the state of who is signed in lives in memory: nothing is written to a cookie or the storage
+    const cookiesBefore = document.cookie;
+    const auth = A.createAuthState({ restore: async () => ({ name: "Anna", roles: ["admin"] }) });
+    const changes = [];
+    auth.onChange(user => changes.push(user?.name ?? null));
+    assert(!auth.isSignedIn(), "nobody at the start");
+    await auth.restore();
+    assert(auth.isSignedIn() && auth.hasRole("admin") && !auth.hasRole("root"), "restored from the server answer");
+    auth.signOut();
+    auth.signIn({ name: "Bela", role: "viewer" });
+    assert(auth.hasRole("viewer"), "single role");
+    equal(changes.join(), "Anna,,Bela");
+    equal(document.cookie, cookiesBefore, "no cookie written");
+    const failing = A.createAuthState({ restore: async () => { throw new Error("offline"); } });
+    equal(await failing.restore(), null);
+    assert(typeof auth.routerRules().isSignedIn === "function", "router rules");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
