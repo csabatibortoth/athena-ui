@@ -13,7 +13,7 @@
 //   dom.uninstall();
 
 const GLOBALS = ["window", "document", "navigator", "Node", "Element", "HTMLElement", "Event", "CustomEvent", "KeyboardEvent",
-    "MouseEvent", "PointerEvent", "DocumentFragment", "MutationObserver", "getComputedStyle", "requestAnimationFrame",
+    "MouseEvent", "PointerEvent", "DocumentFragment", "HTMLDialogElement", "MutationObserver", "getComputedStyle", "requestAnimationFrame",
     "cancelAnimationFrame", "localStorage", "location"];
 
 const BOUND = new Set(["getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame"]);
@@ -31,6 +31,16 @@ const BOUND = new Set(["getComputedStyle", "requestAnimationFrame", "cancelAnima
 export function installDom(JSDOM, html = '<!doctype html><html><body><div id="wrapper"></div></body></html>', options = {}) {
     const dom = new JSDOM(html, { url: "http://localhost/", pretendToBeVisual: true, ...options });
     const { window } = dom;
+    // jsdom has the <dialog> element but not showModal() and close(): a small stand-in (no top layer, no focus trap, which a test does not need)
+    const dialogs = window.HTMLDialogElement?.prototype;
+    if (dialogs && !dialogs.showModal) {
+        dialogs.show = dialogs.showModal = function () { this.setAttribute("open", ""); };
+        dialogs.close = function () {
+            if (!this.hasAttribute("open")) return;
+            this.removeAttribute("open");
+            this.dispatchEvent(new window.Event("close"));
+        };
+    }
     const saved = new Map();
     for (const name of GLOBALS) {
         saved.set(name, Object.getOwnPropertyDescriptor(globalThis, name));

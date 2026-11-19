@@ -210,3 +210,24 @@ test("HTMLElementGenerator and HTMLControlGenerator work from Athena without jQu
         dom.uninstall();
     }
 });
+
+test("showDialog works in jsdom through installDom (a stand-in for showModal)", async t => {
+    const JSDOM = await findJsdom();
+    if (!JSDOM) return t.skip("no jsdom found");
+    const dom = installDom(JSDOM);
+    try {
+        const { showDialog, confirmDialog } = await import("../src/libs/hephaestus/dialogGenerator/dialogGenerator.js");
+        const dialog = showDialog({ title: "T", content: "hello", size: "small", buttons: [{ text: "Yes", value: "y" }] });
+        assert.equal(dialog.element.tagName, "DIALOG");
+        assert.ok(dialog.element.hasAttribute("open"));
+        assert.equal(document.querySelector(".dialog-title").textContent, "T");
+        document.querySelector(".dialog-footer button").click();
+        assert.equal(await dialog, "y");
+        assert.equal(document.querySelector("dialog"), null);
+        const asked = confirmDialog("Sure?");
+        document.querySelector("dialog").dispatchEvent(new window.Event("cancel", { cancelable: true }));
+        assert.equal(await asked, false);
+    } finally {
+        dom.uninstall();
+    }
+});

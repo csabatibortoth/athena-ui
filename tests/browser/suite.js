@@ -15,6 +15,8 @@ const frame = () => new Promise(resolve => {
     requestAnimationFrame(() => requestAnimationFrame(resolve));
     setTimeout(resolve, 500);
 });
+// What the browser sends to a modal <dialog> when Esc is pressed
+const escape = dialog => dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
 const key = (node, name, extra = {}) => node.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...extra }));
 const type = (input, value) => {
     input.value = value;
@@ -54,7 +56,7 @@ await A.init({
 
 async function reset() {
     A.clearWrapper();
-    $$(".toast-container, .dialog-backdrop, #myModal").forEach(node => node.remove());
+    $$(".toast-container, dialog.dialog, #myModal").forEach(node => node.remove());
     document.body.focus();
 }
 
@@ -182,8 +184,8 @@ test("dialogs: confirm, Esc, prompt validation, backdrop semantics", async () =>
     let promise = A.confirmDialog("Sure?", { title: "T" });
     await tick();
     assert($1(".dialog").contains(document.activeElement), "focus not inside");
-    equal($1(".dialog").getAttribute("aria-modal"), "true");
-    key($1(".dialog"), "Escape");
+    assert($1(".dialog").matches(":modal"), "not a modal dialog");
+    escape($1(".dialog"));
     equal(await promise, false);
     promise = A.confirmDialog("Sure?");
     await tick();
@@ -201,14 +203,14 @@ test("dialogs: confirm, Esc, prompt validation, backdrop semantics", async () =>
 
 test("dialogs: size, class, handle and no inline style", async () => {
     const promise = A.showDialog({ title: "Wide", content: "x", size: "large", class: "mine" });
-    const backdrop = $1(".dialog-backdrop");
     assert(promise.element.classList.contains("dialog-large") && promise.element.classList.contains("mine"), "classes missing");
-    assert(!backdrop.hasAttribute("style"), "the backdrop has an inline style");
-    equal(getComputedStyle(backdrop).display, "block");
+    equal(promise.element.tagName, "DIALOG");
+    assert(promise.element.open && promise.element.matches(":modal"), "opened as a modal dialog (top layer)");
+    assert(!promise.element.hasAttribute("style"), "the dialog has an inline style");
     assert(promise.element.getBoundingClientRect().width > 480, "large dialog is not wider than 480px");
     promise.close("done");
     equal(await promise, "done");
-    assert(!$1(".dialog-backdrop"), "dialog still open");
+    assert(!$1("dialog.dialog"), "dialog still open");
 });
 
 test("dropdown: icon only with an aria-label, caret and toggle class", () => {
@@ -286,7 +288,7 @@ test("showConfirm: danger style and typeToConfirm", async () => {
     equal(await promise, true);
     promise = A.showConfirm({ message: "Sure?" });
     await tick();
-    key($1(".dialog"), "Escape");
+    escape($1(".dialog"));
     equal(await promise, false);
 });
 
@@ -1098,11 +1100,18 @@ test("tabs: lazy content and arrow keys", () => {
     assert($$("[role=tabpanel]", tabs.element)[0].hidden && !$$("[role=tabpanel]", tabs.element)[1].hidden);
 });
 
-test("accordion, dropdown, pagination, sidebar", () => {
+test("accordion, dropdown, pagination, sidebar", async () => {
     const accordion = A.generateAccordion({ parent: "wrapper", items: [{ title: "1", content: "c1", open: true }, { title: "2", content: "c2" }] });
-    const heads = $$(".accordion-header", accordion.element);
-    heads[1].click();
-    assert(heads[0].getAttribute("aria-expanded") === "false" && heads[1].getAttribute("aria-expanded") === "true", "single open");
+    const items = $$("details.accordion-item", accordion.element);
+    assert(items[0].open && !items[1].open, "the item marked open starts open");
+    $1("summary", items[1]).click();
+    for (let i = 0; i < 20 && items[0].open; i++) await tick(10);   // the toggle event comes as a task of its own
+    assert(!items[0].open && items[1].open, "single open");
+    accordion.toggle(0, true);
+    for (let i = 0; i < 20 && items[1].open; i++) await tick(10);
+    assert(items[0].open && !items[1].open, "toggle(index, true) opens one and closes the other");
+    const several = A.generateAccordion({ parent: "wrapper", multiple: true, items: [{ title: "a", content: "x", open: true }, { title: "b", content: "y", open: true }] });
+    assert($$("details[open]", several.element).length === 2, "several open when multiple");
 
     let picked = "";
     const dropdown = A.generateDropdown({ parent: "wrapper", label: "Menu", items: [{ label: "One", onclick: item => { picked = item.label; } }, { divider: true }, { label: "Two", disabled: true }] });

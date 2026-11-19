@@ -430,24 +430,33 @@ textarea {
     margin-bottom: 2px;
 }
 
-/* Dialog (built on .modal) */
+/* Dialog: the native <dialog> element, opened with showModal() */
 
-.dialog-backdrop {
-    display: block; /* shown by the class, not by an inline style (CSP) */
-    padding-top: 12vh;
+dialog.dialog {
+    width: min(var(--dialog-width, var(--athena-dialog-medium)), 92%);
+    max-width: none;
+    padding: 0;
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background-color: var(--athena-bg);
+    color: var(--athena-fg);
+    box-shadow: var(--athena-shadow);
 }
 
-.dialog {
+dialog.dialog::backdrop {
+    background-color: var(--athena-overlay);
+}
+
+/* The content fills the dialog up to its edge, so a click on the backdrop is a click on the dialog element itself */
+.dialog-inner {
     position: relative;
-    width: min(var(--dialog-width, var(--athena-dialog-medium)), 92%);
-    border-radius: var(--athena-radius);
-    box-shadow: var(--athena-shadow);
+    padding: 20px;
 }
 
 .dialog-small { --dialog-width: var(--athena-dialog-small); }
 .dialog-medium { --dialog-width: var(--athena-dialog-medium); }
 .dialog-large { --dialog-width: var(--athena-dialog-large); }
-.dialog-full { --dialog-width: 100%; min-height: calc(100vh - 12vh - 40px); }
+.dialog-full { --dialog-width: 100%; min-height: calc(100vh - 40px); }
 
 .dialog-title {
     margin: 0 28px 12px 0;
@@ -553,7 +562,7 @@ textarea {
     color: var(--athena-accent-fg);
 }
 
-/* Accordion */
+/* Accordion: <details> and <summary> */
 
 .accordion-item {
     border: var(--athena-border-width) solid var(--athena-line);
@@ -563,23 +572,24 @@ textarea {
     border-top: 0;
 }
 
-.accordion-title {
-    margin: 0;
-    font-size: 1em;
-}
-
 .accordion-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
     padding: 10px 14px;
-    border: 0;
     background-color: var(--athena-surface);
     color: var(--athena-fg);
-    font: inherit;
-    text-align: left;
+    list-style: none;
     cursor: pointer;
+}
+
+.accordion-header::-webkit-details-marker {
+    display: none;
+}
+
+.accordion-header:focus-visible {
+    outline: var(--athena-focus-width) solid var(--athena-focus, var(--athena-accent));
+    outline-offset: -2px;
 }
 
 .accordion-icon::before {
@@ -588,7 +598,7 @@ textarea {
     transition: transform 0.15s;
 }
 
-.accordion-open > .accordion-title .accordion-icon::before,
+.accordion-item[open] > .accordion-header .accordion-icon::before,
 .sidebar-parent[aria-expanded="true"] .accordion-icon::before {
     transform: rotate(180deg);
 }
