@@ -244,6 +244,57 @@ test("handles: parent as element, id or selector; update and destroy", () => {
     assert(!$1("#sel-table"), "table destroy");
 });
 
+test("showConfirm: danger style and typeToConfirm", async () => {
+    let promise = A.showConfirm({ title: "Delete", message: "Really?", confirmText: "Delete", danger: true, typeToConfirm: "prod" });
+    await tick();
+    const confirm = $1(".dialog-footer button:last-child");
+    assert(confirm.classList.contains("button-danger"), "danger style");
+    assert($1(".dialog .confirm-input").matches(":focus") || $1(".dialog").contains(document.activeElement), "focus in the dialog");
+    confirm.click();
+    await tick();
+    equal($1(".dialog .field-error").textContent, "The text does not match.");
+    $1(".dialog .confirm-input").value = "prod";
+    confirm.click();
+    equal(await promise, true);
+    promise = A.showConfirm({ message: "Sure?" });
+    await tick();
+    key($1(".dialog"), "Escape");
+    equal(await promise, false);
+});
+
+test("showFormDialog: a failed save keeps the dialog open, field errors, then it closes", async () => {
+    let calls = 0;
+    const dialog = A.showFormDialog({
+        title: "Add", intro: "Name it", size: "small", submitText: "Add",
+        fields: [{ name: "name", label: "Name", required: true }],
+        onSubmit: (values, form) => {
+            calls++;
+            if (calls === 1) throw new Error("Server said no");
+            if (calls === 2) { form.setErrors({ name: "Already taken" }); throw new Error("Fix the name"); }
+        }
+    });
+    assert(dialog.element.classList.contains("dialog-small"), "size");
+    equal($1(".dialog-intro", dialog.element).textContent, "Name it");
+    const input = $1("input[name=name], input", dialog.form.fields.name.element);
+    input.value = "x";
+    dialog.form.element.requestSubmit();
+    for (let i = 0; i < 40 && !$1(".form-message", dialog.element).textContent; i++) await tick(25);
+    equal($1(".form-message", dialog.element).textContent, "Server said no");
+    assert($1(".dialog"), "dialog closed after an error");
+    dialog.form.element.requestSubmit();
+    for (let i = 0; i < 40 && calls < 2; i++) await tick(25);
+    await tick(50);
+    equal($1(".field-error", dialog.form.fields.name.element).textContent, "Already taken");
+    assert($1(".dialog"), "dialog closed after an error 2");
+    input.value = "y";
+    dialog.form.element.requestSubmit();
+    equal(await dialog, true);
+    assert(!$1(".dialog"), "dialog still open after a save");
+    const cancelled = A.showFormDialog({ fields: [{ name: "a" }], onSubmit() {} });
+    $1(".form-actions button[type=button]", cancelled.element).click();
+    equal(await cancelled, false);
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
