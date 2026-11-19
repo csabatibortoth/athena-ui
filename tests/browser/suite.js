@@ -687,6 +687,70 @@ test("charts: zoom with the keyboard, the pointer and code; long series; streami
     $1("#zc").remove();
 });
 
+test("router: auth rules, roles, guard, hooks and onChange", async () => {
+    const wrapper = document.getElementById("wrapper");
+    const log = [];
+    let signedIn = false;
+    let roles = [];
+    const page = name => () => { wrapper.textContent = name; log.push("page:" + name); };
+    const router = A.createRouter({
+        mode: "hash", outlet: "wrapper", focusContent: true,
+        auth: { isSignedIn: () => signedIn, hasRole: role => roles.includes(role), loginPath: "/login", homePath: "/home", forbiddenPath: "/denied" },
+        onRender: ctx => log.push("render:" + ctx.path),
+        onShown: ctx => log.push("shown:" + ctx.path),
+        routes: {
+            "/home": page("home"),
+            "/login": { handler: page("login"), guestOnly: true },
+            "/denied": page("denied"),
+            "/account": { handler: page("account"), auth: true },
+            "/admin": { handler: page("admin"), auth: true, roles: ["admin"] },
+            "/custom": { handler: page("custom"), guard: ctx => (ctx.query.ok === "1" ? undefined : "/home") },
+            "/stay": { handler: page("stay"), guard: () => false }
+        }
+    });
+    const seen = [];
+    const stop = router.onChange(ctx => seen.push(ctx.path));
+    const go = async path => {
+        location.hash = path;
+        for (let i = 0; i < 40; i++) { await tick(25); if (router.current() && "#" + router.current().path === location.hash.split("?")[0] && wrapper.textContent) break; }
+        await tick(30);
+    };
+    router.start();
+    await go("/account");
+    // not signed in: sent to the login page with the place to come back to
+    equal(router.current().path, "/login");
+    equal(location.hash, "#/login?next=%2Faccount");
+    equal(wrapper.textContent, "login");
+    // signed in: a guest only page sends them home, the account opens
+    signedIn = true;
+    await go("/login");
+    equal(router.current().path, "/home");
+    await go("/account");
+    equal(wrapper.textContent, "account");
+    // roles
+    await go("/admin");
+    equal(router.current().path, "/denied");
+    roles = ["admin"];
+    await go("/admin");
+    equal(wrapper.textContent, "admin");
+    // the own guard: redirect, and false stays where it is
+    await go("/custom");
+    equal(router.current().path, "/home");
+    await go("/custom?ok=1");
+    equal(wrapper.textContent, "custom");
+    await go("/stay");
+    equal(wrapper.textContent, "custom", "guard returning false keeps the page");
+    // hooks and the focus
+    assert(log.includes("render:/account") && log.includes("shown:/account"), "hooks: " + log.join());
+    equal(document.activeElement, wrapper, "the outlet got the focus");
+    assert(seen.includes("/admin") && seen.includes("/home"), "onChange: " + seen.join());
+    stop();
+    router.stop();
+    location.hash = "";
+    await tick(60);
+    wrapper.removeAttribute("tabindex");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
