@@ -295,6 +295,29 @@ test("showFormDialog: a failed save keeps the dialog open, field errors, then it
     equal(await cancelled, false);
 });
 
+test("theme picker: choosing a theme and a mode sets the attributes, previews follow", () => {
+    const root = document.documentElement;
+    const saved = { theme: root.dataset.theme, mode: root.dataset.mode };
+    const manager = A.createThemeManager({ themes: [{ id: "ocean", name: "Ocean", description: "Blue" }, { id: "forest", name: "Forest" }], storageKey: "athena.test.appearance" });
+    const picker = A.generateThemePicker({ parent: "wrapper", manager });
+    const radio = value => $1(`input[value=${value}]`, picker.element);
+    assert(radio("ocean").checked && radio("system").checked, "defaults checked");
+    radio("forest").click();
+    equal(root.dataset.theme, "forest");
+    radio("dark").click();
+    equal(root.dataset.mode, "dark");
+    equal($1(".theme-preview", picker.element).dataset.mode, "dark");
+    equal($1(".theme-preview", picker.element).dataset.theme, "ocean");
+    equal($$(".theme-picker-option", picker.element).length, 5);
+    picker.destroy();
+    manager.destroy();
+    localStorage.removeItem("athena.test.appearance");
+    root.dataset.theme = saved.theme ?? "";
+    root.dataset.mode = saved.mode ?? "";
+    if (!saved.theme) delete root.dataset.theme;
+    if (!saved.mode) delete root.dataset.mode;
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
@@ -599,9 +622,11 @@ test("table: virtual scrolling renders a window and keeps the scroll height", as
     const total = scroller.scrollHeight;
     assert(total >= 5000 * 30, `scroll height ${total}`);
     scroller.scrollTop = 30 * 2500;
-    await frame();
-    await frame();
-    const first = Number(rendered()[0].textContent.match(/^\d+/)[0]);
+    scroller.dispatchEvent(new Event("scroll"));   // headless Chrome sends it late, sometimes not at all
+    const firstRow = () => Number(rendered()[0].textContent.match(/^\d+/)[0]);
+    // The scroll event and its animation frame come late in headless Chrome: wait for the window to move.
+    for (let i = 0; i < 40 && firstRow() < 2400; i++) await tick(50);
+    const first = firstRow();
     assert(first > 2400 && first < 2500, `first rendered row ${first}`);
     assert(rendered().length < 40, "window grew");
     equal(scroller.scrollHeight, total, "scroll height changed");

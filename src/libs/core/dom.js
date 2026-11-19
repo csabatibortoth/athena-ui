@@ -3,13 +3,23 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
+import { isSafeUrl } from "./sanitize.js";
+
 let counter = 0;
+
+// What el() refuses, so that data can never turn into script: event handler attributes (on*), inline style (a strict
+// Content-Security-Policy forbids it anyway), srcdoc, and DOM properties that parse HTML.
+const BLOCKED_ATTRIBUTE = /^(on|style$|srcdoc$)/i;
+const BLOCKED_PROPERTY = /^(on|innerHTML$|outerHTML$|srcdoc$|insertAdjacentHTML$)/i;
+const URL_ATTRIBUTE = new Set(["href", "src", "action", "formaction", "poster", "xlink:href", "cite", "data"]);
 
 // Unique element id, for label / aria wiring.
 export const uid = (prefix = "athena") => `${prefix}-${++counter}`;
 
 /**
- * Creates an element.
+ * Creates an element. This is the safe way to write pages: text is only ever inserted as text, attributes that run code
+ * (on*, style, srcdoc) and unsafe addresses (javascript:, data:, ...) in href / src / action are refused, listeners have to be
+ * functions, and children can be given as nested lists.
  *
  * @param {string} tag
  * @param {object} [props]
@@ -17,9 +27,9 @@ export const uid = (prefix = "athena") => `${prefix}-${++counter}`;
  * @param {string} [props.id]
  * @param {string} [props.text] set as textContent (never parsed as HTML)
  * @param {Object<string, string|boolean|number>} [props.attrs] attributes, false / null / undefined are skipped
- * @param {Object<string, Function>} [props.on] event listeners
- * @param {Object<string, *>} [props.prop] DOM properties (value, checked, disabled, ...)
- * @param {...(Node|string)} children
+ * @param {Object<string, Function>} [props.on] event listeners (a value that is not a function throws a TypeError)
+ * @param {Object<string, *>} [props.prop] DOM properties (value, checked, disabled, ...), not the ones that parse HTML
+ * @param {...(Node|string|number|Array|null|false)} children text, nodes, or lists of them
  */
 export function el(tag, props = {}, ...children) {
     const node = document.createElement(tag);
@@ -27,11 +37,26 @@ export function el(tag, props = {}, ...children) {
     if (props.id) node.id = props.id;
     if (props.text != null) node.textContent = props.text;
     for (const [name, value] of Object.entries(props.attrs ?? {})) {
-        if (value !== false && value != null) node.setAttribute(name, value === true ? "" : value);
+        if (value === false || value == null) continue;
+        if (BLOCKED_ATTRIBUTE.test(name)) {
+            console.warn(`Athena UI: the attribute "${name}" is not allowed in el()`);
+            continue;
+        }
+        if (URL_ATTRIBUTE.has(name.toLowerCase()) && !isSafeUrl(value)) {
+            console.warn(`Athena UI: an unsafe address was refused in "${name}"`);
+            continue;
+        }
+        node.setAttribute(name, value === true ? "" : value);
     }
-    for (const [name, handler] of Object.entries(props.on ?? {})) node.addEventListener(name, handler);
-    Object.assign(node, props.prop);
-    node.append(...children);
+    for (const [name, handler] of Object.entries(props.on ?? {})) {
+        if (typeof handler !== "function") throw new TypeError(`Athena UI: the "${name}" listener has to be a function`);
+        node.addEventListener(name, handler);
+    }
+    for (const [name, value] of Object.entries(props.prop ?? {})) {
+        if (BLOCKED_PROPERTY.test(name)) throw new TypeError(`Athena UI: the property "${name}" is not allowed in el()`);
+        node[name] = value;
+    }
+    for (const child of children) setContent(node, child);
     return node;
 }
 

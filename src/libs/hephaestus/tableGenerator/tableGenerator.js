@@ -470,10 +470,16 @@ export function generateTable(options = {}) {
         scroller.addEventListener("scroll", () => {
             if (queued) return;
             queued = true;
-            requestAnimationFrame(() => {
+            // Once per frame; the timer is for pages where frames are paused or late (a hidden tab, a busy page).
+            let timer = 0;
+            const run = () => {
+                if (!queued) return;
                 queued = false;
+                clearTimeout(timer);
                 refreshWindow();
-            });
+            };
+            requestAnimationFrame(run);
+            timer = setTimeout(run, 100);
         });
     }
 

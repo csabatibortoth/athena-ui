@@ -34,6 +34,8 @@ import * as session from "./libs/hephaestus/auth/session.js";
 import * as i18n from "./libs/core/i18n.js";
 import * as validation from "./libs/core/validation.js";
 import * as csv from "./libs/core/csv.js";
+import * as theme from "./libs/core/theme.js";
+import * as themePicker from "./libs/hephaestus/componentGenerator/themePicker.js";
 import * as modal from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 import Cookies from "./libs/js-cookie/src/api.mjs";
 import { HTMLElementGenerator } from "./libs/hephaestus/HTMLElementGenerator/src/HTMLElementGenerator.js";
@@ -111,6 +113,8 @@ const AthenaUI = {
     setTheme,
     ...chart,
     ...table,
+    ...theme,
+    ...themePicker,
     ...modal
 };
 
@@ -138,6 +142,7 @@ export * from "./libs/hephaestus/componentGenerator/componentGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/inputGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/dropZoneGenerator.js";
 export * from "./libs/hephaestus/inputGenerator/richTextGenerator.js";
+export { el, setContent, resolveElement, asHandle } from "./libs/core/dom.js";
 export * from "./libs/core/sanitize.js";
 export * from "./libs/hephaestus/router/router.js";
 export * from "./libs/hephaestus/auth/session.js";
@@ -145,4 +150,6 @@ export * from "./libs/core/i18n.js";
 export * from "./libs/core/validation.js";
 export * from "./libs/core/csv.js";
 export * from "./libs/hephaestus/modalGenerator/modalGenerator.js";
+export * from "./libs/core/theme.js";
+export * from "./libs/hephaestus/componentGenerator/themePicker.js";
 export default AthenaUI;
