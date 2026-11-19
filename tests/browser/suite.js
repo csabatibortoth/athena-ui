@@ -74,7 +74,7 @@ test("importing the ES module has no side effects: nothing on globalThis", () =>
 test("every entry point loads and exports what it says", async () => {
     const expected = {
         table: "generateTable", chart: "generateChart", dialog: "showFormDialog", menu: "generateMenu", navigation: "generateDropdown", forms: "generateSignInForm",
-        feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
+        widgets: "createWidgetGrid", feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
         i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
     };
     for (const [entry, name] of Object.entries(expected)) {
@@ -1588,6 +1588,286 @@ test("motion: a theme change cross-fades, the router can use a view transition, 
         equal($1("#anim-table tbody tr td").textContent, "4");
     });
     table.destroy();
+});
+
+/* ------------------WIDGETS------------------- */
+
+const widgetLog = { rendered: [], destroyed: [], updated: [] };
+A.registerWidget("t-note", {
+    title: "Note", defaultSize: { w: 3, h: 2 }, minSize: { w: 2, h: 1 }, maxSize: { w: 6, h: 4 }, defaultConfig: { text: "hello" },
+    configForm: [{ name: "text", label: "Text", type: "text" }],
+    render(context) {
+        widgetLog.rendered.push(context.id);
+        const text = document.createElement("p");
+        text.className = "note-text";
+        text.textContent = context.config.text;
+        context.element.append(text);
+        return {
+            update(next) { widgetLog.updated.push(next.id); text.textContent = next.config.text; },
+            destroy() { widgetLog.destroyed.push(context.id); }
+        };
+    }
+});
+const makeGrid = (options = {}) => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="wg"></div>');
+    return A.createWidgetGrid({ element: "wg", rowHeight: 80, gap: 12, ...options });
+};
+const noteAt = (id, x, y, extra = {}) => ({ type: "t-note", id, x, y, ...extra });
+const placeOf = (grid, id) => grid.getLayout().widgets.find(widget => widget.id === id).layouts.default;
+const ptr = (type, target, x, y) => target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y, pointerId: 7, isPrimary: true }));
+const press = (target, name, options = {}) => target.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...options }));
+const strides = () => {
+    const rect = $1("#wg").getBoundingClientRect();
+    return { x: (rect.width - 12 * 11) / 12 + 12, y: 92 };
+};
+const widgetsCleanup = grid => {
+    grid.destroy();
+    $1("#wg")?.remove();
+};
+
+test("widgets: places are classes (no style attribute), widgets render when visible, the registry decides what can be added", async () => {
+    widgetLog.rendered.length = 0;
+    widgetLog.destroyed.length = 0;
+    const grid = makeGrid({ widgets: [noteAt("a", 0, 0), noteAt("b", 3, 0, { title: "Second", config: { text: "two" } })] });
+    await waitUntil(() => widgetLog.rendered.length === 2, "both widgets rendered");
+    equal($$("#wg [style]").length + ($1("#wg").hasAttribute("style") ? 1 : 0), 0, "no style attribute anywhere");
+    const a = $1('[data-widget-id="a"]');
+    const b = $1('[data-widget-id="b"]');
+    equal(getComputedStyle(a).gridColumnStart, "1");
+    equal(getComputedStyle(b).gridColumnStart, "4");
+    equal(getComputedStyle(a).gridColumnEnd, "span 3");
+    equal(getComputedStyle(a).gridRowEnd, "span 2");
+    const container = $1("#wg").getBoundingClientRect();
+    assert(Math.abs(a.getBoundingClientRect().width - (container.width - 132) / 12 * 3 - 24) < 2, "a is three columns wide: " + a.getBoundingClientRect().width);
+    equal(a.getBoundingClientRect().height, 80 * 2 + 12, "two rows high");
+    equal($1(".widget-title", b).textContent, "Second");
+    equal($1(".note-text", b).textContent, "two");
+    equal($1(".note-text", a).textContent, "hello", "the default config");
+    equal(grid.getBreakpoint(), "default");
+    let failure = "";
+    try { grid.addWidget("nobody"); } catch (error) { failure = error.message; }
+    assert(failure.includes("not registered"), "an unknown type is refused: " + failure);
+    assert(A.getWidgetTypes().includes("t-note"));
+    widgetsCleanup(grid);
+    equal(widgetLog.destroyed.sort().join(), "a,b", "destroy cleans up every widget");
+});
+
+test("widgets: the keyboard picks up, moves, resizes, drops and cancels; the position is announced; undo and redo", async () => {
+    const changes = [];
+    const grid = makeGrid({ editable: true, widgets: [noteAt("a", 0, 0), noteAt("b", 3, 0)], onChange: (layout, reason) => changes.push(reason) });
+    changes.length = 0;
+    await tick(50);
+    const live = $1("#wg").nextElementSibling;
+    equal(live.getAttribute("role"), "status");
+    const handle = $1('[data-widget-id="a"] .widget-handle');
+    handle.focus();
+    press(handle, " ");
+    equal(handle.getAttribute("aria-pressed"), "true");
+    assert(live.textContent.includes("picked up"), "announced: " + live.textContent);
+    press(handle, "ArrowRight");
+    equal(placeOf(grid, "a").x, 1);
+    equal(placeOf(grid, "b").y, 2, "b is pushed down, out of the way");
+    assert(/Column 2, row 1, 3 wide, 2 high/.test(live.textContent), "the position is read out: " + live.textContent);
+    press(handle, "Enter");
+    assert(!handle.hasAttribute("aria-pressed"), "dropped");
+    equal(changes.join(), "move");
+    // undo / redo
+    equal(grid.canUndo(), true);
+    grid.undo();
+    equal(placeOf(grid, "a").x, 0);
+    equal(placeOf(grid, "b").y, 0);
+    equal(grid.canRedo(), true);
+    grid.redo();
+    equal(placeOf(grid, "a").x, 1);
+    // cancel
+    press(handle, " ");
+    press(handle, "ArrowRight");
+    press(handle, "ArrowRight");
+    equal(placeOf(grid, "a").x, 3);
+    press(handle, "Escape");
+    equal(placeOf(grid, "a").x, 1, "Escape puts it back");
+    equal(changes.filter(reason => reason === "move").length, 1, "a cancelled move is not a change");
+    // resize: Shift + arrows, within the limits of the type (2..6 wide)
+    press(handle, " ");
+    for (let i = 0; i < 6; i++) press(handle, "ArrowRight", { shiftKey: true });
+    equal(placeOf(grid, "a").w, 6, "at most 6 wide");
+    for (let i = 0; i < 6; i++) press(handle, "ArrowLeft", { shiftKey: true });
+    equal(placeOf(grid, "a").w, 2, "at least 2 wide");
+    press(handle, "Enter");
+    assert(changes.includes("resize"), "the drop of a resize says resize: " + changes);
+    widgetsCleanup(grid);
+});
+
+test("widgets: a locked widget does not move and is not pushed; a move that would land on it is refused", async () => {
+    const grid = makeGrid({ editable: true, widgets: [noteAt("a", 0, 0, { locked: true }), noteAt("b", 3, 0)] });
+    await tick(50);
+    const live = $1("#wg").nextElementSibling;
+    const handleA = $1('[data-widget-id="a"] .widget-handle');
+    press(handleA, " ");
+    assert(!handleA.hasAttribute("aria-pressed"), "a locked widget cannot be picked up");
+    const handleB = $1('[data-widget-id="b"] .widget-handle');
+    handleB.focus();
+    press(handleB, " ");
+    press(handleB, "ArrowLeft");
+    equal(placeOf(grid, "b").x, 3, "b cannot go onto the locked widget");
+    assert(live.textContent.includes("Not possible"), "announced: " + live.textContent);
+    press(handleB, "Escape");
+    equal(getComputedStyle($1('[data-widget-id="a"] .widget-handle')).display, "none", "no handle on a locked widget");
+    grid.lockWidget("a", false);
+    assert(getComputedStyle($1('[data-widget-id="a"] .widget-handle')).display !== "none", "the handle is back when it is unlocked");
+    widgetsCleanup(grid);
+});
+
+test("widgets: the pointer moves by the handle and resizes by the edges, snapping to cells", async () => {
+    const changes = [];
+    const grid = makeGrid({ editable: true, widgets: [noteAt("a", 0, 0), noteAt("c", 9, 0)], onChange: (layout, reason) => changes.push(reason) });
+    changes.length = 0;
+    await tick(50);
+    const { x: stepX, y: stepY } = strides();
+    const handle = $1('[data-widget-id="a"] .widget-handle');
+    const start = handle.getBoundingClientRect();
+    ptr("pointerdown", handle, start.left + 5, start.top + 5);
+    assert($1('[data-widget-id="a"]').classList.contains("is-dragging"), "is dragging");
+    ptr("pointermove", handle, start.left + 5 + stepX * 2.2, start.top + 5 + stepY * 1.1);
+    equal(placeOf(grid, "a").x, 2, "two columns to the right (snapped)");
+    ptr("pointermove", handle, start.left + 5 + stepX * 30, start.top + 5);
+    equal(placeOf(grid, "a").x, 9, "stops at the right edge: 12 columns - 3 wide");
+    ptr("pointerup", handle, start.left, start.top);
+    assert(!$1('[data-widget-id="a"]').classList.contains("is-dragging"));
+    equal(changes.join(), "move");
+    equal($$("#wg [style]").length, 0, "the drag wrote no style attribute");
+    // resize by the south-east corner
+    const corner = $1('[data-widget-id="a"] .widget-resize-se');
+    const at = corner.getBoundingClientRect();
+    ptr("pointerdown", corner, at.left + 3, at.top + 3);
+    ptr("pointermove", corner, at.left + 3 + stepX, at.top + 3 + stepY);
+    ptr("pointerup", corner, at.left + 3, at.top + 3);
+    equal(placeOf(grid, "a").w, 4);
+    equal(placeOf(grid, "a").h, 3);
+    // the west edge: grows to the left, the right edge stays
+    const west = $1('[data-widget-id="a"] .widget-resize-w');
+    const edge = west.getBoundingClientRect();
+    const right = placeOf(grid, "a").x + placeOf(grid, "a").w;
+    ptr("pointerdown", west, edge.left + 2, edge.top + 20);
+    ptr("pointermove", west, edge.left + 2 - stepX, edge.top + 20);
+    ptr("pointerup", west, edge.left + 2 - stepX, edge.top + 20);
+    equal(placeOf(grid, "a").w, 5);
+    equal(placeOf(grid, "a").x + placeOf(grid, "a").w, right, "the right edge did not move");
+    equal(changes.join(), "move,resize,resize");
+    // not editable: nothing happens
+    grid.setEditable(false);
+    const before = JSON.stringify(grid.getLayout());
+    const h2 = $1('[data-widget-id="a"] .widget-handle');
+    ptr("pointerdown", h2, 10, 10);
+    ptr("pointermove", h2, 10 + stepX * 3, 10);
+    ptr("pointerup", h2, 10, 10);
+    equal(JSON.stringify(grid.getLayout()), before, "not editable: no move");
+    widgetsCleanup(grid);
+});
+
+test("widgets: settings dialog, duplicate and remove from the buttons of the edit mode", async () => {
+    const changes = [];
+    const grid = makeGrid({ editable: true, widgets: [noteAt("a", 0, 0)], onChange: (layout, reason) => changes.push(reason) });
+    changes.length = 0;
+    await waitUntil(() => $1('[data-widget-id="a"] .note-text'), "rendered");
+    $1('[data-widget-id="a"] .widget-action[data-action="settings"]').click();
+    await waitUntil(() => $1('dialog.dialog[open] input[name="widgetTitle"]'), "the settings dialog is open");
+    const title = $1('dialog.dialog[open] input[name="widgetTitle"]');
+    const text = $1('dialog.dialog[open] input[name="text"]');
+    equal(title.value, "Note");
+    equal(text.value, "hello");
+    title.value = "Renamed";
+    text.value = "changed";
+    $1("dialog.dialog[open] form").requestSubmit();
+    await waitUntil(() => $1('[data-widget-id="a"] .widget-title').textContent === "Renamed" && $1('[data-widget-id="a"] .note-text').textContent === "changed", "title and text changed");
+    assert(widgetLog.updated.includes("a"), "the widget got update(), not a new render");
+    assert(changes.includes("settings"), "reported: " + changes);
+    $1('[data-widget-id="a"] .widget-action[data-action="duplicate"]').click();
+    equal(grid.getWidgets().length, 2);
+    const copy = grid.getLayout().widgets.find(widget => widget.id !== "a");
+    equal(copy.title, "Renamed (copy)");
+    equal(copy.config.text, "changed");
+    const one = placeOf(grid, "a");
+    const two = copy.layouts.default;
+    assert(two.y >= one.y + one.h || two.x >= one.x + one.w, "the copy does not overlap the original");
+    $1(`[data-widget-id="${copy.id}"] .widget-action[data-action="remove"]`).click();
+    equal(grid.getWidgets().join(), "a");
+    assert(changes.includes("duplicate") || changes.includes("add"), "the copy was reported");
+    assert(changes.includes("remove"));
+    widgetsCleanup(grid);
+});
+
+test("widgets: layouts are plain versioned JSON; a hostile layout is cleaned, unknown types are placeholders", async () => {
+    const grid = makeGrid({ widgets: [noteAt("a", 0, 0)] });
+    const saved = grid.getLayout();
+    equal(saved.version, 1);
+    equal(JSON.parse(JSON.stringify(saved)).widgets[0].type, "t-note", "plain JSON");
+    const hostile = {
+        version: 1,
+        widgets: [
+            { id: "x1", type: "t-note", title: "<img src=x onerror=alert(1)>", config: JSON.parse('{"text":"ok","__proto__":{"polluted":"yes"}}'), layouts: { default: { x: 0, y: 0, w: 3, h: 2 } } },
+            { id: "x1", type: "t-note", layouts: { default: { x: 0, y: 0, w: 3, h: 2 } } },
+            { type: "ghost", title: "Ghost", config: { keep: 1 }, layouts: { default: { x: 6, y: 0, w: 3, h: 2 } } },
+            { type: "<script>", layouts: {} },
+            "text", null,
+            { type: "t-note", layouts: { default: { x: "a", y: 0, w: 1, h: 1 } } }
+        ]
+    };
+    const warn = console.warn;
+    console.warn = () => {};
+    let result;
+    try { result = grid.setLayout(hostile); } finally { console.warn = warn; }
+    equal(result.loaded, 4);
+    equal(result.skipped.length, 3);
+    equal(({}).polluted, undefined, "no prototype pollution");
+    const widgets = grid.getLayout().widgets;
+    equal(new Set(widgets.map(widget => widget.id)).size, 4, "ids are unique");
+    const places = widgets.map(widget => ({ id: widget.id, ...widget.layouts.default }));
+    for (const one of places) for (const other of places) assert(!A.collides(one, other), "no overlap between " + one.id + " and " + other.id);
+    await waitUntil(() => $$("#wg .widget-note").length === 1, "the ghost is a placeholder");
+    assert($1("#wg .widget-note").textContent.includes('"ghost"'), $1("#wg .widget-note").textContent);
+    equal(widgets.find(widget => widget.type === "ghost").config.keep, 1, "the data of an unknown type is kept");
+    equal($$("#wg img").length, 0, "a title is text, not markup");
+    assert($$("#wg .widget-title").some(node => node.textContent.includes("<img")), "it is shown as the text it is");
+    let failure = "";
+    try { grid.setLayout({ version: 2, widgets: [] }); } catch (error) { failure = error.message; }
+    assert(failure.includes("version"), "an unknown version is refused: " + failure);
+    grid.setLayout(saved);
+    equal(grid.getWidgets().join(), "a", "the saved layout loads again");
+    equal(grid.canUndo(), false, "loading starts a new history");
+    widgetsCleanup(grid);
+});
+
+test("widgets: breakpoints give every width a layout; widgets below the fold render only when they are seen", async () => {
+    widgetLog.rendered.length = 0;
+    const narrow = makeGrid({ breakpoints: { wide: { minWidth: 100000, columns: 12 }, narrow: { minWidth: 0, columns: 4 } }, widgets: [noteAt("a", 0, 0), noteAt("b", 3, 0), noteAt("c", 6, 0)] });
+    equal(narrow.getBreakpoint(), "narrow");
+    const places = narrow.getLayout().widgets.map(widget => ({ id: widget.id, ...widget.layouts.narrow }));
+    for (const one of places) {
+        assert(one.x >= 0 && one.x + one.w <= 4, "inside four columns: " + JSON.stringify(one));
+        for (const other of places) assert(!A.collides(one, other), "no overlap");
+    }
+    equal(getComputedStyle($1("#wg")).gridTemplateColumns.split(" ").length, 4, "four columns");
+    widgetsCleanup(narrow);
+
+    widgetLog.rendered.length = 0;
+    const far = makeGrid({ compact: false, widgets: [noteAt("near", 0, 0), noteAt("far", 0, 40)] });
+    await waitUntil(() => widgetLog.rendered.includes("near"), "the visible one is rendered");
+    await tick(150);
+    assert(!widgetLog.rendered.includes("far"), "the one far below is not rendered yet");
+    $1('[data-widget-id="far"]').scrollIntoView();
+    await waitUntil(() => widgetLog.rendered.includes("far"), "rendered when scrolled into view");
+    window.scrollTo(0, 0);
+    widgetsCleanup(far);
+});
+
+test("widgets: the grid maths is exported with the grid", () => {
+    const items = [{ id: "a", x: 0, y: 0, w: 2, h: 2 }, { id: "b", x: 2, y: 0, w: 2, h: 2 }];
+    equal(A.collides(items[0], items[1]), false);
+    const moved = A.placeItem(items, "a", { x: 1 }, 4);
+    equal(moved.find(item => item.id === "b").y, 2, "the one in the way is pushed down");
+    equal(items[0].x, 0, "the argument is not changed");
+    equal(JSON.stringify(A.findFreeSpot(items, 2, 2, 4)), JSON.stringify({ x: 0, y: 2 }));
 });
 
 test("modal: focus moves in, Esc closes and restores the focus", () => {

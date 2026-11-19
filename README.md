@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.2.0**
+Current version: **2.3.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -67,7 +67,7 @@ import { generateTable } from "athena-ui-js/table";        // or only what you u
 ```
 
 The entry points are `table`, `chart`, `dialog`, `menu`, `navigation`, `forms`, `feedback`, `components`, `inputs`, `router`, `session`, `theme`, `i18n`, `format`,
-`validation`, `motion`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
+`validation`, `motion`, `widgets`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
 The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, so a bundler drops everything you do not import.
 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
@@ -149,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.2.0"` | Version shown in the footer |
+| `version` | `"2.3.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -195,6 +195,7 @@ Everything is exported from `athena-ui.js`:
 | `formatBytes`, `formatNumber`, `formatDuration`, `formatRelativeTime`, `formatDate` | Format helpers on top of `Intl`, in the current language |
 | `el`, `setContent`, `resolveElement`, `asHandle`, `createSafeBuilder` | See [Safe DOM building](#safe-dom-building) |
 | `animate`, `flip`, `stagger`, `spring`, `tween`, `transition`, `viewTransition`, `setMotion`, `prefersReducedMotion`, `easings`, `generateSkeleton` | See [Motion](#motion-animations-and-transitions) |
+| `registerWidget`, `createWidgetGrid`, `getWidgetTypes`, `placeItem`, `compact`, `findFreeSpot`, `normalize` | See [Widgets](#widgets-a-dashboard-that-can-be-built) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
 | `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateDropZone`, `generateStepper`, `generateDateRange`, `generateRichText`, `generateWysiwyg` | See [Inputs](#inputs) |
 | `sanitizeHtml(html)`, `htmlToText(html)`, `isSafeUrl(url)` | The allow-list sanitizer behind the rich text editor |
@@ -693,6 +694,47 @@ setMotion("reduce");                                                // "system" 
 
 In a page that is not drawn (a hidden tab) there are no frames: `animate` and `tween` finish by a timer, so nothing hangs. Dialogs and toasts stay in the page for the length of their
 exit transition (none under reduced motion); in your tests call `setMotion("reduce")` first, so they are gone at once.
+
+### Widgets: a dashboard that can be built
+
+`athena-ui-js/widgets`: a grid of widgets that can be added, configured, moved, resized, locked, saved and loaded. No dependency, no drag library, no inline style.
+
+```js
+import { registerWidget, createWidgetGrid } from "athena-ui-js/widgets";
+
+// a type of widget: a function that draws into the body it is given, and cleans up after itself
+registerWidget("clock", {
+    title: "Clock", defaultSize: { w: 3, h: 2 }, minSize: { w: 2, h: 1 }, defaultConfig: { seconds: true },
+    configForm: [{ name: "seconds", label: "Show seconds", type: "checkbox" }],     // the settings dialog (showFormDialog)
+    render(context) {                                                              // called when the widget is first seen (IntersectionObserver)
+        const time = el("p");
+        context.element.append(time);
+        const show = () => time.textContent = new Date().toLocaleTimeString();
+        const timer = setInterval(show, 1000);
+        return { update: show, destroy: () => clearInterval(timer) };              // update(): config or title changed (throttled), destroy(): removed
+    }
+});
+
+const grid = createWidgetGrid({
+    element: "dashboard", columns: 12, rowHeight: 80, gap: 12, editable: true,
+    breakpoints: { wide: { minWidth: 900, columns: 12 }, narrow: { minWidth: 0, columns: 6 } },   // optional: a layout per width
+    widgets: [{ type: "clock", x: 0, y: 0 }],
+    onChange: (layout, reason) => localStorage.setItem("dashboard", JSON.stringify(layout))      // "move", "resize", "add", "remove", "settings", "undo", ...
+});
+grid.setLayout(JSON.parse(localStorage.getItem("dashboard")));     // plain, versioned JSON ({ version: 1, widgets: [...] })
+```
+
+- **Layout** is CSS grid. The columns, the row height, the gap and the place of every widget are CSS classes written into a constructed style sheet, so a strict
+  Content-Security-Policy (no `style` attribute) is fine. Widgets fall upwards (`compact: false` keeps the gaps) and slide to their new places (not under reduced motion).
+- **Edit mode** (`setEditable(true)`): drag by the handle, resize by any edge or corner, snap to cells, push other widgets out of the way. Settings, duplicate and remove buttons.
+  A **locked** widget (`lockWidget(id)`) is not moved, not resized, not pushed, and nothing can be put on it.
+- **Keyboard**: focus the handle, Space or Enter picks the widget up, arrow keys move it, Shift with arrow keys resizes it, Enter drops it, Escape cancels. Every step is announced
+  in a live region ("Column 2, row 1, 3 wide, 2 high"). Pointer Events: mouse, pen and touch work the same.
+- **Undo and redo** of every change (`undo()`, `redo()`, `canUndo()`); `updateWidget(id, { config })` is for data from code and is not an undo step.
+- **Layouts** (`getLayout()` / `setLayout(json)`) are plain JSON and the application decides where they are stored. Loading is checked: a bad entry is skipped (reported in the result),
+  duplicate ids are replaced, places are clamped and made free of overlaps, `__proto__`-style keys are dropped, and a type that is not registered is shown as a placeholder (its data is kept, nothing is executed).
+- **Performance**: a widget is rendered only when it is first seen, `resize(context, size)` is called throttled when its body changes size, and nothing re-renders while it is out of view.
+- The grid maths (`placeItem`, `compact`, `findFreeSpot`, `normalize`, `collides`) is exported as well, for your own layouts.
 
 ### Safe DOM building
 
