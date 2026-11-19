@@ -134,3 +134,79 @@ test("createSafeBuilder: only the allowed tags and attributes get through", asyn
         dom.uninstall();
     }
 });
+
+test("HTMLElementGenerator and HTMLControlGenerator work from Athena without jQuery", async t => {
+    const JSDOM = await findJsdom();
+    if (!JSDOM) return t.skip("no jsdom found");
+    const dom = installDom(JSDOM);
+    const error = console.error;
+    console.error = () => {};
+    try {
+        const { HTMLElementGenerator, supportedElements } = await import("../src/libs/core/elementGenerator.js");
+        const { HTMLControlGenerator, registerControl } = await import("../src/libs/core/controls.js");
+        const { registerHungarianInputControls } = await import("../src/libs/core/hungarianControls.js");
+        // elements
+        assert.deepEqual([...supportedElements].slice(0, 3), ["div", "span", "p"]);
+        let seen = null;
+        const box = HTMLElementGenerator({ elementType: "div", parent: "wrapper", id: "box", class: "c", text: "<b>x</b>", data: 7, onclick: d => { seen = d; } });
+        assert.equal(box.parentElement.id, "wrapper");
+        assert.equal(box.textContent, "<b>x</b>");
+        box.click();
+        assert.equal(seen, 7);
+        assert.equal(HTMLElementGenerator({ elementType: "marquee" }), null);
+        assert.equal(HTMLElementGenerator(undefined), null);
+        const image = HTMLElementGenerator({ elementType: "img", parent: "wrapper", src: "a.png", alt: "A" });
+        assert.equal(image.getAttribute("alt"), "A");
+        // controls
+        const changes = [];
+        HTMLControlGenerator({ inputType: "text", parent: "wrapper", id: "t", class: "k", value: "v", onchange() { changes.push("t"); } });
+        const text = document.getElementById("t");
+        assert.equal(text.value, "v");
+        assert.equal(text.className, "k");
+        text.dispatchEvent(new window.Event("change"));
+        assert.deepEqual(changes, ["t"]);
+        HTMLControlGenerator({ inputType: "checkbox", parent: "wrapper", id: "c", checked: true });
+        assert.equal(document.getElementById("c").checked, true);
+        HTMLControlGenerator({ inputType: "select", parent: "wrapper", id: "s", items: [{ value: "a", text: "A" }, { value: "b", text: "B", selected: true }] });
+        assert.equal(document.getElementById("s").value, "b");
+        const clicks = [];
+        HTMLControlGenerator({ inputType: "ul", parent: "wrapper", id: "u", items: [{ id: "i1", text: "one", onclick() { clicks.push("one"); } }, { id: "i2", text: "two" }], onclick() { clicks.push("list"); } });
+        document.getElementById("i1").click();
+        document.getElementById("i2").click();
+        assert.deepEqual(clicks, ["one", "list"]);
+        // an unknown parent puts it in a div on the body; no parent is an error; a wrong type is an error
+        HTMLControlGenerator({ inputType: "text", parent: "nowhere", id: "orphan" });
+        assert.equal(document.getElementById("orphan").parentElement.parentElement, document.body);
+        const before = document.querySelectorAll("input").length;
+        HTMLControlGenerator({ inputType: "text" });
+        HTMLControlGenerator({ inputType: "banana", parent: "wrapper" });
+        assert.equal(document.querySelectorAll("input").length, before);
+        // create: the plain element without jQuery, a jQuery object with it
+        const plain = HTMLControlGenerator.create({ inputType: "number", id: "n", min: 1, max: 5 });
+        assert.equal(plain.tagName, "INPUT");
+        assert.equal(plain.max, "5");
+        assert.equal(HTMLControlGenerator.create({ inputType: "banana" }), undefined);
+        globalThis.jQuery = element => ({ jquery: "4.0.0", 0: element, length: 1 });
+        const wrapped = HTMLControlGenerator.create({ inputType: "text", id: "w" });
+        assert.equal(wrapped.jquery, "4.0.0");
+        assert.equal(wrapped[0].id, "w");
+        delete globalThis.jQuery;
+        // register: a factory can return an element or a jQuery object
+        HTMLControlGenerator.register("pair", options => { const s = document.createElement("span"); s.id = options.id; return s; });
+        assert.equal(HTMLControlGenerator.create({ inputType: "pair", id: "p" }).id, "p");
+        registerControl("jq", options => ({ jquery: "x", 0: Object.assign(document.createElement("i"), { id: options.id }) }));
+        assert.equal(HTMLControlGenerator.create({ inputType: "jq", id: "q" }).id, "q");
+        // the Hungarian addon
+        registerHungarianInputControls();
+        const pin = HTMLControlGenerator.create({ inputType: "hunPIN", id: "pin", value: "123456789", inputClass: "seg" });
+        assert.equal(pin.querySelectorAll("input").length, 3);
+        assert.deepEqual([...pin.querySelectorAll("input")].map(i => i.value), ["123", "456", "789"]);
+        assert.equal(pin.querySelectorAll("input")[0].max, "999");
+        assert.equal(pin.querySelectorAll("span").length, 2);
+        const tid = HTMLControlGenerator.create({ inputType: "hunTID", id: "tid", value: "1234567812" });
+        assert.deepEqual([...tid.querySelectorAll("input")].map(i => i.value), ["12345678", "1", "2"]);
+    } finally {
+        console.error = error;
+        dom.uninstall();
+    }
+});

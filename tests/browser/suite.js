@@ -56,7 +56,7 @@ async function reset() {
 test("every public function is exported and global", () => {
     const names = ["generateForm", "generateButton", "generateField", "showToast", "confirmDialog", "generateTabs", "createRouter",
         "generateAutocomplete", "generateMultiSelect", "generateFileUpload", "generateStepper", "generateDateRange", "generateRichText",
-        "createRichText", "generateWysiwyg", "createWysiwyg", "generateDropZone", "createDropZone", "sanitizeHtml", "setSession", "translate", "toCsv", "setTheme", "generateChangePasswordForm", "generateTable", "generateChart"];
+        "createRichText", "generateWysiwyg", "createWysiwyg", "generateDropZone", "createDropZone", "sanitizeHtml", "setSession", "translate", "toCsv", "setTheme", "generateChangePasswordForm", "generateTable", "generateChart", "HTMLElementGenerator", "HTMLControlGenerator", "registerHungarianInputControls"];
     for (const name of names) assert(typeof A[name] === "function" && typeof globalThis[name] === "function", `${name} missing`);
 });
 

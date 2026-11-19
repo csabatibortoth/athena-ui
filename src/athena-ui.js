@@ -41,7 +41,9 @@ import * as theme from "./libs/core/theme.js";
 import * as themePicker from "./libs/hephaestus/componentGenerator/themePicker.js";
 import * as modal from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 import Cookies from "./libs/js-cookie/src/api.mjs";
-import { HTMLElementGenerator } from "./libs/hephaestus/HTMLElementGenerator/src/HTMLElementGenerator.js";
+import { HTMLElementGenerator } from "./libs/core/elementGenerator.js";
+import { HTMLControlGenerator, registerControl, generateControl } from "./libs/core/controls.js";
+import { registerHungarianInputControls } from "./libs/core/hungarianControls.js";
 
 
 /**
@@ -64,7 +66,7 @@ export async function init(options = {}) {
     setHooks(options);
 
     await Promise.all([
-        loadLibs(config.customLoader ? [config.customLoader] : [], { jquery: typeof globalThis.jQuery === "function", crypto: config.enable_encrypt_password }),
+        loadLibs(config.customLoader ? [config.customLoader] : [], { crypto: config.enable_encrypt_password }),
         loadTheme(options.theme ?? options.themes),
         new Promise(resolve => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", resolve, { once: true }) : resolve()))
     ]);
@@ -87,6 +89,10 @@ const AthenaUI = {
     loadScript,
     Cookies,
     HTMLElementGenerator,
+    HTMLControlGenerator,
+    registerControl,
+    generateControl,
+    registerHungarianInputControls,
     ...layout,
     ...header,
     ...wrapper,
@@ -127,7 +133,7 @@ const AthenaUI = {
 // stays reachable as globals, like in the pre-module versions.
 Object.assign(globalThis, AthenaUI, { AthenaUI });
 
-export { config, loadScript, Cookies, HTMLElementGenerator };
+export { config, loadScript, Cookies, HTMLElementGenerator, HTMLControlGenerator, registerControl, generateControl, registerHungarianInputControls };
 export * from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/headerContentGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js";

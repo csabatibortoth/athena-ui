@@ -1,9 +1,3 @@
-[submodule "src/libs/hephaestus/HTMLControlGenerator"]
-	path = src/libs/hephaestus/HTMLControlGenerator
-	url = https://github.com/csabatibortoth/HTMLControlGenerator.git
-[submodule "src/libs/hephaestus/HTMLElementGenerator"]
-	path = src/libs/hephaestus/HTMLElementGenerator
-	url = https://github.com/csabatibortoth/HTMLElementGenerator.git
 [submodule "src/libs/crypto-js"]
 	path = src/libs/crypto-js
 	url = https://github.com/brix/crypto-js.git

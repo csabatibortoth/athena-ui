@@ -41,16 +41,14 @@ Known limits are listed below, so you can judge whether it fits your project:
 
 ## Requirements
 
-- [jQuery](https://jquery.com/) v4.0.0, loaded before Athena UI
+- jQuery is optional (v4.0.0, only if your own code or an older application uses it). Athena UI itself does not need it.
 - A browser with ES module support
 - The page has to be served over HTTP(S). Modules do not load from `file://`.
 
-Bundled as git submodules:
+Bundled as git submodules (third party):
 
 | Library | Version | Used for |
 | --- | --- | --- |
-| [HTMLControlGenerator](https://github.com/csabatibortoth/HTMLControlGenerator) | 0.4.0 | inputs, lists |
-| [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) | 0.3.0 | divs, headings, images |
 | [crypto-js](https://github.com/brix/crypto-js) | 4.2.0 | password hashing |
 | [js-cookie](https://github.com/js-cookie/js-cookie) | 3.0.8 | cookie handling |
 
@@ -169,7 +167,11 @@ Everything is exported from `athena-ui.js`:
 | `openModal(id)`, `closeModal(id)` | Show / hide a `.modal` element (default id: `myModal`). Elements with the `close` class close their modal. |
 | `loadScript(src)` | Load a classic script once, returns a Promise |
 | `Cookies` | The [js-cookie](https://github.com/js-cookie/js-cookie) API |
-| `HTMLElementGenerator(options)` | The [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) function |
+| `HTMLElementGenerator(options)` | Generates a div, span, p, heading or img and appends it to the element with the id `parent` |
+| `HTMLControlGenerator(options)`, `HTMLControlGenerator.create(options)`, `HTMLControlGenerator.register(type, factory)` | Generates inputs, selects and lists from an options object. `create` builds without appending and returns the element (a jQuery object when the page has jQuery). `registerHungarianInputControls()` adds the types `hunPIN`, `hunCRID` and `hunTID` |
+
+HTMLElementGenerator and HTMLControlGenerator used to be projects of their own. They are part of Athena UI now (the calls and options are the
+same, and HTMLControlGenerator no longer needs jQuery); the old repositories are no longer developed.
 
 ### Charts
 

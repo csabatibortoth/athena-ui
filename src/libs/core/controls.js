@@ -2,19 +2,25 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
+//Moved here from HTMLControlGenerator 0.4.1 (https://github.com/csabatibortoth/HTMLControlGenerator), which is no longer developed.
+//The calls are the same; jQuery is not needed any more (see HTMLControlGenerator.create for what it returns).
 
 import { el, resolveElement } from "./dom.js";
+import { noBodyOrParentError, reportError, undefinedError, wrongInputTypeError } from "./errors.js";
 
-// The controls the older generators (menus, the login and registration forms) build, without jQuery. It does what the
-// vendored HTMLControlGenerator does for the control types Athena itself uses: inputs, select, ul / ol with items.
+// Inputs, select and lists (ul / ol with items) from a plain options object, without jQuery.
 
-const INPUT_TYPES = new Set([
-    "text", "password", "submit", "reset", "radio", "checkbox", "button", "color", "date", "datetime-local", "email", "file",
-    "month", "number", "range", "search", "tel", "time", "url", "week"
-]);
+const INPUT_TYPES = [
+    "text", "password", "submit", "reset", "radio", "checkbox", "button",
+    "color", "date", "datetime-local", "email", "file", "month", "number",
+    "range", "search", "tel", "time", "url", "week"
+];
 const WITHOUT_VALUE = new Set(["reset", "file"]);   // a file input's value cannot be set, and reset keeps the browser's label
+const WITH_MIN_MAX = new Set(["date", "number", "range"]);
+const CHECKABLE = new Set(["radio", "checkbox"]);
 const EVENTS = ["change", "click"];
 
+// `onchange` is the option name, `change` is accepted as an alias of it.
 const handlerFor = (source, event) => {
     const handler = source[`on${event}`] ?? (event === "change" ? source.change : undefined);
     return typeof handler === "function" ? handler : undefined;
@@ -41,11 +47,11 @@ function input(options) {
     const control = formControl("input", options);
     control.type = type;
     if (options.value !== undefined && !WITHOUT_VALUE.has(type)) control.value = options.value;
-    if (["date", "number", "range"].includes(type)) {
+    if (WITH_MIN_MAX.has(type)) {
         if (options.min != null) control.min = options.min;
         if (options.max != null) control.max = options.max;
     }
-    if (type === "radio" || type === "checkbox") control.checked = Boolean(options.checked);
+    if (CHECKABLE.has(type)) control.checked = Boolean(options.checked);
     return control;
 }
 
@@ -75,7 +81,26 @@ function list(options) {
     return control;
 }
 
-const FACTORIES = new Map([...[...INPUT_TYPES].map(type => [type, input]), ["select", select], ["ul", list], ["ol", list]]);
+const factories = new Map([...INPUT_TYPES.map(type => [type, input]), ["select", select], ["ul", list], ["ol", list]]);
+
+// A factory registered by an addon may return an element or a jQuery object.
+const unwrap = made => (made && made.jquery ? made[0] : made);
+
+/** Builds the control described by `options` without appending it. Returns the element, or null (an error is reported). */
+export function buildControl(options) {
+    if (options === undefined) return reportError(undefinedError("options", "HTMLControlGenerator"));
+    const factory = factories.get(options.inputType);
+    if (!factory) return reportError(wrongInputTypeError("options", "HTMLControlGenerator", options));
+    return unwrap(factory(options));
+}
+
+/**
+ * Registers a new input type. `factory(options)` returns the element to append (a jQuery object is accepted too).
+ * Addons use this to plug in their controls, see registerHungarianInputControls.
+ */
+export function registerControl(inputType, factory) {
+    factories.set(inputType, factory);
+}
 
 /**
  * Builds a control from `{ inputType, id, class, name, value, items, onclick, onchange, ... }` and appends it to the element given as
@@ -84,12 +109,45 @@ const FACTORIES = new Map([...[...INPUT_TYPES].map(type => [type, input]), ["sel
  * @returns {HTMLElement|undefined} the control, or undefined when the input type is not known
  */
 export function generateControl(options = {}) {
-    const factory = FACTORIES.get(options.inputType);
-    if (!factory) {
-        console.error("Athena UI: generateControl does not know the input type", options.inputType);
-        return undefined;
-    }
-    const control = factory(options);
+    const control = buildControl(options);
+    if (!control) return undefined;
     (resolveElement(options.parent) ?? document.body).append(control);
     return control;
 }
+
+/**
+ * The HTMLControlGenerator of the standalone project (0.4.1), so code written for it keeps working.
+ * `HTMLControlGenerator(options)` builds the control and appends it to the element with the id `options.parent`
+ * (an unknown id appends it, in a div, to the body). It is also a global once Athena UI is loaded.
+ */
+export function HTMLControlGenerator(options) {
+    const control = buildControl(options);
+    if (!control) return;
+    if (options.parent === undefined) {
+        reportError(undefinedError("options.parent", "HTMLControlGenerator"));
+        return;
+    }
+    const parent = document.getElementById(options.parent);
+    if (parent) {
+        parent.append(control);
+    } else if (document.body) {
+        const wrapper = document.createElement("div");
+        wrapper.append(control);
+        document.body.append(wrapper);
+    } else {
+        reportError(noBodyOrParentError("parent", "HTMLControlGenerator"));
+    }
+}
+
+/**
+ * Builds the control without appending it. Like the standalone project it returns a jQuery object when jQuery is on the page
+ * (Odin NS Manager relies on that), and the plain element when it is not. Undefined when the options are not valid.
+ */
+HTMLControlGenerator.create = options => {
+    const control = buildControl(options);
+    if (!control) return undefined;
+    const jquery = globalThis.jQuery;
+    return typeof jquery === "function" ? jquery(control) : control;
+};
+
+HTMLControlGenerator.register = registerControl;

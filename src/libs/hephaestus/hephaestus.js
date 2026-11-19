@@ -29,11 +29,11 @@ export function loadScript(src) {
 }
 
 /**
- * Loads the classic scripts that are still needed. jQuery is no longer required by Athena UI: the vendored HTMLControlGenerator (which
- * needs it) is only loaded when the page has jQuery, and crypto-js only when the deprecated enable_encrypt_password is on.
+ * Loads the classic scripts that are still needed: only crypto-js, and only when the deprecated enable_encrypt_password is on.
+ * Athena UI has no other classic script, and does not need jQuery.
  */
-export function loadLibs(extraScripts = [], { jquery = false, crypto = false } = {}) {
-    const wanted = libs.filter(lib => (lib.needs === "jquery" ? jquery : lib.needs === "crypto" ? crypto : true));
+export function loadLibs(extraScripts = [], { crypto = false } = {}) {
+    const wanted = libs.filter(lib => (lib.needs === "crypto" ? crypto : true));
     return Promise.all([...wanted.map(lib => lib.src), ...extraScripts].map(loadScript));
 }
 

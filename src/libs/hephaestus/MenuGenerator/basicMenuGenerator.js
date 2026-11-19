@@ -4,7 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 
-import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
+import { HTMLElementGenerator } from "../../core/elementGenerator.js";
 import { BORDERED_CLASS } from "../../config/config.js";
 import { getNav } from "../../config/hooks.js";
 import { el, uid } from "../../core/dom.js";

@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
+import { HTMLElementGenerator } from "../../core/elementGenerator.js";
 import config, { withBorder } from "../../config/config.js";
 import { generateHeaderContent } from "./headerContentGenerator.js";
 import { generateWrapperContent } from "./wrapperContentGenerator.js";

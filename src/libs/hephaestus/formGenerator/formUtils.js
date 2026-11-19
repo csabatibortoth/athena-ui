@@ -4,7 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 
-import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
+import { HTMLElementGenerator } from "../../core/elementGenerator.js";
 import config from "../../config/config.js";
 import { translate } from "../../core/i18n.js";
 import { generateControl } from "../../core/controls.js";
