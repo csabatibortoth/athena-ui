@@ -14,6 +14,7 @@ import * as header from "./libs/hephaestus/LayoutGenerator/headerContentGenerato
 import * as wrapper from "./libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js";
 import * as footer from "./libs/hephaestus/LayoutGenerator/footerContentGenerator.js";
 import * as menu from "./libs/hephaestus/MenuGenerator/basicMenuGenerator.js";
+import * as menuGenerator from "./libs/hephaestus/MenuGenerator/menuGenerator.js";
 import * as loginForm from "./libs/hephaestus/formGenerator/loginFormGenerator.js";
 import * as registrationForm from "./libs/hephaestus/formGenerator/registrationFormGenerator.js";
 import * as lostPasswordForm from "./libs/hephaestus/formGenerator/lostPasswordFormGenerator.js";
@@ -92,6 +93,7 @@ const AthenaUI = {
     ...wrapper,
     ...footer,
     ...menu,
+    ...menuGenerator,
     ...loginForm,
     ...registrationForm,
     ...lostPasswordForm,
@@ -128,6 +130,7 @@ export * from "./libs/hephaestus/LayoutGenerator/headerContentGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/footerContentGenerator.js";
 export * from "./libs/hephaestus/MenuGenerator/basicMenuGenerator.js";
+export * from "./libs/hephaestus/MenuGenerator/menuGenerator.js";
 export * from "./libs/hephaestus/formGenerator/loginFormGenerator.js";
 export * from "./libs/hephaestus/formGenerator/registrationFormGenerator.js";
 export * from "./libs/hephaestus/formGenerator/lostPasswordFormGenerator.js";

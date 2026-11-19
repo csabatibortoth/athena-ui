@@ -448,6 +448,69 @@ test("charts: types, theme colours, tooltip, legend toggle, time axis, table of 
     $1("#charts").remove();
 });
 
+test("menu: links and buttons, active item, navigation only by people, group with keyboard, user avatar", async () => {
+    const calls = [];
+    const menu = A.generateMenu({
+        parent: "wrapper", layout: "responsive", followHash: true, label: "Main",
+        onNavigate: (item, event) => { calls.push(item.id); event.preventDefault(); },
+        items: [
+            { id: "home", label: "Home", icon: "H", href: "#/home" },
+            { id: "tools", label: "Tools", children: [{ id: "a", label: "Tool A", href: "#/a" }, { id: "b", label: "Tool B", disabled: true }, { id: "c", label: "Tool C" }] },
+            { id: "user", label: "Anna Kiss", avatar: { name: "Anna Kiss" }, align: "end", children: [{ id: "out", label: "Sign out" }] }
+        ]
+    });
+    const nav = menu.element;
+    equal(nav.tagName, "NAV");
+    equal(nav.getAttribute("aria-label"), "Main");
+    assert(nav.classList.contains("athena-menu-responsive"), "layout class");
+    equal($1("[data-id=home]", nav).tagName, "A");
+    equal($1("[data-id=home]", nav).getAttribute("href"), "#/home");
+    equal($1("[data-id=tools]", nav).tagName, "BUTTON");
+    equal($1("[data-id=home] .menu-icon", nav).getAttribute("aria-hidden"), "true");
+    equal($1(".menu-avatar", nav).textContent, "AK");
+    equal(calls.length, 0, "onNavigate was called while building");
+    // select() marks the item, but does not navigate
+    menu.select("home");
+    equal($1("[data-id=home]", nav).getAttribute("aria-current"), "page");
+    equal(calls.length, 0, "select() navigated");
+    // follows the hash
+    location.hash = "#/a";
+    for (let i = 0; i < 40 && menu.getActive() !== "a"; i++) await tick(25);
+    equal(menu.getActive(), "a");
+    assert($1("[data-id=tools]", nav).closest("li").classList.contains("has-active"), "group of the active child");
+    equal(calls.length, 0);
+    location.hash = "";
+    await tick(60);   // let the hashchange of the reset pass, so a router of a later test does not see it
+    // a person clicking
+    $1("[data-id=home]", nav).click();
+    equal(calls.join(), "home");
+    // group: opens with the arrow key, skips disabled, Esc closes and returns the focus
+    const toggle = $1("[data-id=tools]", nav);
+    equal(toggle.getAttribute("aria-expanded"), "false");
+    toggle.focus();
+    key(toggle, "ArrowDown");
+    equal(toggle.getAttribute("aria-expanded"), "true");
+    equal(document.activeElement.getAttribute("data-id"), "a");
+    key(document.activeElement, "ArrowDown");
+    equal(document.activeElement.getAttribute("data-id"), "c", "the disabled item is skipped");
+    key(document.activeElement, "Escape");
+    equal(toggle.getAttribute("aria-expanded"), "false");
+    equal(document.activeElement, toggle);
+    toggle.click();
+    $1("[data-id=c]", nav).click();
+    equal(calls.join(), "home,c");
+    equal(toggle.getAttribute("aria-expanded"), "false", "choosing closes the group");
+    // arrow keys along the top level
+    const home = $1("[data-id=home]", nav);
+    home.focus();
+    key(home, "ArrowRight");
+    equal(document.activeElement, toggle);
+    menu.update({ items: [{ id: "only", label: "Only" }] });
+    equal($$(".menu-item", nav).length, 1);
+    menu.destroy();
+    assert(!document.querySelector("nav.athena-menu"), "destroyed");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
