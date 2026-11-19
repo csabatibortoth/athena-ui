@@ -53,7 +53,7 @@ let logged = [];
 let stuck = "";
 const browser = await launch();
 try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ front: true });
     // Page.navigate only; the page reports by itself when every test has run (it sets its title to "finished")
     await page.send("Page.navigate", { url });
     try {
