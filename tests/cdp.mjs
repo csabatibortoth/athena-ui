@@ -93,10 +93,17 @@ export async function launch() {
             /** Waits until an expression is true in the page. */
             waitFor: (expression, options = {}) => until(() => page.eval(`Boolean(${expression})`), { message: expression.slice(0, 80), ...options }),
             /** A real key press (not a synthetic event). */
-            async press(key, code = key, keyCode = 0) {
-                const base = { key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode };
+            async press(key, code = key, keyCode = 0, modifiers = 0) {
+                const base = { key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode, modifiers };
                 await send("Input.dispatchKeyEvent", { type: "keyDown", ...base });
                 await send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+            },
+            /** Types text with real key events (each character is a keyDown with text, then a keyUp), so the page gets beforeinput and input like from a keyboard. */
+            async type(text) {
+                for (const character of text) {
+                    await send("Input.dispatchKeyEvent", { type: "keyDown", key: character, text: character, unmodifiedText: character });
+                    await send("Input.dispatchKeyEvent", { type: "keyUp", key: character });
+                }
             },
             /** A real click in the middle of the element that matches the selector. */
             async click(selector) {

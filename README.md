@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.3.0**
+Current version: **2.4.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -67,7 +67,7 @@ import { generateTable } from "athena-ui-js/table";        // or only what you u
 ```
 
 The entry points are `table`, `chart`, `dialog`, `menu`, `navigation`, `forms`, `feedback`, `components`, `inputs`, `router`, `session`, `theme`, `i18n`, `format`,
-`validation`, `motion`, `widgets`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
+`validation`, `motion`, `widgets`, `code`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
 The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, so a bundler drops everything you do not import.
 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
@@ -149,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.3.0"` | Version shown in the footer |
+| `version` | `"2.4.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -196,6 +196,7 @@ Everything is exported from `athena-ui.js`:
 | `el`, `setContent`, `resolveElement`, `asHandle`, `createSafeBuilder` | See [Safe DOM building](#safe-dom-building) |
 | `animate`, `flip`, `stagger`, `spring`, `tween`, `transition`, `viewTransition`, `setMotion`, `prefersReducedMotion`, `easings`, `generateSkeleton` | See [Motion](#motion-animations-and-transitions) |
 | `registerWidget`, `createWidgetGrid`, `getWidgetTypes`, `placeItem`, `compact`, `findFreeSpot`, `normalize` | See [Widgets](#widgets-a-dashboard-that-can-be-built) |
+| `highlightCode`, `generateCodeBlock`, `createCodeEditor`, `createDiffView`, `registerLanguage`, `tokenize`, `diffLines` | See [Code](#code-highlighting-an-editor-and-a-diff) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
 | `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateDropZone`, `generateStepper`, `generateDateRange`, `generateRichText`, `generateWysiwyg` | See [Inputs](#inputs) |
 | `sanitizeHtml(html)`, `htmlToText(html)`, `isSafeUrl(url)` | The allow-list sanitizer behind the rich text editor |
@@ -735,6 +736,42 @@ grid.setLayout(JSON.parse(localStorage.getItem("dashboard")));     // plain, ver
   duplicate ids are replaced, places are clamped and made free of overlaps, `__proto__`-style keys are dropped, and a type that is not registered is shown as a placeholder (its data is kept, nothing is executed).
 - **Performance**: a widget is rendered only when it is first seen, `resize(context, size)` is called throttled when its body changes size, and nothing re-renders while it is out of view.
 - The grid maths (`placeItem`, `compact`, `findFreeSpot`, `normalize`, `collides`) is exported as well, for your own layouts.
+
+### Code: highlighting, an editor and a diff
+
+`athena-ui-js/code`: no dependency, no inline style, and nothing is parsed as markup (the code is built with `el()`, so a `<img onerror>` in a comment stays text).
+
+```js
+import { highlightCode, generateCodeBlock, createCodeEditor, createDiffView, registerLanguage } from "athena-ui-js/code";
+
+// read only
+document.body.append(highlightCode("const a = 1;", "js", { lineNumbers: true, highlightLines: [1] }));      // a <pre><code> with token spans
+generateCodeBlock({ parent: "docs", code: sql, language: "sql", lineNumbers: true });                         // + the language label and a copy button
+
+// an editor
+const editor = createCodeEditor({
+    element: "editor", value: source, language: "ts", onChange: value => save(value),
+    markers: [{ line: 3, message: "Unexpected token", level: "error" }],                                   // lint markers, shown in the status line
+    readOnlyRanges: [{ from: 1, to: 2 }],                                                                   // lines that cannot be changed
+    provideCompletions: ({ prefix }) => words.filter(word => word.startsWith(prefix)).map(label => ({ label }))
+});
+
+// what changed
+createDiffView({ parent: "review", original: before, modified: after, language: "json", mode: "split", context: 3 });
+```
+
+- **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`).
+  A language is a plain object (`registerLanguage({ name, aliases, rules: [{ type, pattern }], lineComment, blockComment, pairs, indentAfter })`), so your own are one call.
+  The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours) but it does not know nested `${}` of a template string or the `<script>` inside HTML.
+- **Colours** are the tokens `--athena-tok-comment`, `-string`, `-keyword` ... (light and dark); a test keeps every one at 4.5:1 contrast or more.
+- **The editor is a real `<textarea>`** with the highlighted text behind it, so native input, selection, spell-check off, mobile keyboards, IME and screen readers all work.
+  Tab and Shift+Tab indent and outdent (also several lines), Enter keeps the indentation (and goes one level deeper after `{`, `(`, `:`), brackets and quotes are closed, stepped over, wrapped around a selection and
+  deleted together, Ctrl+/ comments, Alt+Up / Alt+Down move lines, Ctrl+Z / Ctrl+Y undo and redo (typing is grouped), Ctrl+F finds and Ctrl+H replaces (case, regular expression, all matches
+  highlighted, replace all is one undo step), Ctrl+Space suggests. The matching bracket is highlighted (CSS Custom Highlight API where the browser has it).
+  **Escape, then Tab, leaves the editor** (so the keyboard is never trapped); the way out is read to screen readers.
+- **Size**: only the lines around a change are tokenized again, and a test checks that this gives exactly what tokenizing everything gives. On the (slow) development machine the work of the editor per key press is
+  about 13 ms in a 5,000 line file; the browser's own layout of two large text blocks is the larger part (about 90 ms per key at 5,000 lines; smaller files were not measured separately). Texts longer than 300,000 characters
+  (`maxHighlightLength`) are shown without highlighting. Not there yet: multiple cursors, minimap, folding.
 
 ### Safe DOM building
 

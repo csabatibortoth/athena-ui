@@ -28,6 +28,23 @@ Start with the tokens, they cover most of what people want to change.
 | `--athena-warning` | `#9a6700` |
 | `--athena-info` | `#2471a3` |
 | `--athena-shadow` | `0 4px 14px rgb(0 0 0 / 18%)` |
+| `--athena-tok-comment` | `#5a6270` |
+| `--athena-tok-string` | `#0b6e3a` |
+| `--athena-tok-number` | `#a24b00` |
+| `--athena-tok-keyword` | `#7a2a9e` |
+| `--athena-tok-literal` | `#0b5fa5` |
+| `--athena-tok-function` | `#1f55b0` |
+| `--athena-tok-type` | `#0f6b6b` |
+| `--athena-tok-property` | `#9b2c5b` |
+| `--athena-tok-tag` | `#a3201f` |
+| `--athena-tok-attribute` | `#8a5300` |
+| `--athena-tok-variable` | `#0a6a8a` |
+| `--athena-tok-selector` | `#7a2a9e` |
+| `--athena-tok-meta` | `#6b4eae` |
+| `--athena-tok-entity` | `#0a6a8a` |
+| `--athena-tok-builtin` | `#0b5fa5` |
+| `--athena-tok-operator` | `#3b4048` |
+| `--athena-tok-punctuation` | `#5a6270` |
 | `--athena-radius` | `6px` |
 | `--athena-border-width` | `1px` |
 | `--athena-space-1` | `4px` |
@@ -100,4 +117,7 @@ Dark colours: set `data-mode="dark"` on `<html>` (or let `createThemeManager` do
 | A place holder for what is loading: a skeleton with a shimmer (generateSkeleton) | `.athena-skeleton` `.athena-skeleton-line` | `--athena-hover` `--athena-radius` `--athena-space-2` `--athena-surface` |
 | A theme or mode change cross-fades instead of flashing (the theme manager sets the class for a moment) | `.athena-switching` | `--athena-duration-slow` `--athena-ease-standard` |
 | Page transitions of the router (router({ transition: true })) | - | `--athena-duration-base` `--athena-ease-standard` |
-| Charts draw themselves when they appear: bars grow, lines are drawn, slices pop in (only the first time, not when a chart streams or is zoomed) | `.athena-chart-animated` `.athena-widget-grid` `.chart-area` `.chart-bar` `.chart-line` `.chart-point` `.chart-slice` `.is-dragging` `.is-editable` `.is-failed` `.is-locked` `.is-unknown` `.widget` `.widget-action` `.widget-actions` `.widget-body` `.widget-handle` `.widget-header` `.widget-note` `.widget-resize` `.widget-resize-e` `.widget-resize-n` `.widget-resize-ne` `.widget-resize-nw` `.widget-resize-s` `.widget-resize-se` `.widget-resize-sw` `.widget-resize-w` `.widget-title` | `--athena-accent` `--athena-accent-fg` `--athena-border` `--athena-border-width` `--athena-duration-fast` `--athena-duration-slow` `--athena-ease-out` `--athena-ease-standard` `--athena-fg` `--athena-focus` `--athena-focus-width` `--athena-hover` `--athena-line` `--athena-muted` `--athena-radius` `--athena-shadow` `--athena-surface` `--athena-surface-alt` |
+| Charts draw themselves when they appear: bars grow, lines are drawn, slices pop in (only the first time, not when a chart streams or is zoomed) | `.athena-chart-animated` `.athena-code` `.athena-widget-grid` `.chart-area` `.chart-bar` `.chart-line` `.chart-point` `.chart-slice` `.code-digits-1` `.code-digits-2` `.code-digits-3` `.code-digits-4` `.code-digits-5` `.code-digits-6` `.code-digits-7` `.code-editor` `.code-editor-input` `.code-line` `.code-tab-1` `.code-tab-10` `.code-tab-11` `.code-tab-12` `.code-tab-13` `.code-tab-14` `.code-tab-15` `.code-tab-16` `.code-tab-2` `.code-tab-3` `.code-tab-4` `.code-tab-5` `.code-tab-6` `.code-tab-7` `.code-tab-8` `.code-tab-9` `.code-wrap` `.has-line-numbers` `.is-dragging` `.is-editable` `.is-failed` `.is-highlighted` `.is-locked` `.is-unknown` `.tok-attribute` `.tok-builtin` `.tok-comment` `.tok-entity` `.tok-function` `.tok-keyword` `.tok-literal` `.tok-meta` `.tok-number` `.tok-operator` `.tok-property` `.tok-punctuation` `.tok-selector` `.tok-string` `.tok-tag` `.tok-type` `.tok-variable` `.widget` `.widget-action` `.widget-actions` `.widget-body` `.widget-handle` `.widget-header` `.widget-note` `.widget-resize` `.widget-resize-e` `.widget-resize-n` `.widget-resize-ne` `.widget-resize-nw` `.widget-resize-s` `.widget-resize-se` `.widget-resize-sw` `.widget-resize-w` `.widget-title` | `--athena-accent` `--athena-accent-fg` `--athena-border` `--athena-border-width` `--athena-duration-fast` `--athena-duration-slow` `--athena-ease-out` `--athena-ease-standard` `--athena-fg` `--athena-focus` `--athena-focus-width` `--athena-hover` `--athena-line` `--athena-muted` `--athena-radius` `--athena-shadow` `--athena-surface` `--athena-surface-alt` `--athena-tok-attribute` `--athena-tok-builtin` `--athena-tok-comment` `--athena-tok-entity` `--athena-tok-function` `--athena-tok-keyword` `--athena-tok-literal` `--athena-tok-meta` `--athena-tok-number` `--athena-tok-operator` `--athena-tok-property` `--athena-tok-punctuation` `--athena-tok-selector` `--athena-tok-string` `--athena-tok-tag` `--athena-tok-type` `--athena-tok-variable` `--code-gutter` |
+| A block: the language, a copy button, the code | `.athena-code` `.code-block` `.code-block-copy` `.code-block-header` `.code-find-button` `.code-find-input` | `--athena-bg` `--athena-border-width` `--athena-fg` `--athena-focus` `--athena-focus-width` `--athena-hover` `--athena-line` `--athena-muted` `--athena-radius` `--athena-surface` |
+| The editor | `.code-completion` `.code-completion-detail` `.code-completions` `.code-editor` `.code-editor-highlight` `.code-editor-input` `.code-editor-scroll` `.code-editor-status` `.code-find` `.code-find-button` `.code-find-count` `.code-find-input` `.code-find-row` `.code-line` `.code-wrap` `.has-line-numbers` `.has-marker` `.is-active` `.is-current` `.is-locked-line` `.is-plain` `.is-readonly` `.marker-error` `.marker-info` `.marker-warning` | `--athena-accent` `--athena-accent-fg` `--athena-bg` `--athena-border` `--athena-border-width` `--athena-danger` `--athena-fg` `--athena-focus` `--athena-focus-width` `--athena-info` `--athena-line` `--athena-muted` `--athena-radius` `--athena-shadow` `--athena-surface` `--athena-surface-alt` `--athena-warning` `--code-completion-left` `--code-completion-top` `--code-editor-max-height` `--code-editor-min-height` `--code-gutter` |
+| The diff view | `.code-diff` `.code-diff-body` `.code-diff-cell` `.code-diff-code` `.code-diff-empty` `.code-diff-header` `.code-diff-mark` `.code-diff-number` `.code-diff-row` `.code-diff-skip` `.code-diff-stat` `.code-line` `.is-added` `.is-empty` `.is-removed` `.is-skip` `.is-split` | `--athena-accent` `--athena-border-width` `--athena-danger` `--athena-line` `--athena-muted` `--athena-radius` `--athena-success` `--athena-surface` |

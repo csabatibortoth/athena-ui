@@ -1,6 +1,7 @@
 // Small helpers of the demo pages.
 
 import { el } from "/athena/dom.js";
+import { generateCodeBlock } from "/athena/code.js";
 
 /** Calls the API of the demo (same origin, with the session cookie). Throws an Error with .status and .fields when the answer is not ok. */
 export async function api(path, { method = "GET", body } = {}) {
@@ -23,9 +24,9 @@ export function block(parent, title, description) {
     return section;
 }
 
-/** The code behind a demo, shown as text (never as markup). */
-export function code(parent, text) {
-    parent.append(el("pre", { class: "demo-code", text }));
+/** The code behind a demo: a highlighted block with a copy button (the text is built as text, never as markup). */
+export function code(parent, text, language = "javascript") {
+    generateCodeBlock({ parent, code: text, language });
 }
 
 /** A status as the coloured word of a cell. */

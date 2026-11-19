@@ -1,6 +1,6 @@
 {
   "name": "athena-ui-js",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "A small, dependency-free UI framework: forms, tables, charts, menus, dialogs, themes and a router, written as ES modules.",
   "type": "module",
   "main": "./src/athena-ui.js",
@@ -94,6 +94,10 @@
     "./widgets": {
       "types": "./types/widgets.d.ts",
       "default": "./src/widgets.js"
+    },
+    "./code": {
+      "types": "./types/code.d.ts",
+      "default": "./src/code.js"
     },
     "./sanitize": {
       "types": "./types/sanitize.d.ts",

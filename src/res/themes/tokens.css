@@ -29,6 +29,24 @@
     --athena-warning: #9a6700;
     --athena-info: #2471a3;
     --athena-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+    /* code highlighting: at least 4.5:1 on --athena-surface-alt (a test checks it) */
+    --athena-tok-comment: #5a6270;
+    --athena-tok-string: #0b6e3a;
+    --athena-tok-number: #a24b00;
+    --athena-tok-keyword: #7a2a9e;
+    --athena-tok-literal: #0b5fa5;
+    --athena-tok-function: #1f55b0;
+    --athena-tok-type: #0f6b6b;
+    --athena-tok-property: #9b2c5b;
+    --athena-tok-tag: #a3201f;
+    --athena-tok-attribute: #8a5300;
+    --athena-tok-variable: #0a6a8a;
+    --athena-tok-selector: #7a2a9e;
+    --athena-tok-meta: #6b4eae;
+    --athena-tok-entity: #0a6a8a;
+    --athena-tok-builtin: #0b5fa5;
+    --athena-tok-operator: #3b4048;
+    --athena-tok-punctuation: #5a6270;
 
     /* shape and spacing */
     --athena-radius: 6px;
@@ -94,6 +112,23 @@
     --athena-warning: #e0b04a;
     --athena-info: #5b9bd5;
     --athena-shadow: 0 4px 14px rgb(0 0 0 / 55%);
+    --athena-tok-comment: #8b95a5;
+    --athena-tok-string: #8fd39c;
+    --athena-tok-number: #f0a56a;
+    --athena-tok-keyword: #c9a0f0;
+    --athena-tok-literal: #7fb8f0;
+    --athena-tok-function: #8fb4ff;
+    --athena-tok-type: #5fd0c8;
+    --athena-tok-property: #f08bb0;
+    --athena-tok-tag: #ff8f8f;
+    --athena-tok-attribute: #e8b86d;
+    --athena-tok-variable: #6fd0f0;
+    --athena-tok-selector: #c9a0f0;
+    --athena-tok-meta: #b4a0f0;
+    --athena-tok-entity: #6fd0f0;
+    --athena-tok-builtin: #7fb8f0;
+    --athena-tok-operator: #c3c8d0;
+    --athena-tok-punctuation: #9aa3b0;
 }
 
 /* ... or, when nothing was chosen, by the system */
@@ -117,5 +152,22 @@
         --athena-warning: #e0b04a;
         --athena-info: #5b9bd5;
         --athena-shadow: 0 4px 14px rgb(0 0 0 / 55%);
+        --athena-tok-comment: #8b95a5;
+        --athena-tok-string: #8fd39c;
+        --athena-tok-number: #f0a56a;
+        --athena-tok-keyword: #c9a0f0;
+        --athena-tok-literal: #7fb8f0;
+        --athena-tok-function: #8fb4ff;
+        --athena-tok-type: #5fd0c8;
+        --athena-tok-property: #f08bb0;
+        --athena-tok-tag: #ff8f8f;
+        --athena-tok-attribute: #e8b86d;
+        --athena-tok-variable: #6fd0f0;
+        --athena-tok-selector: #c9a0f0;
+        --athena-tok-meta: #b4a0f0;
+        --athena-tok-entity: #6fd0f0;
+        --athena-tok-builtin: #7fb8f0;
+        --athena-tok-operator: #c3c8d0;
+        --athena-tok-punctuation: #9aa3b0;
     }
 }
