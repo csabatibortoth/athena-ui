@@ -60,7 +60,28 @@ async function reset() {
 
 /* ------------------API------------------- */
 
-test("every public function is exported and global", () => {
+test("importing the ES module has no side effects: nothing on globalThis", () => {
+    for (const name of ["generateTable", "generateChart", "showDialog", "HTMLControlGenerator", "AthenaUI", "Cookies", "el"]) {
+        assert(!(name in globalThis), `${name} was put on globalThis`);
+    }
+});
+
+test("every entry point loads and exports what it says", async () => {
+    const expected = {
+        table: "generateTable", chart: "generateChart", dialog: "showFormDialog", menu: "generateMenu", navigation: "generateDropdown", forms: "generateSignInForm",
+        feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
+        i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
+    };
+    for (const [entry, name] of Object.entries(expected)) {
+        const module = await import(`../../src/${entry}.js`);
+        assert(typeof module[name] === "function", `${entry}.js does not export ${name}`);
+        assert(module[name] === A[name], `${entry}.js and athena-ui.js export different ${name}`);
+    }
+    assert(typeof (await import("../../src/session.js")).Cookies?.get === "function", "session.js exports Cookies");
+});
+
+test("every public function is exported and global (classic build)", async () => {
+    await import("../../src/classic.js");
     const names = ["generateForm", "generateButton", "generateField", "showToast", "confirmDialog", "generateTabs", "createRouter",
         "generateAutocomplete", "generateMultiSelect", "generateFileUpload", "generateStepper", "generateDateRange", "generateRichText",
         "createRichText", "generateWysiwyg", "createWysiwyg", "generateDropZone", "createDropZone", "sanitizeHtml", "setSession", "translate", "toCsv", "setTheme", "generateChangePasswordForm", "generateTable", "generateChart", "HTMLElementGenerator", "HTMLControlGenerator", "registerHungarianInputControls"];

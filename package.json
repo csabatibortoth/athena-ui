@@ -10,15 +10,32 @@
   },
   "exports": {
     ".": "./src/athena-ui.js",
+    "./classic": "./src/classic.js",
     "./testing": "./src/testing.js",
     "./theme-boot.js": "./src/theme-boot.js",
+    "./table": "./src/table.js",
+    "./chart": "./src/chart.js",
+    "./dialog": "./src/dialog.js",
+    "./menu": "./src/menu.js",
+    "./navigation": "./src/navigation.js",
+    "./forms": "./src/forms.js",
+    "./feedback": "./src/feedback.js",
+    "./components": "./src/components.js",
+    "./inputs": "./src/inputs.js",
+    "./router": "./src/router.js",
+    "./session": "./src/session.js",
+    "./theme": "./src/theme.js",
+    "./i18n": "./src/i18n.js",
+    "./format": "./src/format.js",
+    "./validation": "./src/validation.js",
+    "./sanitize": "./src/sanitize.js",
+    "./csv": "./src/csv.js",
+    "./dom": "./src/dom.js",
+    "./controls": "./src/controls.js",
     "./themes/*": "./src/res/themes/*",
     "./package.json": "./package.json"
   },
   "files": [
-    "src/athena-ui.js",
-    "src/testing.js",
-    "src/theme-boot.js",
     "src/libs/config",
     "src/libs/hephaestus/hephaestus.js",
     "src/libs/hephaestus/LayoutGenerator",
@@ -35,9 +52,15 @@
     "src/libs/hephaestus/chartGenerator",
     "src/libs/hephaestus/tableGenerator",
     "src/libs/hephaestus/modalGenerator",
-    "src/res"
+    "src/res",
+    "src/*.js",
+    "!src/example.js"
   ],
-  "sideEffects": true,
+  "sideEffects": [
+    "./src/classic.js",
+    "./src/theme-boot.js",
+    "*.css"
+  ],
   "keywords": [
     "ui",
     "framework",

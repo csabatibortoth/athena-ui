@@ -13,6 +13,7 @@ const releases = new Map();
 export function openModal(id = DEFAULT_MODAL_ID) {
     const modal = document.getElementById(id);
     if (!modal) return;
+    installCloseHandler();
     modal.classList.add("is-open");
     modal.style.display = "block";
     modal.setAttribute("role", "dialog");
@@ -31,9 +32,15 @@ export function closeModal(id = DEFAULT_MODAL_ID) {
 }
 
 // One delegated handler serves every close button (x), including modals added later.
-// One delegated handler serves every close button (x), including modals added later.
-document.addEventListener("click", event => {
-    const button = event.target.closest?.(".close");
-    if (!button) return;
-    closeModal(button.closest(".modal")?.id || DEFAULT_MODAL_ID);
-});
+// One delegated handler serves every close button (x), including modals added later. It is installed when the first modal is opened,
+// so importing this file has no side effect.
+let closeHandlerInstalled = false;
+function installCloseHandler() {
+    if (closeHandlerInstalled) return;
+    closeHandlerInstalled = true;
+    document.addEventListener("click", event => {
+        const button = event.target.closest?.(".close");
+        if (!button) return;
+        closeModal(button.closest(".modal")?.id || DEFAULT_MODAL_ID);
+    });
+}
