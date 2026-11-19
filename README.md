@@ -748,6 +748,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Releases
 
+ ### 2.1.0
+  #### Changed:
+   1. The dropdown menu is a native popover (`popover="auto"`, opened by its button through `popovertarget`): it is drawn in the top layer, so no parent with `overflow: hidden` cuts it off; a click outside and Esc close it and the focus goes back to the button; `aria-expanded` follows every way of opening and closing it. Markup: the menu has the attribute `popover` and no `hidden` any more (use `:popover-open`)
+   2. The tooltip is a native popover (`popover="manual"`): shown on hover and on keyboard focus, hidden on leave, blur and Esc, never shown by a touch, and never cut off by a parent
+   3. Both are placed next to their button by a small helper that sets two CSS variables (`--athena-popover-left`, `--athena-popover-top`; allowed by a strict Content-Security-Policy): below, or above when there is no room below, centred or aligned to an edge, and always kept inside the window; they follow the button when the page scrolls or resizes
+   4. Browsers without the popover API keep the previous behaviour (a plain menu shown with `hidden` and closed by a click outside, a CSS tooltip)
+  #### Added:
+   1. `src/libs/core/popover.js` (placement helpers) and the CSS class `.athena-popover`
+   2. The address of the live demo in the READMEs
+   3. Section 3 ("Make it lighter") of the to-do list is complete: the native elements are `<dialog>`, `<details>` and the popover
+
  ### 2.0.1
   #### Added:
    1. `demo/`: a demo and test application of Athena UI (tables with 100,000 rows from a server, streaming charts, forms, dialogs, menus, themes, sign in) with a dependency free Node server, and end to end tests that drive a real browser (DevTools protocol) under a strict Content-Security-Policy
