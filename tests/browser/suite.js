@@ -2419,6 +2419,11 @@ test("form: fields that depend on others, labels that follow, nested names, empt
     });
     equal(document.activeElement?.name ?? document.activeElement?.closest?.(".field")?.dataset.name, "u", "the focus is in the first field that is shown");
     dialog.close();
+    const seen = [];
+    const nestedDialog = A.showFormDialog({ title: "Nested", nested: true, fields: [{ name: "soa.host", label: "Host", value: "ns1" }], onSubmit: values => seen.push(values) });
+    nestedDialog.form.element.requestSubmit();
+    await tick(30);
+    equal(JSON.stringify(seen[0]), JSON.stringify({ soa: { host: "ns1" } }), "showFormDialog passes nested on");
 });
 
 test("table: a column can render an element (a badge, a link, buttons) and every cell carries the label of its column", () => {
