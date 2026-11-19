@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **1.1.0**
+Current version: **1.2.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -17,7 +17,7 @@ Known limits are listed below, so you can judge whether it fits your project:
 
 - Rich text uses the deprecated `document.execCommand`. Content is sanitized in the browser, but sanitize it on the server too.
 - The session cookie is readable from JavaScript. It is a UI state, not a security boundary: authenticate on the server.
-- Virtual table rows have to be a fixed height, one line per cell.
+- Virtual table rows have to be a fixed height, one line per cell (set it with `virtual.rowHeight`; the CSS variable `--row-height` follows).
 - Translations: English and Hungarian.
 
 ## Features
@@ -120,7 +120,7 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"1.1.0"` | Version shown in the footer |
+| `version` | `"1.2.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -211,6 +211,9 @@ Click a header to sort (disable with `sortable: false`, or per column). Other op
 - A column with `editable: true` can be edited with a double click, or Enter / F2 on the focused cell. `onEdit(row, key, value, oldValue)` is called after the edit; return `false` to reject it. Numeric cells stay numbers.
 - `resizableColumns: true` puts a drag handle on every header edge. The handle is focusable too: Left / Right resize by 10 px, Shift by 50 px, double click resets the column to its configured `width`. Columns take `width`, `minWidth` and `maxWidth`; `onColumnResize(key, width)` and `getColumnWidths()` let you persist the layout.
 - `virtual: { height: 400, rowHeight: 36, overscan: 5 }` (or `virtual: true`) renders only the rows in view and keeps the scroll bar the size of the whole list, so 10 000+ rows stay fast. Rows have a fixed height (the theme enforces it, one line per cell), the table scrolls inside `height` and its header stays visible. It replaces pagination; filtering, sorting, selection, editing and CSV export work as usual.
+- Hooks and looks: `cellClass(row, column)` and `rowClass(row)` return a class name (or a list) for a cell or a row. `focusableRows: true` makes rows reachable with Tab (`rowLabel(row)` is their aria-label); together with `onRowClick` they open with Enter and Space. `density: "compact"`, and `wrap: true | false` (long text wraps, or stays on one line with an ellipsis). The pager is hidden when there is only one page.
+- Column extras: `render(row, value)` returns text or a Node (built by you, so it is safe by construction), `align: "left" | "center" | "right"`. Text longer than 24 characters gets its full text as a tooltip (`title: false` switches it off).
+- A virtual table that starts empty draws a full window as soon as it gets rows, and measures again when the scroll area changes size.
 - `exportCsv()` downloads the filtered and sorted rows. Cells that start with `=`, `+`, `-` or `@` are prefixed with `'` so a spreadsheet does not run them as formulas.
 
 ### Forms
@@ -266,6 +269,10 @@ const name = await promptDialog("Your name", { validate: v => v ? "" : "Required
 const choice = await showDialog({ title: "Custom", content: "Pick one", buttons: [{ text: "A", value: "a" }, { text: "B", value: "b" }] });
 ```
 
+Options: `size` ("small" 360 px, "medium" 480 px, "large" 720 px, "full") and `class` (extra class on the dialog).
+`showDialog` returns a promise that also carries the open dialog: `const dialog = showDialog({ size: "large", ... }); dialog.element; dialog.close(value);`.
+The dialog is shown by a CSS class, not by an inline style, so a strict Content-Security-Policy works.
+
 Dialogs trap the focus, close with Esc (resolving `null` / `false`) and restore the focus. Text content is
 never parsed as HTML. `openModal` / `closeModal` got the same focus handling.
 
@@ -275,6 +282,7 @@ never parsed as HTML. `openModal` / `closeModal` got the same focus handling.
 generateTabs({ parent: "wrapper", tabs: [{ id: "a", label: "A", content: "First" }, { id: "b", label: "B", content: () => lazyNode() }] });
 generateAccordion({ parent: "wrapper", items: [{ title: "Q", content: "A", open: true }], multiple: false });
 generateDropdown({ parent: "wrapper", label: "Actions", items: [{ label: "Edit", onclick }, { divider: true }, { label: "Delete", onclick }] });
+generateDropdown({ parent: "wrapper", icon: "⋮", ariaLabel: "More actions", items: [{ label: "Edit", onclick }] });   // icon only; also caret: true, toggleClass
 generatePagination({ parent: "wrapper", total: 200, pageSize: 10, onChange: page => load(page) });
 generateBreadcrumbs({ parent: "wrapper", items: [{ label: "Home", href: "#/" }, { label: "Users" }] });
 generateSidebar({ parent: "wrapper", active: "home", onSelect: item => go(item.id),
@@ -441,6 +449,29 @@ The default theme is in `src/res/themes/default/style.css`; `{ id: 1 }` is a dar
 
 Switch themes at runtime with `setTheme({ id: 1 })`.
 
+### Parents and handles
+
+Every `parent` option takes an element, an id or a CSS selector (`"wrapper"`, `"#list"`, `".panel > ul"`; an id wins over a selector).
+The components return the same kind of handle: `{ element, update(), destroy() }`, plus their own methods. `destroy()` removes the
+component. `update()` redraws it where that makes sense (`table.update({ rows })`, `chart.update({ series })`, `stat.update({ value })`,
+`progress.update({ value })`) and otherwise just returns the handle. `generateChart` still returns the SVG element, which also carries
+`element`, `update(options)` and `destroy()`.
+
+### Testing your application
+
+```js
+import { JSDOM } from "jsdom";
+import { installDom, until, tick } from "athena-ui-js/testing";
+
+const dom = installDom(JSDOM);                       // window, document, Node, Event, ... become global
+generateDropdown({ parent: "#wrapper", icon: "x", ariaLabel: "More", items: [] });
+await until(() => document.querySelector(".dropdown"), { message: "the dropdown" });
+dom.uninstall();
+```
+
+`installDom` takes your own `JSDOM` class, so Athena UI has no dependency on jsdom. Athena creates its events from the element's own
+window, so they work in jsdom without a global `Event`.
+
 ## Tests
 
 ```sh
@@ -480,6 +511,19 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 1.2.0
+  #### Added:
+   1. Dialogs: `size` and `class` options, and the open dialog (`element`, `backdrop`, `close()`) on the returned promise
+   2. Tables: `cellClass`, `rowClass`, `focusableRows` / `rowLabel`, `density`, `wrap`, column `render` (text or Node), `align`, tooltip for cut text
+   3. Dropdown: `icon`, `ariaLabel`, `caret`, `toggleClass`; the label is optional
+   4. Every `parent` option takes an element, an id or a CSS selector; the components share the handle `{ element, update(), destroy() }`
+   5. `athena-ui-js/testing`: `installDom`, `until`, `tick`
+  #### Changed:
+   1. The dialog backdrop is shown by a CSS class, not by an inline style (works with a strict Content-Security-Policy)
+   2. Virtual tables: a list that starts empty draws a full window, the window is measured again when the scroll area changes size, and the cell padding no longer loses against the application's `td` padding
+   3. The combobox creates its events from the element's own window (no more jsdom errors)
+   4. The pager of a table with one page is hidden
 
  ### 1.1.0
   #### Added:
