@@ -1050,6 +1050,33 @@ test("Cookies: set, get, remove, encoding, expiry and the attributes", () => {
     equal(Cookies.get("never_set"), undefined);
 });
 
+test("CSS: Athena is in a cascade layer, so a plain rule of the application wins; tokens and dark mode", () => {
+    const table = A.generateTable({ parent: "wrapper", columns: [{ key: "a" }], rows: [{ a: 1 }] });
+    const cell = $1("td", table.element);
+    equal(getComputedStyle(cell).paddingTop, "6px", "Athena's own padding");
+    // a constructed style sheet is allowed by the strict policy of this page; its rules are not in a layer
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync("td { padding: 1px; }   :root { --athena-radius: 1px; }");
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    equal(getComputedStyle(cell).paddingTop, "1px", "a rule of the application with a low specificity beats .athena-table td");
+    equal(getComputedStyle(document.documentElement).getPropertyValue("--athena-radius").trim(), "1px", "a token is set by the application");
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter(item => item !== sheet);
+    equal(getComputedStyle(cell).paddingTop, "6px");
+    // tokens in use
+    const dialog = A.showDialog({ title: "t", content: "x", size: "small" });
+    equal(getComputedStyle(dialog.element).getPropertyValue("--dialog-width").trim(), "360px", "dialog width comes from --athena-dialog-small");
+    dialog.close();
+    // dark mode of the default theme: the attribute switches the colours
+    const root = document.documentElement;
+    const before = getComputedStyle(root).getPropertyValue("--athena-bg").trim();
+    root.dataset.mode = "dark";
+    equal(getComputedStyle(root).getPropertyValue("--athena-bg").trim(), "#16181d");
+    equal(getComputedStyle(document.body).backgroundColor, "rgb(22, 24, 29)");
+    root.dataset.mode = "light";
+    equal(getComputedStyle(root).getPropertyValue("--athena-bg").trim(), before);
+    delete root.dataset.mode;
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
