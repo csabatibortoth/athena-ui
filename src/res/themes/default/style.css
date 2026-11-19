@@ -1926,3 +1926,53 @@ textarea {
         border-radius: var(--athena-radius) var(--athena-radius) 0 0;
     }
 }
+
+/* Menu: groups inside groups, and badges */
+
+.athena-menu .menu-sheet-nested {
+    top: 0;
+    left: 100%;
+    margin: 0 0 0 2px;
+}
+
+.athena-menu .menu-sheet .menu-caret {
+    margin-left: auto;
+}
+
+.athena-menu .menu-badge {
+    display: inline-block;
+    min-width: 1.5em;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--athena-accent);
+    color: var(--athena-accent-fg);
+    font-size: 0.75em;
+    font-weight: bold;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.athena-menu .menu-badge-ok { background: var(--athena-success); }
+.athena-menu .menu-badge-warn { background: var(--athena-warning); }
+.athena-menu .menu-badge-bad { background: var(--athena-danger); }
+.athena-menu .menu-badge-info { background: var(--athena-info); }
+
+.athena-menu-bottom-tabs .menu-sheet-nested {
+    position: static;
+    margin: 0;
+    padding: 0 0 0 12px;
+    border: 0;
+    box-shadow: none;
+    background: none;
+}
+
+@media (max-width: 700px) {
+    .athena-menu-responsive .menu-sheet-nested {
+        position: static;
+        margin: 0;
+        padding: 0 0 0 12px;
+        border: 0;
+        box-shadow: none;
+        background: none;
+    }
+}

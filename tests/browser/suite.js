@@ -511,6 +511,74 @@ test("menu: links and buttons, active item, navigation only by people, group wit
     assert(!document.querySelector("nav.athena-menu"), "destroyed");
 });
 
+test("menu: groups inside groups, keyboard in and out, active path, badges", async () => {
+    const calls = [];
+    const menu = A.generateMenu({
+        parent: "wrapper", active: "deep",
+        onNavigate: item => calls.push(item.id),
+        items: [
+            { id: "inbox", label: "Inbox", badge: 120, badgeLabel: "120 unread" },
+            { id: "quiet", label: "Quiet", badge: 0 },
+            { id: "more", label: "More", children: [
+                { id: "one", label: "One" },
+                { id: "sub", label: "Sub", children: [{ id: "deep", label: "Deep" }, { id: "deeper", label: "Deeper", children: [{ id: "deepest", label: "Deepest" }] }] }
+            ] }
+        ]
+    });
+    const nav = menu.element;
+    equal($1("[data-id=inbox] .menu-badge", nav).textContent, "99+");
+    equal($1("[data-id=inbox]", nav).getAttribute("aria-label"), "Inbox, 120 unread");
+    assert(!$1("[data-id=quiet] .menu-badge", nav), "0 shows no badge");
+    menu.setBadge("quiet", { text: 3, tone: "bad" });
+    assert($1("[data-id=quiet] .menu-badge-bad", nav), "badge set later");
+    menu.setBadge("quiet", null);
+    assert(!$1("[data-id=quiet] .menu-badge", nav), "badge removed");
+    // every group around the active item is marked
+    assert($1("[data-id=more]", nav).closest("li").classList.contains("has-active"), "level 1");
+    assert($1("[data-id=sub]", nav).closest("li").classList.contains("has-active"), "level 2");
+    equal($1("[data-id=deep]", nav).getAttribute("aria-current"), "page");
+    // keyboard: open the first level, go into the second, into the third, and back out
+    const more = $1("[data-id=more]", nav);
+    more.focus();
+    key(more, "ArrowDown");
+    equal(document.activeElement.getAttribute("data-id"), "one");
+    key(document.activeElement, "ArrowDown");
+    const sub = document.activeElement;
+    equal(sub.getAttribute("data-id"), "sub");
+    equal(sub.getAttribute("aria-haspopup"), "menu");
+    key(sub, "ArrowRight");
+    equal(sub.getAttribute("aria-expanded"), "true");
+    equal(document.activeElement.getAttribute("data-id"), "deep");
+    key(document.activeElement, "ArrowDown");
+    const deeper = document.activeElement;
+    equal(deeper.getAttribute("data-id"), "deeper");
+    key(deeper, "ArrowRight");
+    equal(document.activeElement.getAttribute("data-id"), "deepest");
+    // ArrowLeft closes only the innermost group and returns to its toggle
+    key(document.activeElement, "ArrowLeft");
+    equal(document.activeElement, deeper);
+    equal(deeper.getAttribute("aria-expanded"), "false");
+    equal(sub.getAttribute("aria-expanded"), "true", "the outer group stays open");
+    key(deeper, "ArrowLeft");
+    equal(document.activeElement, sub);
+    equal(more.getAttribute("aria-expanded"), "true");
+    // choosing a deep item closes everything, returns the focus to the top toggle, and navigates
+    key(sub, "ArrowRight");
+    $1("[data-id=deep]", nav).click();
+    equal(calls.join(), "deep");
+    equal(more.getAttribute("aria-expanded"), "false");
+    equal(sub.getAttribute("aria-expanded"), "false");
+    equal(document.activeElement, more);
+    // Escape closes the innermost group first
+    more.click();
+    $1("[data-id=sub]", nav).click();
+    equal($1("[data-id=sub]", nav).getAttribute("aria-expanded"), "true");
+    key($1("[data-id=deep]", nav), "Escape");
+    equal($1("[data-id=sub]", nav).getAttribute("aria-expanded"), "false");
+    equal(more.getAttribute("aria-expanded"), "true");
+    menu.destroy();
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
