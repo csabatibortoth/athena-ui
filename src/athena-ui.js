@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 2.3.0
+//Version: 2.4.0
 
 // The whole API as ES module exports. There are no side effects: importing this file does not touch the page, does not load a script and does not
 // put anything on globalThis. For pages that need globals use `athena-ui-js/classic`, and to download only what you use import from the entry points
@@ -126,6 +126,10 @@ export * from "./libs/core/format.js";
 export * from "./libs/core/motion.js";
 export * from "./libs/hephaestus/widgetGrid/widgetGrid.js";
 export * from "./libs/core/gridLayout.js";
+export * from "./libs/hephaestus/codeGenerator/codeGenerator.js";
+export * from "./libs/hephaestus/codeGenerator/codeEditor.js";
+export * from "./libs/core/codeLanguages.js";
+export * from "./libs/core/codeDiff.js";
 export * from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 export * from "./libs/core/theme.js";
 export * from "./libs/hephaestus/componentGenerator/themePicker.js";

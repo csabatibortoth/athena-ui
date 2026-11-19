@@ -44,7 +44,7 @@ const title = page => page.eval(`document.querySelector(".page-title")?.textCont
 
 describe("every page draws, without a single error, under the strict policy", { skip }, () => {
     const pages = [
-        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/widgets", "Widgets"], ["/motion", "Motion"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
+        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/widgets", "Widgets"], ["/code", "Code"], ["/motion", "Motion"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
         ["/themes", "Themes, modes and tokens"], ["/about", "About this demo"], ["/account", "Account"],
         ["/admin", "Account"],                  // not signed in: the router sends the visitor to the sign in page
         ["/nowhere", "Page not found"]
@@ -300,6 +300,50 @@ describe("what a person does", { skip }, () => {
         await page.eval(`location.reload()`);
         await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 6`, { timeout: 90000 });
         assert.equal(await column("hosts"), "2");
+    }));
+
+    test("code: real typing in the editor closes brackets and keeps indentation, Tab indents and Escape then Tab leaves, undo works, locked lines refuse", { timeout: 240000 }, () => withPage("/code", async page => {
+        await page.waitFor(`document.querySelector(".page-title")?.textContent === "Code"`, { timeout: 90000 });
+        await page.waitFor(`document.querySelector("#code-editor textarea") && document.querySelectorAll("#code-editor .code-line").length > 5`, { timeout: 30000 });
+        const value = () => page.eval(`document.querySelector("#code-editor textarea").value`);
+        // blocks: the language picker redraws the block, the text of a comment stays text
+        await page.eval(`(() => { const select = document.querySelector("select[name=language]"); select.value = "html"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+        await page.waitFor(`document.querySelector("#code-shown .code-block-language")?.textContent === "HTML"`);
+        assert.equal(await page.eval(`document.querySelectorAll("#code-shown .tok-tag").length > 0`), true);
+        // go to the end of the text (a real click in the editor, then Ctrl+End) and type
+        await page.click("#code-editor .code-editor-input");
+        await page.press("End", "End", 35, 2);
+        const before = await value();
+        await page.type("foo(");
+        assert.equal((await value()).slice(before.length), "foo()", "the bracket was closed by a real key press");
+        await page.type("1");
+        await page.press("Enter", "Enter", 13);
+        assert.match((await value()).slice(before.length), /foo\(1\)?\n/, "Enter in the middle of a line breaks it");
+        // Ctrl+Z takes back the last step, then Ctrl+Z again takes back the typing
+        await page.press("z", "KeyZ", 90, 2);
+        await page.press("z", "KeyZ", 90, 2);
+        assert.ok((await value()).length < before.length + 8, "undo took steps back: " + JSON.stringify((await value()).slice(before.length)));
+        // a line that is locked cannot be typed in: put the caret in line 1 and type
+        await page.eval(`document.querySelector("#code-editor textarea").setSelectionRange(5, 5)`);
+        const locked = await value();
+        await page.type("zzz");
+        assert.equal((await value()).split("\n")[0], locked.split("\n")[0], "the locked first line did not change");
+        // Escape, then Tab, leaves the editor; a Tab without the Escape does not
+        await page.eval(`document.querySelector("#code-editor textarea").setSelectionRange(document.querySelector("#code-editor textarea").value.length, document.querySelector("#code-editor textarea").value.length)`);
+        await page.press("Tab", "Tab", 9);
+        assert.equal(await page.eval(`document.activeElement === document.querySelector("#code-editor textarea")`), true, "Tab stays in the editor");
+        await page.press("Escape", "Escape", 27);
+        await page.press("Tab", "Tab", 9);
+        assert.equal(await page.eval(`document.activeElement !== document.querySelector("#code-editor textarea")`), true, "Escape, then Tab, goes on to the next control");
+        // find with a real Ctrl+F
+        await page.click("#code-editor .code-editor-input");
+        await page.press("f", "KeyF", 70, 2);
+        await page.waitFor(`document.querySelector("#code-editor .code-find:not([hidden])")`);
+        assert.equal(await page.eval(`document.activeElement.name`), "find");
+        // the diff view
+        await page.clickText("Split");
+        await page.waitFor(`document.querySelector(".code-diff")?.dataset.mode === "split"`);
+        assert.equal(await page.eval(`document.querySelectorAll(".code-diff-cell.is-added").length > 0`), true);
     }));
 
     test("navigation: the menu with groups inside groups works with the keyboard", { timeout: 240000 }, () => withPage("/navigation", async page => {

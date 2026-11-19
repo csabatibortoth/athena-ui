@@ -74,7 +74,7 @@ test("importing the ES module has no side effects: nothing on globalThis", () =>
 test("every entry point loads and exports what it says", async () => {
     const expected = {
         table: "generateTable", chart: "generateChart", dialog: "showFormDialog", menu: "generateMenu", navigation: "generateDropdown", forms: "generateSignInForm",
-        widgets: "createWidgetGrid", feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
+        widgets: "createWidgetGrid", code: "createCodeEditor", feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
         i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
     };
     for (const [entry, name] of Object.entries(expected)) {
@@ -1868,6 +1868,436 @@ test("widgets: the grid maths is exported with the grid", () => {
     equal(moved.find(item => item.id === "b").y, 2, "the one in the way is pushed down");
     equal(items[0].x, 0, "the argument is not changed");
     equal(JSON.stringify(A.findFreeSpot(items, 2, 2, 4)), JSON.stringify({ x: 0, y: 2 }));
+});
+
+/* ------------------CODE------------------- */
+
+const codeHost = () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="ed"></div>');
+    return $1("#ed");
+};
+const makeEditor = (options = {}) => A.createCodeEditor({ element: codeHost(), language: "js", ...options });
+const keydown = (editor, name, options = {}) => {
+    const event = new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...options });
+    editor.textarea.dispatchEvent(event);
+    return event;
+};
+// types text the way a browser does: beforeinput first (the editor may handle it), then the character and an input event
+const typeText = (editor, text) => {
+    const area = editor.textarea;
+    for (const character of text) {
+        const before = new InputEvent("beforeinput", { inputType: "insertText", data: character, bubbles: true, cancelable: true });
+        area.dispatchEvent(before);
+        if (before.defaultPrevented) continue;
+        const { selectionStart: start, selectionEnd: end, value } = area;
+        area.value = value.slice(0, start) + character + value.slice(end);
+        area.setSelectionRange(start + 1, start + 1);
+        area.dispatchEvent(new InputEvent("input", { inputType: "insertText", data: character, bubbles: true }));
+    }
+};
+const backspace = editor => {
+    const area = editor.textarea;
+    const before = new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true });
+    area.dispatchEvent(before);
+    if (before.defaultPrevented) return;
+    const { selectionStart: start, selectionEnd: end, value } = area;
+    const from = start === end ? Math.max(0, start - 1) : start;
+    area.value = value.slice(0, from) + value.slice(end);
+    area.setSelectionRange(from, from);
+    area.dispatchEvent(new InputEvent("input", { inputType: "deleteContentBackward", bubbles: true }));
+};
+const destroyEditor = editor => {
+    editor.destroy();
+    $1("#ed")?.remove();
+};
+
+test("code: highlightCode builds lines and token spans, code stays text, line numbers and highlighted lines work", () => {
+    const pre = A.highlightCode('const a = "x";\n// <img src=x onerror=alert(1)>\nfoo(1)', "js", { lineNumbers: true, highlightLines: [2, "3-3"] });
+    document.getElementById("wrapper").append(pre);
+    equal(pre.tagName, "PRE");
+    assert(pre.classList.contains("athena-code") && pre.classList.contains("has-line-numbers"));
+    equal($1("code", pre).className, "language-javascript");
+    equal($$(".code-line", pre).length, 3);
+    equal($$(".code-line.is-highlighted", pre).length, 2);
+    equal($1(".tok-keyword", pre).textContent, "const");
+    equal($1(".tok-string", pre).textContent, '"x"');
+    equal($$("img", pre).length, 0, "an <img> in a comment is text");
+    assert($1(".tok-comment", pre).textContent.includes("<img src=x"));
+    assert(getComputedStyle($1(".code-line", pre), "::before").content.includes("counter(line)"), "line numbers are CSS counters, not text");
+    assert(!pre.textContent.includes("1const"), "the numbers are not in the text");
+    equal(pre.hasAttribute("style") || $$("[style]", pre).length > 0, false, "no style attribute");
+    equal($1(".tok-keyword", pre).textContent, "const");
+    const colour = getComputedStyle($1(".tok-keyword", pre)).color;
+    const plain = getComputedStyle($1("code", pre)).color;
+    assert(colour !== plain, "tokens have their own colour: " + colour);
+    const unknown = A.highlightCode("x = 1", "nonsense");
+    equal($$(".code-line > span", unknown).length, 0, "an unknown language is plain text");
+    equal(unknown.textContent, "x = 1");
+});
+
+test("code: a code block has the language, the copy button and the code; setCode redraws", async () => {
+    const block = A.generateCodeBlock({ parent: "wrapper", code: "select 1;", language: "sql", lineNumbers: true });
+    equal($1(".code-block-language", block.element).textContent, "SQL");
+    equal(block.getCode(), "select 1;");
+    equal($1(".tok-keyword", block.element).textContent, "select");
+    const done = await block.copy();
+    equal(typeof done, "boolean");
+    assert(/Cop/.test($1(".code-block-copy", block.element).textContent), "the button says what happened: " + $1(".code-block-copy", block.element).textContent);
+    block.setCode("let x = 1", "ts");
+    equal($1(".code-block-language", block.element).textContent, "TypeScript");
+    equal($1(".tok-keyword", block.element).textContent, "let");
+    equal(A.generateCodeBlock({ parent: "wrapper", code: "x", copy: false }).element.querySelector(".code-block-copy"), null, "copy: false");
+    equal($1("pre", block.element).getAttribute("tabindex"), "0", "a scrollable block can be reached with the keyboard");
+});
+
+test("code: the diff view shows added and removed lines, hides long unchanged parts, and has a split mode", () => {
+    const old = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n");
+    const changed = old.replace("line 10", "line TEN").replace("line 11\n", "");
+    const view = A.createDiffView({ parent: "wrapper", original: old, modified: changed, language: "js", context: 2 });
+    equal(view.getStats().added, 1);
+    equal(view.getStats().removed, 2);
+    equal($$(".code-diff-cell.is-added", view.element).length, 1);
+    equal($$(".code-diff-cell.is-removed", view.element).length, 2);
+    assert($$(".code-diff-skip", view.element).length === 2, "unchanged lines before and after are folded");
+    assert($1(".code-diff-skip", view.element).textContent.includes("unchanged"));
+    assert($1(".code-diff-cell.is-added .athena-visually-hidden", view.element).textContent.includes("added"), "a screen reader is told");
+    $1(".code-diff-skip", view.element).click();
+    equal($$(".code-diff-skip", view.element).length, 0, "everything is shown after the click");
+    equal($$(".code-diff-cell.is-equal", view.element).length, 18);
+    view.setMode("split");
+    equal(view.element.dataset.mode, "split");
+    assert($$(".code-diff-row", view.element).every(row => $$(".code-diff-cell", row).length === 2 || row.classList.contains("is-skip")), "two cells per row");
+    view.setTexts("same", "same");
+    assert($1(".code-diff-empty", view.element), "no differences");
+    view.setTexts("a", "b");
+    equal(view.getStats().added + view.getStats().removed, 2);
+});
+
+test("code editor: a textarea over highlighted lines, the same font and padding, line numbers, current line, position", async () => {
+    const editor = makeEditor({ value: "const a = 1;\nfoo(a);\n" });
+    equal(editor.getValue(), "const a = 1;\nfoo(a);\n");
+    equal($$(".code-line", editor.element).length, 3, "two lines and the empty last one");
+    equal($1(".tok-keyword", editor.element).textContent, "const");
+    const area = editor.textarea;
+    const pre = $1(".code-editor-highlight", editor.element);
+    for (const property of ["fontFamily", "fontSize", "lineHeight", "paddingTop", "tabSize", "whiteSpace"]) {
+        equal(getComputedStyle(area)[property], getComputedStyle(pre)[property], property + " is the same in the textarea and the highlighted text");
+    }
+    equal(Math.round(area.getBoundingClientRect().height), Math.round(pre.getBoundingClientRect().height), "same height");
+    const textStart = $1(".tok-keyword", pre).getBoundingClientRect().left - pre.getBoundingClientRect().left;
+    assert(Math.abs(textStart - parseFloat(getComputedStyle(area).paddingLeft)) < 1.5, "the text starts where the textarea's text starts: " + textStart + " / " + getComputedStyle(area).paddingLeft);
+    equal(area.getAttribute("spellcheck"), "false");
+    assert(area.getAttribute("aria-label"), "a name");
+    assert($1(`#${area.getAttribute("aria-describedby")}`, editor.element).textContent.includes("Escape"), "the way out is described");
+    editor.setSelection(14);
+    assert($$(".code-line", editor.element)[1].classList.contains("is-current"), "line 2 is the current line");
+    assert($1(".code-editor-position", editor.element).textContent.includes("Line 2, column 2"), $1(".code-editor-position", editor.element).textContent);
+    equal($$("#ed [style]").length, 0, "no style attribute");
+    editor.setLanguage("json");
+    editor.setValue("{\"a\": 1}");
+    equal($1(".tok-property", editor.element).textContent, '"a"');
+    editor.setLanguage("css");
+    equal($$(".tok-property", editor.element).length, 0, "a new language is drawn again");
+    destroyEditor(editor);
+});
+
+test("code editor: Tab indents, Shift+Tab outdents, Escape then Tab leaves, Enter keeps and adds indentation", () => {
+    const editor = makeEditor({ value: "a\nb" });
+    editor.setSelection(0);
+    const tab = keydown(editor, "Tab");
+    assert(tab.defaultPrevented, "Tab is taken by the editor");
+    equal(editor.getValue(), "    a\nb");
+    editor.setSelection(0, editor.getValue().length);
+    keydown(editor, "Tab");
+    equal(editor.getValue(), "        a\n    b", "all selected lines are indented");
+    keydown(editor, "Tab", { shiftKey: true });
+    equal(editor.getValue(), "    a\nb", "and outdented");
+    keydown(editor, "Escape");
+    const leave = keydown(editor, "Tab");
+    assert(!leave.defaultPrevented, "Escape, then Tab, goes to the next control");
+    assert(keydown(editor, "Tab").defaultPrevented, "and the next Tab indents again");
+    editor.setValue("if (x) {");
+    editor.setSelection(8);
+    keydown(editor, "Enter");
+    equal(editor.getValue(), "if (x) {\n    ", "a line that opens a block makes the next one deeper");
+    editor.setValue("    foo();");
+    editor.setSelection(10);
+    keydown(editor, "Enter");
+    equal(editor.getValue(), "    foo();\n    ", "the indentation is kept");
+    editor.setValue("f({})");
+    editor.setSelection(3);
+    keydown(editor, "Enter");
+    equal(editor.getValue(), "f({\n    \n})", "between a pair, the closing one goes to its own line");
+    equal(editor.getSelection().line, 2);
+    destroyEditor(editor);
+});
+
+test("code editor: brackets and quotes are closed, stepped over, wrapped around a selection and deleted together", () => {
+    const editor = makeEditor({ value: "" });
+    typeText(editor, "foo(");
+    equal(editor.getValue(), "foo()", "the bracket is closed");
+    typeText(editor, ")");
+    equal(editor.getValue(), "foo()", "typing the closing one steps over it");
+    equal(editor.getSelection().start, 5);
+    editor.setValue("");
+    typeText(editor, '"');
+    equal(editor.getValue(), '""');
+    backspace(editor);
+    equal(editor.getValue(), "", "Backspace between a pair removes both");
+    editor.setValue("it");
+    editor.setSelection(2);
+    typeText(editor, "'");
+    equal(editor.getValue(), "it'", "a quote after a word is an apostrophe: not closed");
+    editor.setValue("word");
+    editor.setSelection(0, 4);
+    typeText(editor, "(");
+    equal(editor.getValue(), "(word)", "a selection is wrapped");
+    equal(editor.getSelection().start, 1);
+    equal(editor.getSelection().end, 5, "and stays selected");
+    editor.setValue("");
+    editor.setLanguage("json");
+    typeText(editor, "[");
+    equal(editor.getValue(), "[]");
+    editor.setLanguage("nonsense");
+    editor.setValue("");
+    typeText(editor, "(");
+    equal(editor.getValue(), "(", "no language, no closing");
+    destroyEditor(editor);
+});
+
+test("code editor: undo and redo are the editor's own (typing is grouped), comments toggle, lines move", () => {
+    const changes = [];
+    const editor = makeEditor({ value: "one\ntwo\nthree", onChange: (value, reason) => changes.push(reason) });
+    editor.setSelection(3);
+    typeText(editor, " more");
+    equal(editor.getValue(), "one more\ntwo\nthree");
+    keydown(editor, "Enter");
+    keydown(editor, "z", { ctrlKey: true });
+    equal(editor.getValue(), "one more\ntwo\nthree", "Ctrl+Z took back the Enter, not the typing");
+    keydown(editor, "z", { ctrlKey: true });
+    equal(editor.getValue(), "one\ntwo\nthree", "the typed word is one step");
+    equal(editor.canUndo(), false);
+    equal(editor.canRedo(), true);
+    keydown(editor, "z", { ctrlKey: true, shiftKey: true });
+    equal(editor.getValue(), "one more\ntwo\nthree", "Ctrl+Shift+Z redoes");
+    keydown(editor, "y", { ctrlKey: true });
+    assert(editor.getValue().includes("\n"), "Ctrl+Y redoes");
+    assert(changes.includes("undo") && changes.includes("redo"), "reported: " + changes);
+    // comments
+    editor.setValue("a();\n  b();\n\nc();");
+    editor.setSelection(0, editor.getValue().length);
+    keydown(editor, "/", { ctrlKey: true });
+    equal(editor.getValue(), "// a();\n//   b();\n\n// c();", "comments go at the start of the lines that have text");
+    keydown(editor, "/", { ctrlKey: true });
+    equal(editor.getValue(), "a();\n  b();\n\nc();", "toggled back");
+    editor.setLanguage("html");
+    editor.setValue("<p>x</p>");
+    editor.setSelection(0);
+    keydown(editor, "/", { ctrlKey: true });
+    equal(editor.getValue(), "<!-- <p>x</p> -->", "a language with only block comments wraps the line");
+    keydown(editor, "/", { ctrlKey: true });
+    equal(editor.getValue(), "<p>x</p>");
+    // move lines
+    editor.setLanguage("js");
+    editor.setValue("1\n2\n3");
+    editor.setSelection(2);
+    keydown(editor, "ArrowDown", { altKey: true });
+    equal(editor.getValue(), "1\n3\n2");
+    keydown(editor, "ArrowUp", { altKey: true });
+    equal(editor.getValue(), "1\n2\n3");
+    equal(editor.getSelection().line, 2, "the caret went along");
+    destroyEditor(editor);
+});
+
+test("code editor: read-only mode and read-only lines cannot be changed", () => {
+    const editor = makeEditor({ value: "locked\nfree\nalso free", readOnlyRanges: [{ from: 1, to: 1 }] });
+    assert($$(".code-line", editor.element)[0].classList.contains("is-locked-line"), "locked lines are drawn differently");
+    editor.setSelection(3);
+    const attempt = new InputEvent("beforeinput", { inputType: "insertText", data: "x", bubbles: true, cancelable: true });
+    editor.textarea.dispatchEvent(attempt);
+    assert(attempt.defaultPrevented, "typing in a locked line is refused");
+    equal(editor.insertText("x"), false);
+    editor.setSelection(7);
+    const join = new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true });
+    editor.textarea.dispatchEvent(join);
+    assert(join.defaultPrevented, "Backspace at the start of the next line would join it to the locked one");
+    editor.setSelection(11);
+    typeText(editor, "!");
+    equal(editor.getValue(), "locked\nfree!\nalso free", "other lines can be edited");
+    editor.setSelection(0, editor.getValue().length);
+    keydown(editor, "Tab");
+    equal(editor.getValue().split("\n")[0], "locked", "indenting everything leaves the locked line alone");
+    editor.setReadOnlyRanges([]);
+    editor.setReadOnly(true);
+    assert(editor.element.classList.contains("is-readonly") && editor.textarea.readOnly);
+    editor.setSelection(0);
+    keydown(editor, "Tab");
+    equal(editor.getValue().startsWith("locked"), true, "read only: Tab does nothing");
+    equal(editor.insertText("x"), false);
+    editor.setReadOnly(false);
+    equal(editor.insertText("x"), true);
+    destroyEditor(editor);
+});
+
+test("code editor: find and replace", () => {
+    const editor = makeEditor({ value: "Foo foo FOO bar\nfoo" });
+    editor.focus();
+    keydown(editor, "f", { ctrlKey: true });
+    const bar = $1(".code-find", editor.element);
+    assert(bar && !bar.hidden, "the find bar is open");
+    const find = $1('input[name="find"]', bar);
+    const replace = $1('input[name="replace"]', bar);
+    find.value = "foo";
+    find.dispatchEvent(new Event("input", { bubbles: true }));
+    equal($1(".code-find-count", bar).textContent, "1 of 4", "case-insensitive: four matches, the first is selected");
+    equal(editor.getSelection().start, 0);
+    find.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    equal(editor.getSelection().start, 4, "Enter goes to the next one");
+    $$(".code-find-button", bar).find(button => button.title === "Match case").click();
+    equal($1(".code-find-count", bar).textContent.endsWith("of 2"), true, "match case: two matches");
+    $$(".code-find-button", bar).find(button => button.title === "Match case").click();
+    replace.value = "baz";
+    replace.dispatchEvent(new Event("input", { bubbles: true }));
+    $$(".code-find-button", bar).find(button => button.title === "Replace").click();
+    assert(editor.getValue().includes("baz"), "one replaced: " + editor.getValue());
+    $$(".code-find-button", bar).find(button => button.title === "Replace all").click();
+    equal(editor.getValue(), "baz baz baz bar\nbaz");
+    equal(editor.canUndo(), true);
+    keydown(editor, "z", { ctrlKey: true });
+    assert(editor.getValue().includes("foo") || editor.getValue().includes("Foo"), "replace all is one undo step");
+    // a regular expression, and a broken one
+    $$(".code-find-button", bar).find(button => button.title === "Regular expression").click();
+    find.value = "(";
+    find.dispatchEvent(new Event("input", { bubbles: true }));
+    equal(find.getAttribute("aria-invalid"), "true");
+    equal($1(".code-find-count", bar).textContent, "Invalid pattern");
+    find.value = "ba[rz]";
+    find.dispatchEvent(new Event("input", { bubbles: true }));
+    equal(find.getAttribute("aria-invalid"), "false");
+    // Escape closes and the focus goes back to the text
+    find.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    assert(bar.hidden, "closed");
+    equal(document.activeElement, editor.textarea);
+    destroyEditor(editor);
+});
+
+test("code editor: markers, the status line, and decorations that survive typing", () => {
+    const editor = makeEditor({ value: "a\nb\nc", markers: [{ line: 2, message: "Boom", level: "error" }, { line: 3, message: "Careful", level: "warning" }] });
+    const lines = () => $$(".code-line", editor.element);
+    assert(lines()[1].classList.contains("marker-error") && lines()[2].classList.contains("marker-warning"));
+    equal(lines()[0].classList.contains("has-marker"), false);
+    editor.setSelection(2);
+    assert($1(".code-editor-note", editor.element).textContent.includes("Boom"), "the message of the marker is in the status line");
+    editor.setSelection(0);
+    equal($1(".code-editor-note", editor.element).textContent, "");
+    editor.setSelection(0);
+    typeText(editor, "x");
+    assert(lines()[1].classList.contains("marker-error"), "the marker is still there after typing");
+    editor.setMarkers([]);
+    equal($$(".has-marker", editor.element).length, 0);
+    destroyEditor(editor);
+});
+
+test("code editor: completions come from the application, with the keyboard", async () => {
+    const asked = [];
+    const editor = makeEditor({
+        value: "con", provideCompletions: context => {
+            asked.push(context);
+            return ["console", "const", "constructor"].filter(word => word.startsWith(context.prefix)).map(label => ({ label, detail: "js" }));
+        }
+    });
+    editor.focus();
+    editor.setSelection(3);
+    keydown(editor, " ", { ctrlKey: true });
+    await waitUntil(() => $1(".code-completions:not([hidden]) li", editor.element), "the list is open");
+    equal(asked.at(-1).prefix, "con");
+    equal(asked.at(-1).explicit, true);
+    equal($$(".code-completions li", editor.element).length, 3);
+    equal(editor.textarea.getAttribute("aria-activedescendant"), $1(".code-completion.is-active", editor.element).id);
+    keydown(editor, "ArrowDown");
+    equal($1(".code-completion.is-active .code-completion-label", editor.element).textContent, "const");
+    keydown(editor, "Enter");
+    equal(editor.getValue(), "const", "the typed part is replaced by the choice");
+    assert($1(".code-completions", editor.element).hidden, "closed");
+    keydown(editor, "Backspace");
+    editor.setSelection(5);
+    keydown(editor, " ", { ctrlKey: true });
+    await waitUntil(() => !$1(".code-completions", editor.element).hidden, "open again");
+    const escape = keydown(editor, "Escape");
+    assert(escape.defaultPrevented && $1(".code-completions", editor.element).hidden, "Escape closes the list first");
+    // typing asks by itself
+    typeText(editor, "s");
+    await waitUntil(() => asked.some(context => context.explicit === false), "asked while typing");
+    destroyEditor(editor);
+});
+
+test("code editor: wrap, line numbers off, tab size, huge texts stay plain, and the large file is fast enough", () => {
+    const wrapped = makeEditor({ value: "x ".repeat(400), wrap: true });
+    assert(wrapped.element.classList.contains("code-wrap"));
+    equal(wrapped.textarea.getAttribute("wrap"), "soft");
+    equal(Math.round(wrapped.textarea.getBoundingClientRect().height), Math.round($1(".code-editor-highlight", wrapped.element).getBoundingClientRect().height), "a wrapped line is as high in both");
+    assert(wrapped.textarea.getBoundingClientRect().height > 40, "it wraps");
+    destroyEditor(wrapped);
+
+    const bare = makeEditor({ value: "\tx", lineNumbers: false, tabSize: 2 });
+    assert(!$1(".code-editor-highlight", bare.element).classList.contains("has-line-numbers"));
+    equal(getComputedStyle(bare.textarea).tabSize, "2");
+    destroyEditor(bare);
+
+    const huge = makeEditor({ value: "x\n".repeat(200000), maxHighlightLength: 1000 });
+    assert($1(".code-editor-highlight", huge.element).classList.contains("is-plain"), "too long: shown without highlighting");
+    equal($$(".code-line", huge.element).length, 0);
+    destroyEditor(huge);
+
+    const source = "const value = foo(1, 'two', [3, 4]);\n".repeat(5000);
+    let started = performance.now();
+    const large = makeEditor({ value: source });
+    const created = performance.now() - started;
+    equal($$(".code-line", large.element).length, 5001);
+    large.setSelection(0);
+    started = performance.now();
+    for (let i = 0; i < 5; i++) typeText(large, "x");
+    const perKey = (performance.now() - started) / 5;
+    assert(created < 4000, "5,000 lines built in " + Math.round(created) + " ms");
+    assert(perKey < 1500, "a key press in 5,000 lines took " + Math.round(perKey) + " ms");
+    large.setSelection(source.length);
+    started = performance.now();
+    typeText(large, "y");
+    assert(performance.now() - started < 1500, "a key press at the end took " + Math.round(performance.now() - started) + " ms");
+    destroyEditor(large);
+});
+
+test("code editor: tokenizing only the lines around a change gives exactly what tokenizing everything gives (random edits, four languages)", () => {
+    const samples = {
+        js: "const a = 1; /* one\ntwo */ const b = `x\ny`;\n// line\nfunction f(x) {\n    return x + 'z';\n}\n/* three */\nlet c = \"s\";",
+        css: "/* a\nb */\na { color: red; }\n.b::after { content: 'x'; }\n@media (x) {\n  p { margin: 0 }\n}",
+        python: 'def f(x):\n    """doc\n    more"""\n    return x  # c\n\nclass A:\n    pass\ns = \'\'\'t\nu\'\'\'',
+        html: "<!-- a\nb -->\n<div class=\"x\">\n  <p>t &amp; u</p>\n</div>"
+    };
+    const pieces = ["/*", "*/", "`", '"', "'", "\n", "//", "x", " ", "'''", '"""', "{", "}", "\n  ", "<!--", "-->", "\\", "#", "(", ")", ";", "<p>", "</p>", "1"];
+    let seed = 12345;
+    const random = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const serialize = lines => lines.map(line => line.map(token => `${token.type ?? "_"}:${token.text}`).join("|"));
+    for (const [language, source] of Object.entries(samples)) {
+        const editor = makeEditor({ value: source, language });
+        const code = $1("code", editor.element);
+        for (let round = 0; round < 120; round++) {
+            const value = editor.getValue();
+            const at = Math.floor(random() * (value.length + 1));
+            const remove = random() < 0.4 ? Math.floor(random() * 6) : 0;
+            const piece = random() < 0.15 ? "" : pieces[Math.floor(random() * pieces.length)];
+            editor.setSelection(at, Math.min(value.length, at + remove));
+            editor.insertText(piece);
+            const drawn = [...code.children].map(line => [...line.childNodes].map(node => (node.nodeType === Node.TEXT_NODE ? `_:${node.data}` : `${node.className.replace("tok-", "")}:${node.textContent}`)).join("|"));
+            const expected = serialize(A.tokensToLines(A.tokenize(editor.getValue(), language)));
+            if (JSON.stringify(drawn) !== JSON.stringify(expected)) {
+                const line = drawn.findIndex((entry, index) => entry !== expected[index]);
+                assert(false, `${language}, edit ${round} (${JSON.stringify(piece)} at ${at}, removed ${remove}): line ${line + 1} drawn ${drawn[line]} but ${expected[line]}`);
+            }
+            equal(drawn.length, editor.getValue().split("\n").length, "one span per line");
+        }
+        destroyEditor(editor);
+    }
 });
 
 test("modal: focus moves in, Esc closes and restores the focus", () => {

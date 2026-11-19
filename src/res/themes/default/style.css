@@ -2559,4 +2559,475 @@ dialog.dialog[open]::backdrop {
     border-bottom: 2px solid var(--athena-muted);
 }
 
+
+/* ------------------------------------------------------------ Code
+   highlightCode, generateCodeBlock, createCodeEditor and createDiffView. The colours of the tokens are the --athena-tok-* tokens. Line numbers are CSS counters
+   (they are not copied); the editor is a transparent <textarea> over a highlighted <pre> in one scroller, so both must have the same font, padding and tab size. */
+
+.athena-code,
+.code-editor-input {
+    font: 0.875rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    letter-spacing: normal;
+    tab-size: 4;
+    white-space: pre;
+    overflow-wrap: normal;
+}
+
+.athena-code.code-wrap,
+.code-editor.code-wrap .code-editor-input {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+.athena-code {
+    margin: 0;
+    padding: 10px 0;
+    overflow: auto;
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface-alt);
+    color: var(--athena-fg);
+    counter-reset: line;
+}
+
+.athena-code code {
+    display: block;
+    min-width: max-content;
+    font: inherit;
+}
+
+.athena-code.code-wrap code {
+    min-width: 0;
+}
+
+.code-line {
+    display: block;
+    min-height: 1lh;
+    padding: 0 12px;
+}
+
+.tok-comment { color: var(--athena-tok-comment); }
+.tok-string { color: var(--athena-tok-string); }
+.tok-number { color: var(--athena-tok-number); }
+.tok-keyword { color: var(--athena-tok-keyword); }
+.tok-literal { color: var(--athena-tok-literal); }
+.tok-function { color: var(--athena-tok-function); }
+.tok-type { color: var(--athena-tok-type); }
+.tok-property { color: var(--athena-tok-property); }
+.tok-tag { color: var(--athena-tok-tag); }
+.tok-attribute { color: var(--athena-tok-attribute); }
+.tok-variable { color: var(--athena-tok-variable); }
+.tok-selector { color: var(--athena-tok-selector); }
+.tok-meta { color: var(--athena-tok-meta); }
+.tok-entity { color: var(--athena-tok-entity); }
+.tok-builtin { color: var(--athena-tok-builtin); }
+.tok-operator { color: var(--athena-tok-operator); }
+.tok-punctuation { color: var(--athena-tok-punctuation); }
+.tok-comment { font-style: italic; }
+.tok-tag, .tok-keyword { font-weight: 600; }
+
+.code-digits-1 { --code-gutter: 2ch; }
+.code-digits-2 { --code-gutter: 2ch; }
+.code-digits-3 { --code-gutter: 3ch; }
+.code-digits-4 { --code-gutter: 4ch; }
+.code-digits-5 { --code-gutter: 5ch; }
+.code-digits-6 { --code-gutter: 6ch; }
+.code-digits-7 { --code-gutter: 7ch; }
+
+.athena-code.has-line-numbers .code-line::before {
+    content: counter(line);
+    counter-increment: line;
+    display: inline-block;
+    position: sticky;
+    left: 0;
+    width: var(--code-gutter, 2ch);
+    margin-right: 1.5ch;
+    text-align: right;
+    text-indent: 0;
+    color: var(--athena-muted);
+    background: var(--athena-surface-alt);
+    user-select: none;
+}
+
+.athena-code.has-line-numbers.code-wrap .code-line {
+    padding-left: calc(12px + var(--code-gutter, 2ch) + 1.5ch);
+    text-indent: calc(-1 * (var(--code-gutter, 2ch) + 1.5ch));
+}
+
+.code-line.is-highlighted {
+    background: color-mix(in srgb, var(--athena-accent) 14%, transparent);
+}
+
+.code-tab-1 .athena-code,
+.code-tab-1 .code-editor-input { tab-size: 1; }
+.code-tab-2 .athena-code,
+.code-tab-2 .code-editor-input { tab-size: 2; }
+.code-tab-3 .athena-code,
+.code-tab-3 .code-editor-input { tab-size: 3; }
+.code-tab-4 .athena-code,
+.code-tab-4 .code-editor-input { tab-size: 4; }
+.code-tab-5 .athena-code,
+.code-tab-5 .code-editor-input { tab-size: 5; }
+.code-tab-6 .athena-code,
+.code-tab-6 .code-editor-input { tab-size: 6; }
+.code-tab-7 .athena-code,
+.code-tab-7 .code-editor-input { tab-size: 7; }
+.code-tab-8 .athena-code,
+.code-tab-8 .code-editor-input { tab-size: 8; }
+.code-tab-9 .athena-code,
+.code-tab-9 .code-editor-input { tab-size: 9; }
+.code-tab-10 .athena-code,
+.code-tab-10 .code-editor-input { tab-size: 10; }
+.code-tab-11 .athena-code,
+.code-tab-11 .code-editor-input { tab-size: 11; }
+.code-tab-12 .athena-code,
+.code-tab-12 .code-editor-input { tab-size: 12; }
+.code-tab-13 .athena-code,
+.code-tab-13 .code-editor-input { tab-size: 13; }
+.code-tab-14 .athena-code,
+.code-tab-14 .code-editor-input { tab-size: 14; }
+.code-tab-15 .athena-code,
+.code-tab-15 .code-editor-input { tab-size: 15; }
+.code-tab-16 .athena-code,
+.code-tab-16 .code-editor-input { tab-size: 16; }
+
+/* A block: the language, a copy button, the code */
+.code-block {
+    margin: 0 0 1rem;
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    overflow: hidden;
+}
+
+.code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px 4px 12px;
+    border-bottom: var(--athena-border-width) solid var(--athena-line);
+    background: var(--athena-surface);
+    color: var(--athena-muted);
+    font-size: 0.8rem;
+}
+
+.code-block .athena-code {
+    border-radius: 0;
+}
+
+.code-block-copy,
+.code-find-button {
+    padding: 2px 8px;
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-bg);
+    color: var(--athena-fg);
+    font: inherit;
+    cursor: pointer;
+}
+
+.code-block-copy:hover,
+.code-find-button:hover {
+    background: var(--athena-hover);
+}
+
+.code-block-copy:focus-visible,
+.code-find-button:focus-visible,
+.code-find-input:focus-visible,
+.athena-code:focus-visible {
+    outline: var(--athena-focus-width) solid var(--athena-focus);
+    outline-offset: 1px;
+}
+
+/* The editor */
+.code-editor {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface-alt);
+}
+
+.code-editor:focus-within {
+    outline: var(--athena-focus-width) solid var(--athena-focus);
+    outline-offset: 1px;
+}
+
+.code-editor-scroll {
+    display: grid;
+    grid-template-columns: minmax(100%, max-content);
+    grid-template-rows: minmax(100%, auto);
+    position: relative;
+    min-height: var(--code-editor-min-height, 8rem);
+    max-height: var(--code-editor-max-height, 32rem);
+    overflow: auto;
+    cursor: text;
+}
+
+.code-editor.code-wrap .code-editor-scroll {
+    grid-template-columns: minmax(0, 100%);
+}
+
+.code-editor-highlight {
+    grid-area: 1 / 1;
+    overflow: visible;
+    border-radius: 0;
+    pointer-events: none;
+}
+
+.code-editor-highlight code {
+    min-width: 0;
+}
+
+.code-editor-input {
+    grid-area: 1 / 1;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 10px 12px;
+    border: 0;
+    outline: 0;
+    resize: none;
+    overflow: hidden;
+    background: transparent;
+    color: transparent;
+    caret-color: var(--athena-fg);
+}
+
+.code-editor-highlight.has-line-numbers ~ .code-editor-input {
+    padding-left: calc(12px + var(--code-gutter, 2ch) + 1.5ch);
+}
+
+.code-editor-input::selection {
+    background: color-mix(in srgb, var(--athena-accent) 35%, transparent);
+    color: transparent;
+}
+
+.code-editor.is-readonly .code-editor-input {
+    cursor: default;
+}
+
+.code-editor-highlight.is-plain {
+    white-space: pre;
+}
+
+.code-line.is-current {
+    background: color-mix(in srgb, var(--athena-fg) 7%, transparent);
+}
+
+.code-line.is-locked-line {
+    background: color-mix(in srgb, var(--athena-muted) 14%, transparent);
+}
+
+.code-line.has-marker {
+    text-decoration: underline wavy;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.code-line.marker-error { text-decoration-color: var(--athena-danger); }
+.code-line.marker-warning { text-decoration-color: var(--athena-warning); }
+.code-line.marker-info { text-decoration-color: var(--athena-info); }
+.code-line.marker-error::before { color: var(--athena-danger); font-weight: 700; }
+.code-line.marker-warning::before { color: var(--athena-warning); font-weight: 700; }
+
+.code-editor-status {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 10px;
+    border-top: var(--athena-border-width) solid var(--athena-line);
+    color: var(--athena-muted);
+    font-size: 0.8rem;
+}
+
+.code-find {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px;
+    border-bottom: var(--athena-border-width) solid var(--athena-line);
+    background: var(--athena-surface);
+}
+
+.code-find[hidden],
+.code-find-row[hidden] {
+    display: none;
+}
+
+.code-find-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.code-find-input {
+    flex: 1;
+    min-width: 8rem;
+    padding: 3px 6px;
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-bg);
+    color: var(--athena-fg);
+    font: inherit;
+}
+
+.code-find-input[aria-invalid="true"] {
+    border-color: var(--athena-danger);
+}
+
+.code-find-button[aria-pressed="true"] {
+    background: var(--athena-accent);
+    color: var(--athena-accent-fg);
+}
+
+.code-find-count {
+    min-width: 6ch;
+    color: var(--athena-muted);
+    font-size: 0.8rem;
+}
+
+.code-completions {
+    position: absolute;
+    top: var(--code-completion-top, 0);
+    left: var(--code-completion-left, 0);
+    z-index: 5;
+    min-width: 12rem;
+    max-height: 12rem;
+    margin: 0;
+    padding: 2px;
+    overflow: auto;
+    list-style: none;
+    border: var(--athena-border-width) solid var(--athena-border);
+    border-radius: var(--athena-radius);
+    background: var(--athena-bg);
+    color: var(--athena-fg);
+    box-shadow: var(--athena-shadow);
+}
+
+.code-completions[hidden] {
+    display: none;
+}
+
+.code-completion {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 2px 8px;
+    border-radius: var(--athena-radius);
+    font: 0.85rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    cursor: pointer;
+}
+
+.code-completion-detail {
+    color: var(--athena-muted);
+}
+
+.code-completion.is-active {
+    background: var(--athena-accent);
+    color: var(--athena-accent-fg);
+}
+
+.code-completion.is-active .code-completion-detail {
+    color: inherit;
+}
+
+::highlight(athena-code-bracket) {
+    background-color: color-mix(in srgb, var(--athena-accent) 40%, transparent);
+}
+
+::highlight(athena-code-find) {
+    background-color: color-mix(in srgb, var(--athena-warning) 35%, transparent);
+}
+
+::highlight(athena-code-find-current) {
+    background-color: color-mix(in srgb, var(--athena-warning) 75%, transparent);
+}
+
+/* The diff view */
+.code-diff {
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    overflow: hidden;
+}
+
+.code-diff-header {
+    display: flex;
+    gap: 12px;
+    padding: 4px 12px;
+    border-bottom: var(--athena-border-width) solid var(--athena-line);
+    background: var(--athena-surface);
+    font-size: 0.8rem;
+}
+
+.code-diff[data-mode="split"] .code-diff-header {
+    display: grid;
+    grid-template-columns: auto auto 1fr 1fr;
+}
+
+.code-diff-stat.is-added { color: var(--athena-success); }
+.code-diff-stat.is-removed { color: var(--athena-danger); }
+
+.code-diff-code {
+    border-radius: 0;
+    padding: 0;
+}
+
+.code-diff-row {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+.code-diff-body.is-split .code-diff-row {
+    grid-template-columns: 1fr 1fr;
+}
+
+.code-diff-cell {
+    display: grid;
+    grid-template-columns: 4ch 2ch 1fr;
+    gap: 0 4px;
+    padding: 0 8px;
+}
+
+.code-diff-cell .code-line {
+    padding: 0;
+}
+
+.code-diff-cell.is-added { background: color-mix(in srgb, var(--athena-success) 16%, transparent); }
+.code-diff-cell.is-removed { background: color-mix(in srgb, var(--athena-danger) 16%, transparent); }
+.code-diff-cell.is-empty { background: color-mix(in srgb, var(--athena-muted) 8%, transparent); }
+
+.code-diff-number,
+.code-diff-mark {
+    color: var(--athena-muted);
+    text-align: right;
+    user-select: none;
+}
+
+.code-diff-mark {
+    text-align: center;
+}
+
+.code-diff-row.is-skip {
+    padding: 2px 12px;
+    background: var(--athena-surface);
+}
+
+.code-diff-skip {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--athena-accent);
+    font: inherit;
+    cursor: pointer;
+}
+
+.code-diff-empty {
+    margin: 0;
+    padding: 8px 12px;
+    color: var(--athena-muted);
+}
+
 }
