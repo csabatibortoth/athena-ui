@@ -1609,3 +1609,38 @@ textarea {
     border-radius: 3px;
     background: var(--athena-accent);
 }
+
+/* Tables with a data source and row actions */
+
+.athena-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.athena-table-is-loading tbody {
+    opacity: 0.6;
+}
+
+.athena-table td.athena-table-loading,
+.athena-table td.athena-table-error {
+    text-align: center;
+    color: var(--athena-muted);
+}
+
+.athena-table .athena-table-error {
+    color: var(--athena-danger);
+}
+
+.athena-table td.athena-table-actions {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.athena-table td.athena-table-actions .athena-button + .athena-button {
+    margin-left: 4px;
+}

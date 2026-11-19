@@ -318,6 +318,77 @@ test("theme picker: choosing a theme and a mode sets the attributes, previews fo
     if (!saved.mode) delete root.dataset.mode;
 });
 
+test("table: data source with pages, sort, filter, errors and row actions", async () => {
+    const all = Array.from({ length: 45 }, (_, i) => ({ id: i + 1, name: i % 2 ? "odd " + (i + 1) : "even " + (i + 1) }));
+    const calls = [];
+    let fail = false;
+    const removed = [];
+    const table = A.generateTable({
+        parent: "wrapper", id: "remote", pageSize: 10, filter: true, filterDelay: 10,
+        columns: [{ key: "id" }, { key: "name" }],
+        rowActions: [{ label: "Delete", danger: true, onclick: row => removed.push(row.id), ariaLabel: row => "Delete " + row.id }, { label: "Never", onclick() {}, hidden: row => row.id > 0 }],
+        dataSource: async query => {
+            calls.push(JSON.stringify(query));
+            if (fail) throw new Error("Server down");
+            let rows = all.filter(r => r.name.includes(query.filter));
+            if (query.sort) rows = [...rows].sort((a, b) => (a[query.sort.key] > b[query.sort.key] ? 1 : -1) * (query.sort.descending ? -1 : 1));
+            return { rows: rows.slice(query.page * query.pageSize, (query.page + 1) * query.pageSize), total: rows.length };
+        }
+    });
+    const rowsOf = () => $$("#remote tbody tr");
+    const until = async check => { for (let i = 0; i < 60 && !check(); i++) await tick(25); assert(check(), "timed out: " + calls.join(" | ")); };
+    assert(table.element.hasAttribute("aria-busy") || rowsOf().length, "loading or loaded");
+    await until(() => rowsOf().length === 10 && !table.element.hasAttribute("aria-busy"));
+    equal($1("td", rowsOf()[0]).textContent, "1");
+    equal($$("td button", rowsOf()[0]).length, 1);
+    equal($1("td button", rowsOf()[0]).getAttribute("aria-label"), "Delete 1");
+    $1("td button", rowsOf()[2]).click();
+    equal(removed.join(), "3");
+    assert(!$1("#remote .athena-table-pager").hidden, "pager visible for 5 pages");
+    $$("#remote .athena-table-pager button")[1].click();
+    await until(() => $1("td", rowsOf()[0]).textContent === "11");
+    $$("#remote thead th.sortable")[0].click();
+    await until(() => JSON.parse(calls.at(-1)).sort?.key === "id" && JSON.parse(calls.at(-1)).page === 0);
+    $$("#remote thead th.sortable")[0].click();
+    await until(() => $1("td", rowsOf()[0]).textContent === "45");   // descending by id
+    type($1("#remote .athena-table-filter"), "odd");
+    await until(() => JSON.parse(calls.at(-1)).filter === "odd" && !table.element.hasAttribute("aria-busy"));
+    equal(rowsOf().length, 10);
+    type($1("#remote .athena-table-filter"), "zzz");
+    await until(() => rowsOf().length === 1 && $1("td", rowsOf()[0]).classList.contains("athena-table-empty"));
+    assert($1("#remote .athena-table-pager").hidden, "pager hidden when empty");
+    fail = true;
+    await table.reload();
+    await until(() => $1("#remote .athena-table-error"));
+    equal($1("#remote .athena-table-error").textContent.startsWith("Server down"), true);
+    fail = false;
+    $1("#remote .athena-table-error button").click();
+    await until(() => $1("#remote .athena-table-empty"));
+});
+
+test("table: data source with a cursor appends rows", async () => {
+    const cursors = [];
+    A.generateTable({
+        parent: "wrapper", id: "cursor", pageSize: 3, columns: [{ key: "n" }],
+        dataSource: async ({ cursor }) => {
+            cursors.push(cursor);
+            const start = cursor ?? 0;
+            return { rows: [start, start + 1, start + 2].map(n => ({ n })), nextCursor: start + 3 < 9 ? start + 3 : null };
+        }
+    });
+    const count = () => $$("#cursor tbody tr").length;
+    for (let i = 0; i < 60 && count() < 3; i++) await tick(25);
+    equal(count(), 3);
+    $1("#cursor .athena-table-pager button").click();
+    for (let i = 0; i < 60 && count() < 6; i++) await tick(25);
+    equal(count(), 6);
+    $1("#cursor .athena-table-pager button").click();
+    for (let i = 0; i < 60 && count() < 9; i++) await tick(25);
+    equal(count(), 9);
+    assert($1("#cursor .athena-table-pager").hidden, "no more to load");
+    equal(cursors.join(), ",3,6");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
