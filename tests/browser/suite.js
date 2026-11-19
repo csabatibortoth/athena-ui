@@ -171,6 +171,79 @@ test("dialogs: confirm, Esc, prompt validation, backdrop semantics", async () =>
     equal(await promise, "Zed");
 });
 
+test("dialogs: size, class, handle and no inline style", async () => {
+    const promise = A.showDialog({ title: "Wide", content: "x", size: "large", class: "mine" });
+    const backdrop = $1(".dialog-backdrop");
+    assert(promise.element.classList.contains("dialog-large") && promise.element.classList.contains("mine"), "classes missing");
+    assert(!backdrop.hasAttribute("style"), "the backdrop has an inline style");
+    equal(getComputedStyle(backdrop).display, "block");
+    assert(promise.element.getBoundingClientRect().width > 480, "large dialog is not wider than 480px");
+    promise.close("done");
+    equal(await promise, "done");
+    assert(!$1(".dialog-backdrop"), "dialog still open");
+});
+
+test("dropdown: icon only with an aria-label, caret and toggle class", () => {
+    const dropdown = A.generateDropdown({ parent: "wrapper", icon: "⋮", ariaLabel: "More", toggleClass: "mine", caret: true, items: [{ label: "A" }] });
+    const button = $1(".dropdown-toggle", dropdown.element);
+    equal(button.getAttribute("aria-label"), "More");
+    assert(button.classList.contains("mine") && button.classList.contains("dropdown-icon-only"), "classes missing");
+    equal($1(".dropdown-caret", button).getAttribute("aria-hidden"), "true");
+});
+
+test("table: cell and row classes, focusable rows, render nodes, one page hides the pager", () => {
+    const opened = [];
+    const table = A.generateTable({
+        parent: "wrapper", id: "hooks", pageSize: 5, focusableRows: true, density: "compact", rowLabel: row => `Row ${row.n}`,
+        cellClass: (row, col) => (col.key === "n" && row.n > 1 ? "big" : null),
+        rowClass: row => (row.n === 1 ? ["first", "x"] : null),
+        onRowClick: row => opened.push(row.n),
+        columns: [{ key: "n", align: "right" }, { key: "t", render: row => { const b = document.createElement("b"); b.textContent = row.t; return b; } }],
+        rows: [{ n: 1, t: "<i>a</i>" }, { n: 2, t: "b" }]
+    });
+    const rows = $$("tbody tr", table.element);
+    assert(rows[0].classList.contains("first") && rows[0].classList.contains("x"), "rowClass");
+    assert(!rows[1].classList.contains("first"), "rowClass leaked");
+    assert($$("td", rows[1])[0].classList.contains("big") && !$$("td", rows[0])[0].classList.contains("big"), "cellClass");
+    assert($$("td", rows[0])[0].classList.contains("athena-align-right"), "align");
+    equal($1("td b", rows[0]).textContent, "<i>a</i>");
+    equal(rows[0].getAttribute("aria-label"), "Row 1");
+    equal(rows[0].tabIndex, 0);
+    key(rows[1], "Enter");
+    key(rows[0], " ");
+    equal(opened.join(), "2,1");
+    assert($1(".athena-table-pager", table.element).hidden, "pager should be hidden for one page");
+    assert($1("table", table.element).classList.contains("athena-table-compact"), "density");
+});
+
+test("table: virtual list that starts empty fills the window when it gets rows and room", async () => {
+    const table = A.generateTable({ parent: "wrapper", id: "empty-first", columns: [{ key: "id" }], virtual: { height: 300, rowHeight: 30 }, rows: [] });
+    table.setRows(Array.from({ length: 500 }, (_, i) => ({ id: i })));
+    const count = () => $$("tbody tr:not(.athena-table-spacer)", table.element).length;
+    for (let i = 0; i < 40 && count() < 10; i++) await tick(50);
+    assert(count() >= 10, "window too small: " + count());
+});
+
+test("handles: parent as element, id or selector; update and destroy", () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="slot-a" class="slot"><span class="inner"></span></div><div id="slot-b"></div>');
+    const byId = A.generateStat({ parent: "slot-b", label: "L", value: 1 });
+    const bySelector = A.generateStat({ parent: "#slot-a > .inner", label: "L", value: 2 });
+    const byElement = A.generateStat({ parent: $1("#slot-b"), label: "L", value: 3 });
+    assert($1("#slot-b").contains(byId.element) && $1("#slot-b").contains(byElement.element), "id / element parent");
+    assert($1("#slot-a .inner").contains(bySelector.element), "selector parent");
+    bySelector.update({ value: 9 });
+    equal($1(".stat-value", bySelector.element).textContent, "9");
+    const chart = A.generateChart({ parent: "#slot-a", type: "bar", labels: ["a"], series: [{ data: [1] }] });
+    assert($1("#slot-a").contains(chart.element), "chart in selector parent");
+    chart.update({ series: [{ data: [5] }] });
+    assert($1("#slot-a svg") && $$("#slot-a svg").length === 1, "chart updated in place");
+    const tabs = A.generateTabs({ parent: $1("#slot-b"), tabs: [{ id: "t", label: "T", content: "x" }] });
+    tabs.destroy();
+    assert(!$1("#slot-b .tab-list"), "destroy removes the element");
+    A.generateTable({ parent: "#slot-b", id: "sel-table", columns: [{ key: "a" }], rows: [{ a: 1 }] }).destroy();
+    assert(!$1("#sel-table"), "table destroy");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { cx, el, mount, setContent, uid } from "../../core/dom.js";
+import { asHandle, cx, el, mount, setContent, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { pageRange } from "../../core/pagination.js";
 
@@ -85,7 +85,7 @@ export function generateTabs(options = {}) {
 
     mount(options.parent, element);
     select(options.active ?? tabs.find(tab => !tab.disabled)?.id);
-    return { element, select, getActive: () => active };
+    return asHandle({ element, select, getActive: () => active });
 }
 
 /* ------------------BREADCRUMBS------------------- */
@@ -169,7 +169,7 @@ export function generatePagination(options = {}) {
 
     render();
     mount(options.parent, element);
-    return {
+    return asHandle({
         element,
         getPage: () => page,
         setPage: go,
@@ -177,7 +177,7 @@ export function generatePagination(options = {}) {
             total = value;
             render();
         }
-    };
+    });
 }
 
 /* ------------------ACCORDION------------------- */
@@ -226,7 +226,7 @@ export function generateAccordion(options = {}) {
     (options.items ?? []).forEach((item, index) => { if (item.open) toggle(index, true); });
 
     mount(options.parent, element);
-    return { element, toggle };
+    return asHandle({ element, toggle });
 }
 
 /* ------------------DROPDOWN------------------- */
@@ -236,7 +236,11 @@ export function generateAccordion(options = {}) {
  *
  * @param {object} options
  * @param {string|Element} [options.parent]
- * @param {string} options.label button text
+ * @param {string} [options.label] button text (leave it out for an icon-only button, and give `ariaLabel`)
+ * @param {string|Node} [options.icon] shown before the label, text or a Node (e.g. an SVG); hidden from screen readers
+ * @param {string} [options.ariaLabel] accessible name, needed when there is no label
+ * @param {boolean} [options.caret=false] show a small arrow after the label
+ * @param {string} [options.toggleClass] extra CSS class(es) of the toggle button
  * @param {{label?: string, onclick?: Function, href?: string, disabled?: boolean, divider?: boolean}[]} options.items
  * @param {"left"|"right"} [options.align="left"]
  * @returns {{element: HTMLElement, open: Function, close: Function}}
@@ -245,10 +249,15 @@ export function generateDropdown(options = {}) {
     const menuId = uid("dropdown");
     const menu = el("div", { class: cx("dropdown-menu", options.align === "right" && "dropdown-right"), id: menuId, attrs: { role: "menu", hidden: true } });
     const button = el("button", {
-        class: "athena-button button-secondary dropdown-toggle",
-        text: options.label,
-        attrs: { type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": menuId }
+        class: cx("athena-button button-secondary dropdown-toggle", options.icon && !options.label && "dropdown-icon-only", options.toggleClass),
+        attrs: {
+            type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": menuId,
+            "aria-label": options.ariaLabel
+        }
     });
+    if (options.icon) button.append(setContent(el("span", { class: "dropdown-icon", attrs: { "aria-hidden": "true" } }), options.icon));
+    if (options.label) button.append(document.createTextNode(options.label));
+    if (options.caret) button.append(el("span", { class: "dropdown-caret", text: "▾", attrs: { "aria-hidden": "true" } }));
     const element = el("div", { id: options.id, class: cx("dropdown", options.class) }, button, menu);
 
     const enabledItems = () => [...menu.querySelectorAll("[role=menuitem]:not([disabled])")];
@@ -305,7 +314,7 @@ export function generateDropdown(options = {}) {
     });
 
     mount(options.parent, element);
-    return { element, open, close };
+    return asHandle({ element, open, close });
 }
 
 /* ------------------SIDEBAR------------------- */
@@ -384,5 +393,5 @@ export function generateSidebar(options = {}) {
 
     mount(options.parent, element);
     if (options.active) select(options.active);
-    return { element, select, toggle };
+    return asHandle({ element, select, toggle });
 }

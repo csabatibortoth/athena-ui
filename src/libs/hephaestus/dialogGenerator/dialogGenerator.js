@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { el, setContent, uid } from "../../core/dom.js";
+import { cx, el, setContent, uid } from "../../core/dom.js";
 import { trapFocus } from "../../core/focus.js";
 import { translate } from "../../core/i18n.js";
 import { generateButton } from "../formGenerator/formBuilder.js";
@@ -18,21 +18,25 @@ import { generateButton } from "../formGenerator/formBuilder.js";
  * @param {{text: string, value?: *, variant?: string, autofocus?: boolean}[]} [options.buttons]
  * @param {boolean} [options.dismissible=true]
  * @param {(value) => (boolean|Promise<boolean>)} [options.beforeClose] return false to keep the dialog open
- * @returns {Promise<*>} resolves with the pressed button's value
+ * @param {"small"|"medium"|"large"|"full"} [options.size="medium"] width of the dialog (360 / 480 / 720 px / the whole window)
+ * @param {string} [options.class] extra CSS class(es) of the dialog element
+ * @returns {Promise<*> & {element: HTMLElement, backdrop: HTMLElement, close: (value?) => Promise<void>}}
+ *          resolves with the pressed button's value; the promise also carries the handle of the open dialog
  */
 export function showDialog(options = {}) {
     const { title, content, buttons = [{ text: translate("ok"), value: true }], dismissible = true } = options;
-    return new Promise(resolve => {
+    let handle;
+    const promise = new Promise(resolve => {
         const titleId = uid("dialog-title");
         const body = setContent(el("div", { class: "dialog-body" }), content);
         const footer = el("div", { class: "dialog-footer" });
         const dialog = el("div", {
-            class: "modal-content dialog",
+            class: cx("modal-content dialog", options.size && `dialog-${options.size}`, options.class),
             attrs: { role: "dialog", "aria-modal": "true", "aria-labelledby": title ? titleId : null }
         });
         if (title) dialog.append(el("h2", { class: "dialog-title", id: titleId, text: title }));
         dialog.append(body, footer);
-        const backdrop = el("div", { class: "modal dialog-backdrop", attrs: { style: "display: block" } }, dialog);
+        const backdrop = el("div", { class: "modal dialog-backdrop" }, dialog);
 
         let release = () => {};
         let closing = false;
@@ -70,7 +74,10 @@ export function showDialog(options = {}) {
         document.body.append(backdrop);
         release = trapFocus(dialog, { onEscape: dismissible ? () => close(null) : undefined });
         dialog.querySelector("[data-autofocus]")?.focus();
+        handle = { element: dialog, backdrop, close: value => close(value ?? null) };
     });
+    // The executor above runs synchronously, so the handle exists here.
+    return Object.assign(promise, handle);
 }
 
 /** Message with an OK button. Resolves when it is closed. */

@@ -5,7 +5,7 @@
 
 import { createCombobox } from "../../core/combobox.js";
 import { createDateRange } from "../../core/dateRange.js";
-import { cx, el, mount, setContent, uid } from "../../core/dom.js";
+import { asHandle, cx, el, mount, setContent, uid } from "../../core/dom.js";
 import { formatBytes, matchesAccept } from "../../core/format.js";
 import { translate } from "../../core/i18n.js";
 import { generateButton } from "../formGenerator/formBuilder.js";
@@ -46,7 +46,7 @@ function wrapCombobox(options, mode) {
     if (options.label) wrapper.append(el("label", { class: "field-label", text: options.label, attrs: { for: id } }));
     wrapper.append(combo.element);
     mount(options.parent, wrapper);
-    return combo;
+    return asHandle(combo, { also: wrapper });
 }
 
 /* ------------------DATE RANGE------------------- */
@@ -73,7 +73,7 @@ export function generateDateRange(options = {}) {
     wrapper.append(range.element, error);
     range.element.addEventListener("change", () => { error.textContent = range.validate(); });
     mount(options.parent, wrapper);
-    return range;
+    return asHandle(range, { also: wrapper });
 }
 
 /* ------------------FILE UPLOAD------------------- */
@@ -196,13 +196,13 @@ export function generateFileUpload(options = {}) {
     }
 
     mount(options.parent, element);
-    return {
+    return asHandle({
         element,
         getFiles: () => entries.map(entry => entry.file),
         upload,
         clear: () => entries.slice().forEach(remove),
         add
-    };
+    });
 }
 
 /* ------------------STEPPER (wizard)------------------- */
@@ -273,12 +273,12 @@ export function generateStepper(options = {}) {
 
     mount(options.parent, element);
     if (steps.length) show(0);
-    return {
+    return asHandle({
         element,
         next,
         back,
         // Going back is always possible, going forward only one step at a time through next().
         goTo: index => { if (index >= 0 && index < current) show(index); },
         getCurrent: () => current
-    };
+    });
 }

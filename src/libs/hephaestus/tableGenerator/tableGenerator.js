@@ -4,6 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { downloadFile, toCsv } from "../../core/csv.js";
+import { asHandle, resolveElement } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { clampWidth, virtualWindow } from "../../core/tableMath.js";
 
@@ -12,6 +13,10 @@ const el = (tag, className, text) => {
     if (className) element.className = className;
     if (text != null) element.textContent = text;
     return element;
+};
+
+const addClasses = (node, classes) => {
+    for (const name of [classes].flat()) if (name) node.classList.add(...String(name).split(/\s+/).filter(Boolean));
 };
 
 const compare = (a, b) =>
@@ -45,7 +50,15 @@ const compare = (a, b) =>
  *        of an `editable` column (double click, or Enter / F2 on the focused cell). Return false to reject it.
  * @param {(row: object) => void} [options.onRowClick]
  * @param {string} [options.emptyText]
- * @returns {{element: HTMLElement, setRows: Function, getSelected: () => object[], clearSelection: Function,
+ * @param {(row: object, column: object) => (string|string[]|null|undefined)} [options.cellClass] CSS class(es) for a cell
+ * @param {(row: object) => (string|string[]|null|undefined)} [options.rowClass] CSS class(es) for a row
+ * @param {boolean} [options.focusableRows=false] rows are reachable with Tab and, with `onRowClick`, opened with Enter and Space
+ * @param {(row: object) => string} [options.rowLabel] aria-label of a focusable row
+ * @param {"normal"|"compact"} [options.density="normal"]
+ * @param {boolean} [options.wrap] true lets long text wrap, false keeps one line with an ellipsis (default: wrap, except in virtual tables)
+ * Column extras: `render(row, value)` returns text or a Node (built by the caller, so safe by construction), `align`
+ * ("left" | "center" | "right"), `title` (false switches the tooltip with the full text off).
+ * @returns {{element: HTMLElement, update: Function, destroy: Function, setRows: Function, getSelected: () => object[], clearSelection: Function,
  *            getColumnWidths: () => Object<string, number>, toCsv: () => string, exportCsv: (filename?: string) => void}}
  */
 export function generateTable(options = {}) {
@@ -57,7 +70,7 @@ export function generateTable(options = {}) {
         ? { height: 400, rowHeight: 36, overscan: 5, ...(options.virtual === true ? {} : options.virtual) }
         : null;
     const pageSize = virtual ? 0 : (options.pageSize ?? 0);
-    const host = (typeof parent === "string" ? document.getElementById(parent) : parent) ?? document.body;
+    const host = resolveElement(parent) ?? document.body;
     let rows = [...(options.rows ?? [])];
     let current = rows;                     // filtered and sorted rows
     const selected = new Set();
@@ -70,6 +83,9 @@ export function generateTable(options = {}) {
     root.id = id;
     const table = el("table", `athena-table ${options.class ?? ""}`.trim());
     if (resizableColumns) table.classList.add("athena-table-resizable");
+    if (options.density === "compact") table.classList.add("athena-table-compact");
+    if (options.wrap === true) table.classList.add("athena-table-wrap");
+    else if (options.wrap === false) table.classList.add("athena-table-nowrap");
     let scroller = null;
     if (virtual) {
         table.classList.add("athena-table-virtual");
@@ -310,9 +326,22 @@ export function generateTable(options = {}) {
     function renderRow(row, index) {
         const tr = el("tr");
         if (virtual) tr.setAttribute("aria-rowindex", String(index + 2));
+        addClasses(tr, options.rowClass?.(row));
         if (onRowClick) {
             tr.classList.add("clickable");
             tr.addEventListener("click", () => onRowClick(row));
+        }
+        if (options.focusableRows) {
+            tr.tabIndex = 0;
+            if (options.rowLabel) tr.setAttribute("aria-label", options.rowLabel(row));
+            if (onRowClick) {
+                tr.addEventListener("keydown", e => {
+                    if (e.target === tr && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        onRowClick(row);
+                    }
+                });
+            }
         }
         if (selectable) {
             const td = el("td", "athena-table-select");
@@ -332,7 +361,16 @@ export function generateTable(options = {}) {
         }
         for (const col of columns) {
             const value = row[col.key];
-            const td = el("td", null, col.format ? col.format(value, row) : (value ?? ""));
+            const content = col.render ? col.render(row, value) : (col.format ? col.format(value, row) : (value ?? ""));
+            const td = el("td");
+            if (content instanceof Node) td.append(content);
+            else {
+                td.textContent = content;
+                // Text that may be cut off gets its full text as a tooltip.
+                if (col.title !== false && String(content).length > 24) td.title = String(content);
+            }
+            if (col.align) td.classList.add(`athena-align-${col.align}`);
+            addClasses(td, options.cellClass?.(row, col));
             if (col.editable) {
                 td.classList.add("editable");
                 td.tabIndex = 0;
@@ -361,7 +399,7 @@ export function generateTable(options = {}) {
         }
         if (virtual) {
             const win = virtualWindow({
-                scrollTop: scroller.scrollTop, viewportHeight: scroller.clientHeight || virtual.height,
+                scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
                 rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
             });
             windowKey = `${win.start}:${win.end}`;
@@ -379,6 +417,7 @@ export function generateTable(options = {}) {
         if (!pager) return;
         const pages = Math.max(1, Math.ceil(total / pageSize));
         state.page = Math.min(state.page, pages - 1);
+        pager.hidden = pages === 1;
         const button = (text, disabled, delta) => {
             const b = el("button", null, text);
             b.type = "button";
@@ -410,6 +449,22 @@ export function generateTable(options = {}) {
     }
 
     // Scrolling only swaps the body, and only when the window of rows really changed.
+    // The scroll area is as high as the rows, up to `virtual.height`. That is also the least it can show, so a list that
+    // starts empty (a tiny scroll area when the rows are set) still draws a full window.
+    const viewportHeight = () => Math.max(scroller.clientHeight, Math.min(virtual.height, current.length * virtual.rowHeight));
+
+    function refreshWindow() {
+        const win = virtualWindow({
+            scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
+            rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
+        });
+        if (`${win.start}:${win.end}` === windowKey) return;
+        const focused = document.activeElement;
+        const keepFocus = focused && table.tBodies[0]?.contains(focused);
+        table.tBodies[0].replaceWith(renderBody());
+        if (keepFocus) scroller.focus({ preventScroll: true });
+    }
+
     if (scroller) {
         let queued = false;
         scroller.addEventListener("scroll", () => {
@@ -417,22 +472,32 @@ export function generateTable(options = {}) {
             queued = true;
             requestAnimationFrame(() => {
                 queued = false;
-                const win = virtualWindow({
-                    scrollTop: scroller.scrollTop, viewportHeight: scroller.clientHeight || virtual.height,
-                    rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
-                });
-                if (`${win.start}:${win.end}` === windowKey) return;
-                const focused = document.activeElement;
-                const keepFocus = focused && table.tBodies[0]?.contains(focused);
-                table.tBodies[0].replaceWith(renderBody());
-                if (keepFocus) scroller.focus({ preventScroll: true });
+                refreshWindow();
             });
         });
     }
 
+    // The window of rows depends on the height of the scroll area, which is unknown while the list is empty or
+    // not on screen yet: measure again whenever it changes size.
+    if (scroller && typeof ResizeObserver !== "undefined") {
+        let lastHeight = 0;
+        new ResizeObserver(() => {
+            const height = scroller.clientHeight;
+            if (height === lastHeight) return;
+            lastHeight = height;
+            refreshWindow();
+        }).observe(scroller);
+    }
+
     render();
-    return {
+    return asHandle({
         element: root,
+        // update() draws the table again; update({ rows }) also replaces the rows.
+        update(next) {
+            if (next?.rows) this.setRows(next.rows);
+            else render();
+            return this;
+        },
         setRows(newRows) {
             rows = [...newRows];
             selected.clear();
@@ -453,5 +518,5 @@ export function generateTable(options = {}) {
         exportCsv(filename = "table.csv") {
             downloadFile(filename, toCsv(columns, current));
         }
-    };
+    });
 }

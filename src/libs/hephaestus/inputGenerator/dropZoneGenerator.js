@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-import { cx, el, mount, setContent, uid } from "../../core/dom.js";
+import { asHandle, cx, el, mount, setContent, uid } from "../../core/dom.js";
 import { formatBytes, matchesAccept } from "../../core/format.js";
 import { translate } from "../../core/i18n.js";
 
@@ -114,5 +114,5 @@ export function createDropZone(options = {}) {
 export function generateDropZone(options = {}) {
     const zone = createDropZone(options);
     mount(options.parent, zone.element);
-    return zone;
+    return asHandle(zone);
 }

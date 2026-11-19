@@ -1,6 +1,6 @@
 {
   "name": "athena-ui-js",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A small jQuery based UI framework: generated page layout, menus, login / registration / lost password forms, charts, tables, modals and themes, written as ES modules.",
   "type": "module",
   "main": "./src/athena-ui.js",
@@ -10,11 +10,13 @@
   },
   "exports": {
     ".": "./src/athena-ui.js",
+    "./testing": "./src/testing.js",
     "./themes/*": "./src/res/themes/*",
     "./package.json": "./package.json"
   },
   "files": [
     "src/athena-ui.js",
+    "src/testing.js",
     "src/libs/libs.js",
     "src/libs/config",
     "src/libs/hephaestus/hephaestus.js",

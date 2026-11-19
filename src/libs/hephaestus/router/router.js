@@ -3,6 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
+import { resolveElement } from "../../core/dom.js";
 import { matchRoute, normalizePath, parseQuery } from "./matchRoute.js";
 
 /**
@@ -53,7 +54,7 @@ export function createRouter(options = {}) {
             return;
         }
 
-        const host = document.getElementById(outlet);
+        const host = resolveElement(outlet);
         host?.replaceChildren();
         currentContext = context;
         if (!matched) {
