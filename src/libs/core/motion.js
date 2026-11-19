@@ -328,18 +328,31 @@ export async function viewTransition(update) {
         return;
     }
     let failure = null;
-    const transition = document.startViewTransition(async () => {
+    let started = false;
+    let done = false;
+    const run = async () => {
+        if (started) return;
+        started = true;
         try {
             await update();
         } catch (error) {
             failure = error;
         }
-    });
+        done = true;
+    };
+    const transition = document.startViewTransition(run);
+    // A page that is not drawn (a hidden tab) never calls the update of a view transition: after a moment it is run here, so the page does not stay as it was
+    const guard = setTimeout(run, 400);
+    const later = ms => new Promise(resolve => setTimeout(resolve, ms));
     try {
-        await transition.updateCallbackDone;
-        await transition.finished;
+        await Promise.race([transition.updateCallbackDone, later(2000)]);
+        // the animation needs frames: do not wait for it longer than it can last
+        await Promise.race([transition.finished, later(readDuration("--athena-duration-slow") + 1000)]);
     } catch {
         // skipped (for example the page was hidden): the update was run all the same
     }
+    clearTimeout(guard);
+    await run();
+    while (!done) await later(10);
     if (failure) throw failure;
 }
