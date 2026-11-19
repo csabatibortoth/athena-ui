@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.0.0**
+Current version: **2.0.1**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -72,6 +72,18 @@ The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, 
 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
 
+### The demo application
+
+`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, every field type, native dialogs, a menu with groups inside groups, themes
+and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy.
+
+```sh
+npm run demo          # http://localhost:3000
+npm run test:demo     # the server, the API and every page in a real browser
+```
+
+GitHub Actions tests it and deploys it to an Azure App Service: [demo/README.md](demo/README.md) has the one-time set up.
+
 ## Usage
 
 ```html
@@ -135,7 +147,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.0.0"` | Version shown in the footer |
+| `version` | `"2.0.1"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -689,8 +701,8 @@ component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, 
 session, themes. Set `CHROME_PATH` if the browser is not found. `DEBUG=1` prints the browser log when the page does not report results.
 
 - **The page runs under a strict Content-Security-Policy** (`default-src 'none'; script-src 'self'; style-src 'self'`, set by `run.mjs`), and a `securitypolicyviolation` fails the test
-  that caused it. That is the guarantee that Athena UI needs no `'unsafe-inline'`. (Three tests that hand the sanitizer hostile markup are let through for the one report Chrome
-  makes while it parses an inline handler in an inert document.)
+  that caused it. That is the guarantee that Athena UI needs no `'unsafe-inline'`. (Three tests that hand the sanitizer hostile markup are let through for the reports Chrome
+  makes while it parses an inline handler, a style attribute or a `<style>` element in an inert document.)
 - One test feeds markup to about 40 components and checks that text from data stays text.
 - `WITH_JQUERY=1 npm run test:browser` loads jQuery from its CDN, to check that an application that still has it works too (`JQUERY_URL` for another address).
 - The unit tests also check that `docs/styling.md` is up to date, and that a TypeScript file using the library compiles against `types/` (needs `npm install` for TypeScript).
@@ -714,6 +726,8 @@ src/
   res/themes/               tokens.css, default and dark theme, appearance.css (themes and modes)
 types/                      TypeScript definitions (npm run types)
 docs/                       styling.md (generated), migration-2.0.md
+demo/                       the demo and test application (server, API, pages, end to end tests), deployed to Azure by GitHub Actions
+.github/workflows/          ci.yml (tests) and demo-deploy.yml
 tests/                      unit tests (Node) and browser tests (headless Chrome, strict CSP)
 ```
 
@@ -726,6 +740,16 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.0.1
+  #### Added:
+   1. `demo/`: a demo and test application of Athena UI (tables with 100,000 rows from a server, streaming charts, forms, dialogs, menus, themes, sign in) with a dependency free Node server, and end to end tests that drive a real browser (DevTools protocol) under a strict Content-Security-Policy
+   2. GitHub Actions: `ci.yml` (unit, browser and demo tests on every push and pull request) and `demo-deploy.yml` (tests, builds `demo/dist`, deploys to an Azure App Service, checks the site)
+  #### Fixed (found by the end to end tests of the demo):
+   1. A chart that redraws (streaming `push`, zoom) no longer loses the keyboard focus: it moves to the same place in the new SVG
+   2. The series a person hid with the legend stay hidden when the chart redraws (`hiddenSeries` option)
+  #### Changed:
+   1. `package-lock.json` is part of the repository (CI uses `npm ci`)
 
  ### 2.0.0
   #### Breaking (see [docs/migration-2.0.md](docs/migration-2.0.md)):

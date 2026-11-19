@@ -1,0 +1,42 @@
+name: CI
+
+# Tests on every push and pull request. The deployment of the demo calls this workflow first (see demo-deploy.yml).
+on:
+  push:
+    branches: [develop, "release/**", master]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (Node 24, headless Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # The only dependency is TypeScript (to write and check the type definitions); the library itself has none
+      - run: npm ci
+
+      - name: Unit tests (includes the type definitions and docs/styling.md)
+        run: npm test
+
+      - name: Browser tests of the components (strict Content-Security-Policy)
+        run: npm run test:browser
+
+      - name: "Demo: server, API and every page in a real browser"
+        run: npm run test:demo
+
+      - name: The demo package builds
+        run: npm run demo:build
+
+      - name: The npm package is what it should be
+        run: npm pack --dry-run
