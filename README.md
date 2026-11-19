@@ -866,7 +866,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
  ### 2.5.0
   (what the user interface of Odin NS Manager asked for when it moved onto Athena UI 2.x)
   #### Added:
-   1. Charts: `gaps` (a missing value breaks the line, a lone point is a dot), `timeRange` (the range of the time axis when it is not the one the data covers), `format` (how a value is written on the axis, in the tooltips and in the table of values), `margin` (room around the plot) and `responsive` (as wide as the parent, following it)
+   1. Charts: `gaps` (a missing value breaks the line, a lone point is a dot), `timeRange` (the range of the time axis when it is not the one the data covers), `format` (how a value is written on the axis, in the tooltips and in the table of values), `tickFormat` (the axis only), `margin` (room around the plot) and `responsive` (as wide as the parent, following it)
    2. Tables: the `render` of a column (an element in a cell) is documented, and every cell has `data-label` with the label of its column, so a stylesheet can show a row as a block on a narrow screen
    3. Forms: a field can have `show: (values) => boolean` (a field that is not shown is not validated and not in the values), `label: (values) => string`, `send: false`, `trim` and `empty: "omit" | "null" | "empty"`; the form has `nested` (a field called `soa.host` is `values.soa.host`), `getRawValues()` and `arrange()`; a rejection of `onSubmit` with `details` ({ field: message }) puts the messages at their fields; `field.setLabel(text)`
    4. `showFormDialog` focuses the first field that is shown

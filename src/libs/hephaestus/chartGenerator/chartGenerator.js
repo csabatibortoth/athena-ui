@@ -194,7 +194,7 @@ function drawBar(svg, ctx) {
     const { labels, series, width, height, format } = ctx;
     const MARGIN = ctx.margin;
     const { min, scale } = valueRange(series.flatMap(s => s.data));
-    const { y, plotW, plotH } = addValueAxis(svg, { min, scale, width, height, margin: MARGIN, format });
+    const { y, plotW, plotH } = addValueAxis(svg, { min, scale, width, height, margin: MARGIN, format: ctx.tickFormat });
     const band = plotW / Math.max(labels.length, 1);
     labels.forEach((label, i) => svg.append(svgEl("text",
         { x: MARGIN.left + band * (i + 0.5), y: MARGIN.top + plotH + 18, "text-anchor": "middle", class: "chart-tick" }, label)));
@@ -238,7 +238,7 @@ function drawLine(svg, ctx) {
     });
     const zeroBased = area || options.zero !== false;
     const { min, scale } = valueRange(series.flatMap((s, si) => visible[si].map(i => s.data[i])), zeroBased);
-    const { y, baseline } = addValueAxis(svg, { min, scale, width, height, margin: MARGIN, format });
+    const { y, baseline } = addValueAxis(svg, { min, scale, width, height, margin: MARGIN, format: ctx.tickFormat });
 
     // x axis
     if (times) {
@@ -547,6 +547,7 @@ function buildDataTable({ labels, series, times, title, type, format = formatNum
  * @param {{from: (number|Date|string), to: (number|Date|string)}} [options.timeRange] line and area charts with `times`: the range of the time axis, when it is not the one
  *        the data covers (the last hour, of which only the last quarter has been measured)
  * @param {(value: number) => string} [options.format] how a value is written: on the axis, in the tooltips and in the table of values (default: whole numbers, otherwise two decimals)
+ * @param {(value: number) => string} [options.tickFormat] how the numbers of the value axis are written, when they should not be written like the values (a chart of whole numbers has ticks of 0.2)
  * @param {{top?: number, right?: number, bottom?: number, left?: number}} [options.margin] room around the plot in px (default 40, 20, 50, 55): a chart without a title and a legend does not need the top
  * @param {boolean} [options.responsive=false] the chart is as wide as its parent and follows it when it changes (`height` stays); `width` is only the first guess
  * @returns {(SVGElement & {element: SVGElement, update: (options?: object) => SVGElement, destroy: () => void,
@@ -704,7 +705,8 @@ function buildChart(options = {}, hooks, { animate = false } = {}) {
     const tooltip = createTooltip(svg, width);
     const margin = { ...DEFAULT_MARGIN, ...(options.margin ?? {}) };
     const format = typeof options.format === "function" ? options.format : formatNumber;
-    const ctx = { labels, series, width, height, times, options, tooltip, hooks, zoom: options.zoomRange ?? null, margin, format };
+    const tickFormat = typeof options.tickFormat === "function" ? options.tickFormat : format;
+    const ctx = { labels, series, width, height, times, options, tooltip, hooks, zoom: options.zoomRange ?? null, margin, format, tickFormat };
     const pieLegend = draw(svg, ctx);
     if (!sparkline && (options.legend ?? (Boolean(pieLegend) || series.length > 1))) {
         addLegend(svg, pieLegend ?? series.map((s, i) => ({ name: s.name ?? `${translate("series")} ${i + 1}`, props: seriesProps(s, i), series: i })), width, height, ctx);

@@ -2328,6 +2328,9 @@ test("charts: gaps break the line, timeRange sets the axis, format writes the nu
     assert($1("#c-format .chart-point").getAttribute("aria-label").includes("60 ms") || $$("#c-format .chart-point").some(dot => dot.getAttribute("aria-label").includes(" ms")), "so do the tooltips");
     equal($1("#c-format .chart-hit").getAttribute("x"), "30");
     equal($1("#c-format .chart-hit").getAttribute("y"), "10");
+    chart("c-ticks", { format: value => `${value} ms`, tickFormat: value => `~${value}`, series: [{ name: "v", data: [10, 20, 30, 40, 50, 60] }] });
+    assert($$("#c-ticks .chart-tick").some(tick => tick.textContent.startsWith("~")) && !$$("#c-ticks .chart-tick").some(tick => tick.textContent.endsWith(" ms")), "tickFormat is for the axis");
+    assert($$("#c-ticks .chart-point").some(dot => dot.getAttribute("aria-label").includes(" ms")), "format stays for the values");
     const withTable = chart("c-table", { format: value => `#${value}`, table: true, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
     assert(withTable.dataTable.textContent.includes("#3"), "and the table of values");
 
