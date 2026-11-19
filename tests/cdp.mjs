@@ -104,6 +104,15 @@ export async function launch() {
                 if (!box) throw new Error(`nothing matches ${selector}`);
                 for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: box.x, y: box.y, button: "left", clickCount: 1 });
             },
+            /** A real drag: the mouse goes down in the middle of the element, moves by dx, dy in steps and goes up. */
+            async drag(selector, dx, dy, steps = 8) {
+                const box = await page.eval(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+                if (!box) throw new Error(`nothing matches ${selector}`);
+                await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box.x, y: box.y });
+                await send("Input.dispatchMouseEvent", { type: "mousePressed", x: box.x, y: box.y, button: "left", buttons: 1, clickCount: 1 });
+                for (let i = 1; i <= steps; i++) await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box.x + dx * i / steps, y: box.y + dy * i / steps, button: "left", buttons: 1 });
+                await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: box.x + dx, y: box.y + dy, button: "left", buttons: 0, clickCount: 1 });
+            },
             /** A real click on the first button, link or tab whose text is exactly this (inside the selector, default: the whole page). */
             async clickText(text, scope = "body") {
                 const box = await page.eval(`(() => { const found = [...document.querySelector(${JSON.stringify(scope)}).querySelectorAll("button, a, [role=button], [role=tab], summary, label")].find(el => el.textContent.trim() === ${JSON.stringify(text)} && el.getClientRects().length); if (!found) return null; found.scrollIntoView({ block: "center" }); const r = found.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);

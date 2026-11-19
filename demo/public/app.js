@@ -38,6 +38,7 @@ const pages = [
     { id: "/forms", label: "Forms", icon: "✎" },
     { id: "/dialogs", label: "Dialogs", icon: "❐" },
     { id: "/navigation", label: "Navigation", icon: "☰" },
+    { id: "/widgets", label: "Widgets", icon: "▦" },
     { id: "/motion", label: "Motion", icon: "↯" },
     { id: "/themes", label: "Themes", icon: "◐" },
     { id: "/about", label: "About", icon: "ⓘ" }
@@ -102,6 +103,7 @@ const router = createRouter({
         "/forms": { handler: page("forms"), title: "Forms" },
         "/dialogs": { handler: page("dialogs"), title: "Dialogs" },
         "/navigation": { handler: page("navigation"), title: "Navigation" },
+        "/widgets": { handler: page("widgets"), title: "Widgets" },
         "/motion": { handler: page("motion"), title: "Motion" },
         "/themes": { handler: page("themes"), title: "Themes" },
         "/about": { handler: page("about"), title: "About" },

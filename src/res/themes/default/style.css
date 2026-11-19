@@ -2374,4 +2374,189 @@ dialog.dialog[open]::backdrop {
     animation: athena-pop var(--athena-duration-slow) var(--athena-ease-out) backwards;
 }
 
+
+/* ------------------------------------------------------------ Widgets
+   createWidgetGrid: a CSS grid. The columns, the row height and the gap are classes (wg-cols-12, wg-rh-80, wg-gap-12) and so is the place of every
+   widget (wg-x-1, wg-y-1, wg-w-3, wg-h-2), written into a constructed style sheet: no style attribute, so a strict Content-Security-Policy is fine.
+   The controls of the edit mode (handle, buttons, resize edges) exist in every widget and are shown only in .is-editable. */
+
+.athena-widget-grid {
+    display: grid;
+    position: relative;
+    align-items: stretch;
+}
+
+.widget {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface);
+    color: var(--athena-fg);
+    overflow: hidden;
+    transition: box-shadow var(--athena-duration-fast) var(--athena-ease-standard), border-color var(--athena-duration-fast) var(--athena-ease-standard);
+}
+
+.widget-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: var(--athena-border-width) solid var(--athena-line);
+    background: var(--athena-surface-alt);
+}
+
+.widget-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.widget-body {
+    flex: 1;
+    min-height: 0;
+    padding: 10px;
+    overflow: auto;
+}
+
+.widget-note {
+    margin: 0;
+    color: var(--athena-muted);
+}
+
+.widget.is-unknown,
+.widget.is-failed {
+    border-style: dashed;
+}
+
+.widget-handle,
+.widget-actions,
+.widget-resize {
+    display: none;
+}
+
+.widget-actions {
+    gap: 2px;
+}
+
+.widget-handle,
+.widget-action {
+    padding: 2px 6px;
+    border: var(--athena-border-width) solid transparent;
+    border-radius: var(--athena-radius);
+    background: transparent;
+    color: var(--athena-fg);
+    font: inherit;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.widget-handle:hover,
+.widget-action:hover {
+    background: var(--athena-hover);
+}
+
+.widget-handle:focus-visible,
+.widget-action:focus-visible {
+    outline: var(--athena-focus-width) solid var(--athena-focus);
+    outline-offset: 1px;
+}
+
+.widget-handle {
+    cursor: grab;
+    touch-action: none;
+}
+
+.widget-handle[aria-pressed="true"] {
+    background: var(--athena-accent);
+    color: var(--athena-accent-fg);
+}
+
+.is-editable .widget-handle {
+    display: inline-block;
+}
+
+.is-editable .widget-actions {
+    display: flex;
+}
+
+.is-editable .widget {
+    border-color: var(--athena-border);
+}
+
+.is-editable .widget.is-locked .widget-handle,
+.is-editable .widget.is-locked .widget-resize {
+    display: none;
+}
+
+.is-editable .widget.is-locked .widget-title::after {
+    content: " 🔒";
+}
+
+.widget.is-dragging {
+    z-index: 2;
+    border-color: var(--athena-accent);
+    box-shadow: var(--athena-shadow);
+}
+
+.is-editable .widget-resize {
+    display: block;
+    position: absolute;
+    z-index: 1;
+    touch-action: none;
+}
+
+.widget-resize-n,
+.widget-resize-s {
+    left: 12px;
+    right: 12px;
+    height: 8px;
+    cursor: ns-resize;
+}
+
+.widget-resize-e,
+.widget-resize-w {
+    top: 12px;
+    bottom: 12px;
+    width: 8px;
+    cursor: ew-resize;
+}
+
+.widget-resize-n { top: 0; }
+.widget-resize-s { bottom: 0; }
+.widget-resize-e { right: 0; }
+.widget-resize-w { left: 0; }
+
+.widget-resize-ne,
+.widget-resize-nw,
+.widget-resize-se,
+.widget-resize-sw {
+    width: 14px;
+    height: 14px;
+}
+
+.widget-resize-ne { top: 0; right: 0; cursor: nesw-resize; }
+.widget-resize-nw { top: 0; left: 0; cursor: nwse-resize; }
+.widget-resize-se { bottom: 0; right: 0; cursor: nwse-resize; }
+.widget-resize-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+
+.widget-resize-se::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--athena-muted);
+    border-bottom: 2px solid var(--athena-muted);
+}
+
 }

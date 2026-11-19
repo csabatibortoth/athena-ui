@@ -44,7 +44,7 @@ const title = page => page.eval(`document.querySelector(".page-title")?.textCont
 
 describe("every page draws, without a single error, under the strict policy", { skip }, () => {
     const pages = [
-        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/motion", "Motion"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
+        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/widgets", "Widgets"], ["/motion", "Motion"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
         ["/themes", "Themes, modes and tokens"], ["/about", "About this demo"], ["/account", "Account"],
         ["/admin", "Account"],                  // not signed in: the router sends the visitor to the sign in page
         ["/nowhere", "Page not found"]
@@ -253,6 +253,53 @@ describe("what a person does", { skip }, () => {
         await page.eval(`location.hash = "#/about"`);
         await page.waitFor(`document.querySelector(".page-title")?.textContent === "About this demo"`);
         assert.equal(await page.eval("window.__transitions"), count, "reduced: no view transition");
+    }));
+
+    test("widgets: a real drag moves a widget, a real resize changes its size, the layout is saved and survives a reload", { timeout: 240000 }, () => withPage("/widgets", async page => {
+        await page.waitFor(`document.querySelector(".page-title")?.textContent === "Widgets"`, { timeout: 90000 });
+        await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 5`);
+        await page.waitFor(`document.querySelector('#dashboard [data-widget-id="hosts"] .stat')`, { timeout: 30000 });
+        const column = id => page.eval(`getComputedStyle(document.querySelector('#dashboard [data-widget-id="${id}"]')).gridColumnStart`);
+        const span = id => page.eval(`getComputedStyle(document.querySelector('#dashboard [data-widget-id="${id}"]')).gridColumnEnd`);
+        const stride = await page.eval(`(() => { const columns = getComputedStyle(document.getElementById("dashboard")).gridTemplateColumns.split(" "); return parseFloat(columns[0]) + 12; })()`);
+        assert.equal(await page.eval(`getComputedStyle(document.querySelector('#dashboard .widget-handle')).display`), "none", "no handles until edit mode");
+        await page.clickText("Edit mode: off");
+        await page.waitFor(`document.getElementById("dashboard").classList.contains("is-editable")`);
+        assert.equal(await column("hosts"), "1");
+        // a real drag by the handle, one column to the right
+        await page.drag('#dashboard [data-widget-id="hosts"] .widget-handle', stride + 4, 0);
+        await page.waitFor(`getComputedStyle(document.querySelector('#dashboard [data-widget-id="hosts"]')).gridColumnStart === "2"`);
+        // a real resize by the south-east corner, one column wider
+        const before = await span("hosts");
+        await page.drag('#dashboard [data-widget-id="hosts"] .widget-resize-se', stride + 4, 0);
+        await page.waitFor(`getComputedStyle(document.querySelector('#dashboard [data-widget-id="hosts"]')).gridColumnEnd !== ${JSON.stringify(before)}`);
+        // saved
+        const saved = JSON.parse(await page.eval(`localStorage.getItem("athena-demo-dashboard")`));
+        assert.equal(saved.version, 1);
+        const hosts = saved.widgets.find(widget => widget.id === "hosts");
+        const place = Object.values(hosts.layouts)[0];
+        assert.equal(place.x, 1);
+        assert.equal(place.w, 4);
+        // undo is a button; it puts the size back
+        await page.clickText("Undo");
+        await page.waitFor(`getComputedStyle(document.querySelector('#dashboard [data-widget-id="hosts"]')).gridColumnEnd === ${JSON.stringify(before)}`);
+        await page.clickText("Redo");
+        await page.waitFor(`getComputedStyle(document.querySelector('#dashboard [data-widget-id="hosts"]')).gridColumnEnd !== ${JSON.stringify(before)}`);
+        // adding a widget with the button
+        await page.clickText("Add clock");
+        await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 6`);
+        // keyboard: the handle of a widget, Space, ArrowDown ... Enter
+        await page.eval(`document.querySelector('#dashboard [data-widget-id="alerts"] .widget-handle').focus()`);
+        await page.press(" ", "Space", 32);
+        await page.waitFor(`document.querySelector('#dashboard [data-widget-id="alerts"] .widget-handle').getAttribute("aria-pressed") === "true"`);
+        await page.press("Escape", "Escape", 27);
+        await page.waitFor(`!document.querySelector('#dashboard [data-widget-id="alerts"] .widget-handle').hasAttribute("aria-pressed")`);
+        // a locked widget has no handle
+        assert.equal(await page.eval(`getComputedStyle(document.querySelector('#dashboard [data-widget-id="pinned"] .widget-handle')).display`), "none");
+        // the layout comes back after a reload
+        await page.eval(`location.reload()`);
+        await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 6`, { timeout: 90000 });
+        assert.equal(await column("hosts"), "2");
     }));
 
     test("navigation: the menu with groups inside groups works with the keyboard", { timeout: 240000 }, () => withPage("/navigation", async page => {
