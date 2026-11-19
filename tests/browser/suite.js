@@ -2300,6 +2300,149 @@ test("code editor: tokenizing only the lines around a change gives exactly what 
     }
 });
 
+test("charts: gaps break the line, timeRange sets the axis, format writes the numbers, margin moves the plot, responsive follows the parent", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="cg"></div>');
+    const start = 1700000000000;
+    const times = [0, 1, 2, 3, 4, 5].map(i => start + i * 60000);
+    const chart = (id, options) => A.generateChart({ parent: "cg", id, type: "line", times, interactive: true, ...options });
+
+    // gaps
+    chart("c-skip", { series: [{ name: "v", data: [1, 2, NaN, 4, 5, 6] }] });
+    equal($$("#c-skip .chart-line").length, 1, "without gaps the line goes on over the missing value");
+    chart("c-gap", { gaps: true, series: [{ name: "v", data: [1, 2, NaN, 4, NaN, 6] }] });
+    equal($$("#c-gap .chart-line").length, 1, "with gaps: one line for the two values that follow each other");
+    equal($$("#c-gap .chart-lone-point").length, 2, "and a dot for each value on its own");
+    chart("c-gap2", { gaps: true, type: "area", series: [{ name: "v", data: [1, 2, null, 4, 5, 6] }] });
+    equal($$("#c-gap2 .chart-area").length, 2, "an area is broken too");
+
+    // the time axis
+    const x0 = id => Number($1(`#${id} .chart-point`).getAttribute("cx"));
+    chart("c-fit", { series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    chart("c-range", { timeRange: { from: start - 5 * 60000, to: start + 5 * 60000 }, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    equal(x0("c-fit"), 55, "the data starts at the left edge of the plot");
+    assert(x0("c-range") > 150, "with a wider range the data starts later: " + x0("c-range"));
+
+    // the number format and the margin
+    chart("c-format", { format: value => `${value} ms`, margin: { top: 10, left: 30 }, series: [{ name: "v", data: [10, 20, 30, 40, 50, 60] }] });
+    assert($$("#c-format .chart-tick").some(tick => tick.textContent.endsWith(" ms")), "the axis uses the format");
+    assert($1("#c-format .chart-point").getAttribute("aria-label").includes("60 ms") || $$("#c-format .chart-point").some(dot => dot.getAttribute("aria-label").includes(" ms")), "so do the tooltips");
+    equal($1("#c-format .chart-hit").getAttribute("x"), "30");
+    equal($1("#c-format .chart-hit").getAttribute("y"), "10");
+    const withTable = chart("c-table", { format: value => `#${value}`, table: true, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    assert(withTable.dataTable.textContent.includes("#3"), "and the table of values");
+
+    // responsive
+    $1("#cg").replaceChildren();
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync("#cg { width: 420px; }");
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    try {
+        const wide = chart("c-wide", { responsive: true, height: 200, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+        equal($1("#c-wide").getAttribute("width"), "420", "as wide as the parent from the start");
+        equal($1("#c-wide").getAttribute("height"), "200");
+        sheet.replaceSync("#cg { width: 300px; }");
+        await waitUntil(() => $1("#c-wide")?.getAttribute("width") === "300", "follows the parent when it gets narrower");
+        wide.destroy();
+        sheet.replaceSync("#cg { width: 500px; }");
+        await tick(150);
+        equal($$("#c-wide").length, 0, "destroyed: gone, and nothing draws it again");
+    } finally {
+        document.adoptedStyleSheets = document.adoptedStyleSheets.filter(item => item !== sheet);
+        $1("#cg")?.remove();
+    }
+});
+
+test("form: fields that depend on others, labels that follow, nested names, empty values, details of an error at their fields", async () => {
+    const calls = [];
+    const form = A.generateForm({
+        parent: "wrapper", nested: true, submitText: "Send",
+        fields: [
+            { name: "type", label: "Type", type: "select", options: ["A", "MX"], value: "A" },
+            { name: "data.target", label: values => (values.type === "MX" ? "Mail server" : "Address"), required: true, show: values => values.type !== "MX", trim: true },
+            { name: "data.exchange", label: "Exchange", required: true, show: values => values.type === "MX" },
+            { name: "soa.host", label: "Name server", trim: true, empty: "omit" },
+            { name: "ttl", label: "TTL", type: "number", empty: "null" },
+            { name: "note", label: "Note", empty: "empty" },
+            { name: "again", label: "Again", send: false }
+        ],
+        onSubmit: values => { calls.push(values); }
+    });
+    const field = name => form.fields[name];
+    equal(field("data.target").element.hidden, false);
+    equal(field("data.exchange").element.hidden, true, "the field for MX is not shown for A");
+    const labelOf = name => $1(".field-label-text", field(name).element).firstChild.nodeValue;     // the star of a required field is another node
+    equal(labelOf("data.target"), "Address");
+    const select = $1("select", field("type").element);
+    select.value = "MX";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    equal(field("data.target").element.hidden, true);
+    equal(field("data.exchange").element.hidden, false, "shown for MX");
+    equal(labelOf("data.target"), "Mail server", "the label followed (it is hidden now, but it is kept up to date)");
+    // a field that is not shown is not validated: its required rule does not stop the form
+    form.element.requestSubmit();
+    await tick();
+    equal(calls.length, 0, "the exchange is required");
+    equal(Object.keys(form.validate()).join(), "data.exchange");
+    $1("input", field("data.exchange").element).value = "mail.example.test";
+    $1("input", field("soa.host").element).value = "  ns1.example.test  ";
+    $1("input", field("again").element).value = "x";
+    form.element.requestSubmit();
+    await tick();
+    equal(JSON.stringify(calls.at(-1)), JSON.stringify({ type: "MX", data: { exchange: "mail.example.test" }, soa: { host: "ns1.example.test" }, ttl: null, note: "" }),
+        "nested, trimmed, hidden and not sent fields left out, empty ones as asked: " + JSON.stringify(calls.at(-1)));
+    equal(form.getRawValues()["data.target"], "", "the raw values hold everything");
+    // the details of an error
+    const failing = A.generateForm({
+        parent: "wrapper", fields: [{ name: "name", label: "Name" }, { name: "soa.host", label: "Host" }],
+        onSubmit: () => { throw Object.assign(new Error("Check the marked fields"), { details: { name: "Taken", "soa.host": "Not a name", other: "Something else" } }); }
+    });
+    failing.element.requestSubmit();
+    await tick(30);
+    equal($1(".field-error", failing.fields.name.element).textContent, "Taken");
+    equal($1(".field-error", failing.fields["soa.host"].element).textContent, "Not a name");
+    equal($1(".form-message", failing.element).textContent, "Check the marked fields: Something else", "what has no field goes to the message");
+    const onlyFields = A.generateForm({
+        parent: "wrapper", fields: [{ name: "name", label: "Name" }],
+        onSubmit: () => { throw Object.assign(new Error("Check the marked fields"), { details: { name: "Taken" } }); }
+    });
+    onlyFields.element.requestSubmit();
+    await tick(30);
+    equal($1(".form-message", onlyFields.element).textContent, "Check the marked fields", "when the fields show everything the form only says where to look");
+    // without the new options nothing changes
+    const plain = A.generateForm({ parent: "wrapper", fields: [{ name: "a", label: "A", value: " x " }, { name: "b", label: "B" }], onSubmit: values => calls.push(values) });
+    plain.element.requestSubmit();
+    await tick();
+    equal(JSON.stringify(calls.at(-1)), JSON.stringify({ a: " x ", b: "" }), "defaults as before");
+    // the dialog focuses the first control that is shown
+    const dialog = A.showFormDialog({
+        title: "Dependent", fields: [{ name: "t", label: "T", show: () => false }, { name: "u", label: "U" }], onSubmit: () => {}
+    });
+    equal(document.activeElement?.name ?? document.activeElement?.closest?.(".field")?.dataset.name, "u", "the focus is in the first field that is shown");
+    dialog.close();
+});
+
+test("table: a column can render an element (a badge, a link, buttons) and every cell carries the label of its column", () => {
+    const clicks = [];
+    const table = A.generateTable({
+        parent: "wrapper", sortable: false,
+        columns: [
+            { key: "name", label: "Name", render: row => Object.assign(document.createElement("a"), { href: "#/" + row.name, textContent: row.name }) },
+            { key: "state", label: "State", align: "right", render: row => { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = row.state; return badge; } },
+            { key: "n", label: "Number", format: value => "#" + value },
+            { key: "go", label: "", render: row => Object.assign(document.createElement("button"), { textContent: "Go", onclick: () => clicks.push(row.name) }) }
+        ],
+        rows: [{ name: "alpha", state: "up", n: 1 }, { name: "beta", state: "down", n: 2 }]
+    });
+    const cells = $$("tbody tr:first-child td", table.element);
+    equal($1("a", cells[0]).getAttribute("href"), "#/alpha", "an element in a cell");
+    equal($1(".badge", cells[1]).textContent, "up");
+    equal(cells[2].textContent, "#1", "format still writes text");
+    cells[3].querySelector("button").click();
+    equal(clicks.join(), "alpha", "and it works");
+    equal(cells.map(cell => cell.dataset.label).join("|"), "Name|State|Number|", "the label of the column is on every cell (an empty label, as of a column of buttons, stays empty)");
+    assert(cells[1].classList.contains("athena-align-right"));
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

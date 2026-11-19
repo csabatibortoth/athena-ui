@@ -182,7 +182,8 @@ export function showFormDialog({ title, intro, content, fields, submitText = tra
         form.submitButton.element.classList.add("button-danger");
     }
     dialog = showDialog({ title, content: body, buttons: [], size });
-    const first = form.element.querySelector("input:not([disabled]):not([type=hidden]), select, textarea");
+    // The first control that is there to be used (a field that is not shown, or disabled, is not)
+    const first = [...form.element.querySelectorAll("input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled])")].find(control => !control.closest("[hidden]"));
     first?.focus();
     return Object.assign(dialog.then(() => saved), { element: dialog.element, backdrop: dialog.backdrop, form, close: dialog.close });
 }
