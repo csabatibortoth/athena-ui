@@ -900,6 +900,39 @@ test("auth: sign in form with autocomplete tokens, server errors, auth state in 
     assert(typeof auth.routerRules().isSignedIn === "function", "router rules");
 });
 
+test("appearance.css: themes and modes change the tokens, also on a preview element", async () => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = new URL("../../src/res/themes/appearance.css", location.href).href;
+    document.head.append(link);
+    await new Promise((resolve, reject) => { link.onload = resolve; link.onerror = () => reject(new Error("appearance.css did not load")); });
+    const root = document.documentElement;
+    const saved = { theme: root.dataset.theme, mode: root.dataset.mode };
+    const manager = A.createThemeManager({ themes: [{ id: "athena" }, { id: "contrast" }], storageKey: "athena.test.appearance2" });
+    const token = (node, name) => getComputedStyle(node).getPropertyValue(name).trim();
+    manager.setTheme("athena");
+    manager.setMode("light");
+    equal(token(root, "--athena-bg"), "#fff");
+    manager.setMode("dark");
+    equal(token(root, "--athena-bg"), "#16181d");
+    equal(getComputedStyle(document.body).backgroundColor, "rgb(22, 24, 29)");
+    manager.setTheme("contrast");
+    equal(token(root, "--athena-accent"), "#ffe14d");
+    equal(token(root, "--series-1"), "#80d8ff");
+    // an element with the two attributes has its own tokens (this is what the preview of the picker uses)
+    const probe = document.createElement("div");
+    probe.dataset.theme = "athena";
+    probe.dataset.mode = "light";
+    document.body.append(probe);
+    equal(token(probe, "--athena-bg"), "#fff", "a light panel on a dark page");
+    probe.remove();
+    manager.destroy();
+    localStorage.removeItem("athena.test.appearance2");
+    link.remove();
+    if (saved.theme) root.dataset.theme = saved.theme; else delete root.dataset.theme;
+    if (saved.mode) root.dataset.mode = saved.mode; else delete root.dataset.mode;
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
