@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.0.0**
+Current version: **2.0.1**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -135,7 +135,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.0.0"` | Version shown in the footer |
+| `version` | `"2.0.1"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
