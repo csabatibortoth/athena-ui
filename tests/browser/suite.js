@@ -24,6 +24,13 @@ const pointer = (node, name, clientX) => node.dispatchEvent(new PointerEvent(nam
 const $1 = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
+// The page runs under a strict Content-Security-Policy (see run.mjs). Every violation the browser reports is attributed to the test that was running.
+const violations = [];
+// These tests feed the sanitizer markup that is hostile on purpose (onclick, onerror attributes). The sanitizer reads it in an inert document and
+// none of it runs or reaches the page, but Chrome still reports the inline handler it meets while parsing. Only that one report is let through.
+const HOSTILE_INPUT = new Set(["wysiwyg: source view round trips and sanitizes", "rich text: unsafe markup never survives", "rich text: paste is sanitized, empty content reads as empty"]);
+document.addEventListener("securitypolicyviolation", event => violations.push(`${event.violatedDirective} blocked ${event.blockedURI || "inline"} ${event.sample ?? ""}`.trim()));
+
 window.addEventListener("error", event => results.push(`FAIL uncaught error: ${event.message}`));
 window.addEventListener("unhandledrejection", event => results.push(`FAIL unhandled rejection: ${event.reason}`));
 
@@ -933,6 +940,81 @@ test("appearance.css: themes and modes change the tokens, also on a preview elem
     if (saved.mode) root.dataset.mode = saved.mode; else delete root.dataset.mode;
 });
 
+test("text from data is only ever inserted as text, in every component that takes strings", async () => {
+    // If any of these became markup there would be an <img src="x"> (or a <b>, <i>) in the page, and the handler would be reported by the CSP check.
+    const H = '<img src="x" onerror="window.__pwned=1"><b>bold</b>';
+    const bad = () => ({ hostile: H });
+    void bad;
+    const parent = "wrapper";
+    const calls = {
+        generateButton: () => A.generateButton({ parent, text: H }),
+        generateField: () => A.generateField({ parent, name: "a", label: H, help: H, placeholder: H }),
+        generateFieldSelect: () => A.generateField({ parent, name: "b", type: "select", label: H, options: [{ value: "1", text: H }], placeholder: H }),
+        generateFieldChoices: () => A.generateField({ parent, name: "c", type: "radio", label: H, options: [{ value: H, text: H }] }),
+        generateForm: () => A.generateForm({ parent, submitText: H, fields: [{ name: "d", label: H }] }),
+        generateTabs: () => A.generateTabs({ parent, tabs: [{ id: "t1", label: H, content: H }, { id: "t2", label: H, content: H }] }),
+        generateAccordion: () => A.generateAccordion({ parent, items: [{ title: H, content: H, open: true }] }),
+        generateDropdown: () => A.generateDropdown({ parent, label: H, items: [{ label: H }] }),
+        generateBreadcrumbs: () => A.generateBreadcrumbs({ parent, items: [{ label: H, href: "#/" }, { label: H }] }),
+        generateSidebar: () => A.generateSidebar({ parent, items: [{ id: "s1", label: H, children: [{ id: "s2", label: H }] }] }),
+        generateMenu: () => A.generateMenu({ parent, items: [{ id: "m1", label: H, icon: H, badge: H, avatar: { name: H }, children: [{ id: "m2", label: H }] }] }),
+        generateCard: () => A.generateCard({ parent, title: H, content: H }),
+        generateSection: () => A.generateSection({ parent, title: H, content: H }),
+        generateBadge: () => A.generateBadge({ parent, text: H }),
+        generateAvatar: () => A.generateAvatar({ parent, name: H }),
+        generateStat: () => A.generateStat({ parent, label: H, value: H, note: H }),
+        generateLink: () => A.generateLink({ parent, text: H, href: "#/" }),
+        generatePageHeader: () => A.generatePageHeader({ parent, title: H, description: H, breadcrumbs: [{ label: H }] }),
+        generateFacts: () => A.generateFacts({ parent, items: [{ term: H, description: H }] }),
+        generateEmptyState: () => A.generateEmptyState({ parent, title: H, message: H, icon: H, action: { text: H, onclick() {} } }),
+        generateLoading: () => A.generateLoading({ parent, text: H }),
+        generateAlert: () => A.generateAlert({ parent, message: H, title: H }),
+        generateProgress: () => A.generateProgress({ parent, label: H, value: 5 }),
+        generateTable: () => A.generateTable({ parent, caption: H, emptyText: H, columns: [{ key: "a", label: H }], rows: [{ a: H }, { a: H }],
+            rowActions: [{ label: H, onclick() {} }], filter: true }),
+        generateTableEmpty: () => A.generateTable({ parent, emptyText: H, columns: [{ key: "a", label: H }], rows: [] }),
+        generateChart: () => A.generateChart({ parent, type: "bar", title: H, labels: [H], series: [{ name: H, data: [1] }], table: true }),
+        generateChartPie: () => A.generateChart({ parent, type: "pie", title: H, labels: [H, H], series: [{ name: H, data: [1, 2] }] }),
+        generateStepper: () => A.generateStepper({ parent, steps: [{ title: H, content: H }] }),
+        generateAutocomplete: () => A.generateAutocomplete({ parent, label: H, options: [H] }),
+        generateMultiSelect: () => A.generateMultiSelect({ parent, label: H, options: [{ value: "1", text: H }], value: ["1"] }),
+        generateDateTimeRange: () => A.generateDateTimeRange({ parent, label: H }),
+        generateDateRange: () => A.generateDateRange({ parent, label: H }),
+        generateThemePicker: () => A.generateThemePicker({ parent, themeLabel: H, modeLabel: H,
+            manager: A.createThemeManager({ themes: [{ id: "x", name: H, description: H }], storageKey: "athena.test.xss" }) }),
+        generateTooltip: () => A.generateTooltip(A.generateButton({ parent, text: "t" }).element, H),
+        generateSignIn: () => A.generateSignInForm({ parent, submitText: H, onSubmit() {} }),
+        generateDropZone: () => A.generateDropZone({ parent, label: H }),
+        generateFileUpload: () => A.generateFileUpload({ parent, label: H })
+    };
+    const failed = [];
+    for (const [name, make] of Object.entries(calls)) {
+        try {
+            make();
+        } catch (error) {
+            failed.push(name + ": " + error.message);
+        }
+    }
+    assert(!failed.length, "could not build: " + failed.join(" | "));
+    A.showToast({ title: H, message: H });
+    const dialogs = [
+        A.showDialog({ title: H, content: [H, H], buttons: [{ text: H, value: 1 }] }),
+        A.showConfirm({ title: H, message: H, confirmText: H, cancelText: H, typeToConfirm: H }),
+        A.showFormDialog({ title: H, intro: H, fields: [{ name: "z", label: H }], submitText: H, cancelText: H, onSubmit() {} })
+    ];
+    A.alertDialog(H, { title: H, okText: H });
+    A.promptDialog(H, { title: H, placeholder: H });
+    await tick(30);
+    assert(!document.querySelector("img[src=x]"), "a string became an <img>");
+    assert(!document.querySelector("b"), "a string became a <b>");
+    equal(window.__pwned, undefined, "a handler ran");
+    // and it IS on the page, as text
+    const text = document.body.textContent;
+    assert(text.includes('<img src="x" onerror="window.__pwned=1"><b>bold</b>'), "the text is not shown");
+    for (const dialog of dialogs) dialog.close?.(null);
+    localStorage.removeItem("athena.test.xss");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
@@ -1317,12 +1399,17 @@ test("theme switch replaces the stylesheet", async () => {
 
 for (const { name, fn } of tests) {
     await reset();
+    const seen = violations.length;
+    let failure = null;
     try {
         await fn();
-        results.push(`ok   ${name}`);
     } catch (error) {
-        results.push(`FAIL ${name}: ${error.message}`);
+        failure = error.message;
     }
+    await tick(10);   // the browser reports a violation as a task of its own
+    const reported = violations.slice(seen).filter(text => !(HOSTILE_INPUT.has(name) && text.startsWith("script-src-attr")));
+    if (!failure && reported.length) failure = `Content-Security-Policy violation: ${reported.join(" | ")}`;
+    results.push(failure ? `FAIL ${name}: ${failure}` : `ok   ${name}`);
 }
 document.title = "finished";
 document.body.insertAdjacentHTML("beforeend", `<pre id="results">${results.join("\n").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`);

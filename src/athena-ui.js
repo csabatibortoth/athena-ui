@@ -2,7 +2,7 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 1.3.0
+//Version: 2.0.0
 
 import config, { applyConfig } from "./libs/config/config.js";
 import { getAppConfig, setHooks } from "./libs/config/hooks.js";

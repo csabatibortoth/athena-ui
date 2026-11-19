@@ -1,6 +1,6 @@
 {
   "name": "athena-ui-js",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "description": "A small UI framework (jQuery is optional): generated page layout, menus, login / registration / lost password forms, charts, tables, modals and themes, written as ES modules.",
   "type": "module",
   "main": "./src/athena-ui.js",
