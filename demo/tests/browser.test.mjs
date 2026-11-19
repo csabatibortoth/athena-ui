@@ -30,6 +30,9 @@ async function withPage(route, body) {
         // Every test starts as a new visitor: the browser is shared, so cookies and saved settings are cleared
         await page.send("Network.clearBrowserCookies");
         await page.send("Storage.clearDataForOrigin", { origin: base, storageTypes: "all" });
+        // The tests give real clicks and keys: they run like a person who asked for less motion (a view transition in a browser that draws no frames
+        // would keep its overlay over the page). The Motion test switches the motion on again.
+        await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
         await page.goto(`${base}/?t=${++counter}#${route}`);
         await body(page);
         assert.deepEqual(page.problems, [], `the page had problems:\n${page.problems.join("\n")}`);
