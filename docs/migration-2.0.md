@@ -53,7 +53,7 @@ They are part of Athena UI (`athena-ui-js/controls`) and no longer git submodule
   `athena-ui-js/testing`, which gives jsdom `showModal()`; a synthetic Esc key does not close a native dialog, send the `cancel` event instead.
 - `generateAccordion` is `<details>` and `<summary>`: `.accordion-header` is a `<summary>`, there is no `aria-expanded` on a button, `.accordion-open` is the
   `[open]` attribute and `.accordion-title` is gone. `accordion.toggle(index, open)` works as before.
-- The dropdown keeps its own menu (a top-layer `popover` would need anchor positioning, which not every supported browser has yet).
+- The dropdown and the tooltip became native popovers in 2.1 (see the release notes): the menu is `<div class="dropdown-menu" popover>` (no `hidden` attribute any more: use `:popover-open`), and the tooltip text is a `popover="manual"` element.
 
 ## 6. CSS: a layer, tokens and dark mode
 

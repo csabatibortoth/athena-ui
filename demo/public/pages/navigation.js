@@ -1,6 +1,6 @@
 import { generateTabs, generateAccordion, generateDropdown, generateBreadcrumbs, generatePagination, generateSidebar } from "/athena/navigation.js";
 import { generateMenu } from "/athena/menu.js";
-import { generatePageHeader, generateCard } from "/athena/components.js";
+import { generatePageHeader, generateCard, generateTooltip } from "/athena/components.js";
 import { generateButton } from "/athena/forms.js";
 import { showToast } from "/athena/feedback.js";
 import { el } from "/athena/dom.js";
@@ -66,6 +66,8 @@ export default async function navigation(context, { app }) {
     bits.append(row);
     generateDropdown({ parent: row, label: "Actions", caret: true, items: [{ label: "Edit", onclick: () => showToast({ message: "Edit", duration: 1200 }) }, { divider: true }, { label: "Delete", onclick: () => showToast({ message: "Delete", type: "warning", duration: 1200 }) }, { label: "Locked", disabled: true }] });
     generateDropdown({ parent: row, icon: "⋮", ariaLabel: "More actions", align: "right", items: [{ label: "Share" }, { label: "Rename" }] });
+    const hint = generateButton({ parent: row, text: "Hover or focus me", variant: "secondary" });
+    generateTooltip(hint.element, "A tooltip: a native popover, drawn above everything and never cut off");
     generateBreadcrumbs({ parent: bits, items: [{ label: "Home", href: "#/" }, { label: "Navigation", href: "#/navigation" }, { label: "Breadcrumbs" }] });
     const pageLabel = el("span", { text: "Page 1" });
     generatePagination({ parent: bits, total: 480, pageSize: 20, onChange: page => { pageLabel.textContent = `Page ${page}`; } });

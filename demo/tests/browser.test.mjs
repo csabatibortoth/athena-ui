@@ -166,6 +166,37 @@ describe("what a person does", { skip }, () => {
         await page.eval(`localStorage.clear()`);
     }));
 
+    test("popovers: the dropdown opens, a real click outside closes it, Esc returns the focus; a tooltip shows on a real hover", { timeout: 240000 }, () => withPage("/navigation", async page => {
+        await page.waitFor(`document.querySelector(".dropdown-toggle")`, { timeout: 90000 });
+        const open = () => page.eval(`document.querySelector(".dropdown-menu").matches(":popover-open")`);
+        await page.clickText("Actions▾");
+        await page.waitFor(`document.querySelector(".dropdown-menu").matches(":popover-open")`);
+        assert.equal(await page.eval(`document.querySelector(".dropdown-toggle").getAttribute("aria-expanded")`), "true");
+        // the menu sits right below the button, in the window
+        const place = await page.eval(`(() => { const t = document.querySelector(".dropdown-toggle").getBoundingClientRect(); const m = document.querySelector(".dropdown-menu").getBoundingClientRect(); return { dy: Math.round(m.top - t.bottom), dx: Math.round(m.left - t.left), inside: m.left >= 0 && m.right <= innerWidth && m.bottom <= innerHeight }; })()`);
+        assert.ok(place.dy >= 0 && place.dy < 12 && Math.abs(place.dx) < 4 && place.inside, `placed next to the button: ${JSON.stringify(place)}`);
+        // a real click somewhere else is a light dismiss
+        await page.click(".page-title");
+        await page.waitFor(`!document.querySelector(".dropdown-menu").matches(":popover-open")`);
+        assert.equal(await page.eval(`document.querySelector(".dropdown-toggle").getAttribute("aria-expanded")`), "false");
+        // click the button again: it opens (and the click on the button is not a click outside that closes it at once)
+        await page.clickText("Actions▾");
+        await page.waitFor(`document.querySelector(".dropdown-menu").matches(":popover-open")`);
+        await page.press("ArrowDown", "ArrowDown", 40);
+        await page.waitFor(`document.activeElement?.classList.contains("dropdown-item")`);
+        await page.press("Escape", "Escape", 27);
+        await page.waitFor(`!document.querySelector(".dropdown-menu").matches(":popover-open")`);
+        assert.ok(await page.eval(`document.activeElement === document.querySelector(".dropdown-toggle")`), "the focus is back on the button");
+        assert.equal(await open(), false);
+        // the tooltip: a real mouse over the button
+        const box = await page.eval(`(() => { const b = [...document.querySelectorAll("button")].find(x => x.querySelector(".button-text")?.textContent === "Hover or focus me"); b.scrollIntoView({ block: "center" }); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+        await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: box.x, y: box.y });
+        await page.waitFor(`document.querySelector(".tooltip-text").matches(":popover-open")`);
+        assert.ok(await page.eval(`document.querySelector(".tooltip-text").getBoundingClientRect().bottom <= [...document.querySelectorAll("button")].find(x => x.querySelector(".button-text")?.textContent === "Hover or focus me").getBoundingClientRect().top + 1`), "above the button");
+        await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+        await page.waitFor(`!document.querySelector(".tooltip-text").matches(":popover-open")`);
+    }));
+
     test("navigation: the menu with groups inside groups works with the keyboard", { timeout: 240000 }, () => withPage("/navigation", async page => {
         await page.waitFor(`document.querySelector("[data-id=reports]")`, { timeout: 90000 });
         await page.eval(`document.querySelector("[data-id=reports]").focus()`);

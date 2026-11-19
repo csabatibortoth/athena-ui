@@ -89,7 +89,10 @@ export function generateAccordion(options?: {
     toggle: (index: number, open?: boolean) => void;
 };
 /**
- * Generates a button that opens a menu. Arrow keys move through the items, Esc closes it.
+ * Generates a button that opens a menu. Arrow keys move through the items, Esc closes it, and so does a click outside.
+ * The menu is a native popover (the `popover` attribute): it is drawn above everything, so no parent can cut it off, and the browser takes care of the
+ * light dismiss and of the focus. It is placed next to the button, below it, or above it when there is no room below. Browsers without the popover API
+ * get a plain menu that is shown and hidden with `hidden`.
  *
  * @param {object} options
  * @param {string|Element} [options.parent]

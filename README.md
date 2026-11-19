@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.0.1**
+Current version: **2.1.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -22,7 +22,7 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Athena UI has **no dependencies**: no jQuery, no bundled library, nothing is loaded at run time, and nothing is put on `window` unless you opt in with
   `athena-ui-js/classic`. The older generators (`generateLoginForm`, the layout and the header / footer menu built from `menuItems`) are plain DOM too.
 - The default theme follows the system's dark mode. Put `data-mode="light"` on `<html>` (or use `createThemeManager`) to choose.
-- Dialogs and the accordion use the native `<dialog>` and `<details>` elements, so they need a browser that supports cascade layers and `<dialog>` (2022 or later). The dropdown still has its own menu.
+- Dialogs, the accordion, the dropdown menu and tooltips use the native `<dialog>`, `<details>` and popover elements, so they need a browser that supports cascade layers and `<dialog>` (2022 or later). The dropdown menu and the tooltips are native popovers (the `popover` attribute) in browsers that have them (Chrome / Edge 114, Safari 17, Firefox 125), and a plain fallback in older ones.
 
 ## Features
 
@@ -73,6 +73,8 @@ The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
 
 ### The demo application
+
+**Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
 `demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, every field type, native dialogs, a menu with groups inside groups, themes
 and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy.
@@ -147,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.0.1"` | Version shown in the footer |
+| `version` | `"2.1.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -354,6 +356,11 @@ Dialogs trap the focus, close with Esc (resolving `null` / `false`) and restore 
 never parsed as HTML. `openModal` / `closeModal` got the same focus handling.
 
 ### Navigation
+
+The **dropdown** menu and the **tooltip** are native popovers: they are drawn in the top layer, so no parent with `overflow: hidden` can cut them off and no `z-index` fight is possible;
+a click outside and Esc close the dropdown, and the focus goes back to its button. They are placed next to their button by a small helper (it sets two CSS variables, which a strict
+Content-Security-Policy allows): below, or above when there is no room below, and always kept inside the window. A tooltip shows on hover and on focus and goes on Esc; a touch does not show it.
+Without the popover API the dropdown is a plain menu that is shown and hidden with `hidden`, and the tooltip a CSS one.
 
 ```js
 generateTabs({ parent: "wrapper", tabs: [{ id: "a", label: "A", content: "First" }, { id: "b", label: "B", content: () => lazyNode() }] });
@@ -740,6 +747,17 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.1.0
+  #### Changed:
+   1. The dropdown menu is a native popover (`popover="auto"`, opened by its button through `popovertarget`): it is drawn in the top layer, so no parent with `overflow: hidden` cuts it off; a click outside and Esc close it and the focus goes back to the button; `aria-expanded` follows every way of opening and closing it. Markup: the menu has the attribute `popover` and no `hidden` any more (use `:popover-open`)
+   2. The tooltip is a native popover (`popover="manual"`): shown on hover and on keyboard focus, hidden on leave, blur and Esc, never shown by a touch, and never cut off by a parent
+   3. Both are placed next to their button by a small helper that sets two CSS variables (`--athena-popover-left`, `--athena-popover-top`; allowed by a strict Content-Security-Policy): below, or above when there is no room below, centred or aligned to an edge, and always kept inside the window; they follow the button when the page scrolls or resizes
+   4. Browsers without the popover API keep the previous behaviour (a plain menu shown with `hidden` and closed by a click outside, a CSS tooltip)
+  #### Added:
+   1. `src/libs/core/popover.js` (placement helpers) and the CSS class `.athena-popover`
+   2. The address of the live demo in the READMEs
+   3. Section 3 ("Make it lighter") of the to-do list is complete: the native elements are `<dialog>`, `<details>` and the popover
 
  ### 2.0.1
   #### Added:

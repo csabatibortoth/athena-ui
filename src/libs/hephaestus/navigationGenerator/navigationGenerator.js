@@ -6,6 +6,7 @@
 import { asHandle, cx, el, mount, setContent, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { pageRange } from "../../core/pagination.js";
+import { closePopover, followAnchor, isOpen, openPopover, placePopover, settlePopover, supportsPopover } from "../../core/popover.js";
 
 /* ------------------TABS------------------- */
 
@@ -228,7 +229,10 @@ export function generateAccordion(options = {}) {
 /* ------------------DROPDOWN------------------- */
 
 /**
- * Generates a button that opens a menu. Arrow keys move through the items, Esc closes it.
+ * Generates a button that opens a menu. Arrow keys move through the items, Esc closes it, and so does a click outside.
+ * The menu is a native popover (the `popover` attribute): it is drawn above everything, so no parent can cut it off, and the browser takes care of the
+ * light dismiss and of the focus. It is placed next to the button, below it, or above it when there is no room below. Browsers without the popover API
+ * get a plain menu that is shown and hidden with `hidden`.
  *
  * @param {object} options
  * @param {string|Element} [options.parent]
@@ -243,12 +247,18 @@ export function generateAccordion(options = {}) {
  */
 export function generateDropdown(options = {}) {
     const menuId = uid("dropdown");
-    const menu = el("div", { class: cx("dropdown-menu", options.align === "right" && "dropdown-right"), id: menuId, attrs: { role: "menu", hidden: true } });
+    const native = supportsPopover();
+    const align = options.align === "right" ? "end" : "start";
+    const menu = el("div", {
+        class: cx("dropdown-menu athena-popover", options.align === "right" && "dropdown-right"), id: menuId,
+        attrs: { role: "menu", popover: native ? "auto" : null, hidden: native ? null : true }
+    });
     const button = el("button", {
         class: cx("athena-button button-secondary dropdown-toggle", options.icon && !options.label && "dropdown-icon-only", options.toggleClass),
         attrs: {
             type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": menuId,
-            "aria-label": options.ariaLabel
+            "aria-label": options.ariaLabel,
+            popovertarget: native ? menuId : null      // the browser opens and closes it, and a click on the button is not a click "outside"
         }
     });
     if (options.icon) button.append(setContent(el("span", { class: "dropdown-icon", attrs: { "aria-hidden": "true" } }), options.icon));
@@ -257,17 +267,43 @@ export function generateDropdown(options = {}) {
     const element = el("div", { id: options.id, class: cx("dropdown", options.class) }, button, menu);
 
     const enabledItems = () => [...menu.querySelectorAll("[role=menuitem]:not([disabled])")];
+    // Without the popover API: the click outside is looked for here
     const onOutside = event => { if (!element.contains(event.target)) close(); };
+    let stopFollowing = null;
     function open() {
-        menu.hidden = false;
+        if (isOpen(menu)) return;
+        if (native) {
+            openPopover(menu);      // the handlers below place it and set aria-expanded
+            return;
+        }
+        placePopover(button, menu, { align });
+        openPopover(menu);
+        settlePopover(menu);
         button.setAttribute("aria-expanded", "true");
         document.addEventListener("pointerdown", onOutside);
     }
     function close(restoreFocus = false) {
-        menu.hidden = true;
-        button.setAttribute("aria-expanded", "false");
-        document.removeEventListener("pointerdown", onOutside);
+        closePopover(menu);
+        if (!native) {
+            button.setAttribute("aria-expanded", "false");
+            document.removeEventListener("pointerdown", onOutside);
+        }
         if (restoreFocus === true) button.focus();
+    }
+    if (native) {
+        // beforetoggle comes before the menu is drawn: placed now, it never shows at the wrong place. It comes for a click, Esc, a click outside and open().
+        menu.addEventListener("beforetoggle", event => {
+            const opened = event.newState === "open";
+            button.setAttribute("aria-expanded", String(opened));
+            if (opened) placePopover(button, menu, { align });
+        });
+        menu.addEventListener("toggle", event => {
+            stopFollowing?.();
+            stopFollowing = null;
+            if (event.newState !== "open") return;
+            settlePopover(menu);                                // now it has a size: keep it inside the window
+            stopFollowing = followAnchor(button, menu, { align });
+        });
     }
 
     for (const item of options.items ?? []) {
@@ -288,11 +324,11 @@ export function generateDropdown(options = {}) {
         menu.append(node);
     }
 
-    button.addEventListener("click", () => menu.hidden ? open() : close());
+    if (!native) button.addEventListener("click", () => (isOpen(menu) ? close() : open()));
     button.addEventListener("keydown", event => {
         if (event.key === "ArrowDown") {
             event.preventDefault();
-            if (menu.hidden) open();
+            open();
             enabledItems()[0]?.focus();
         }
     });
