@@ -236,7 +236,11 @@ export function generateAccordion(options = {}) {
  *
  * @param {object} options
  * @param {string|Element} [options.parent]
- * @param {string} options.label button text
+ * @param {string} [options.label] button text (leave it out for an icon-only button, and give `ariaLabel`)
+ * @param {string|Node} [options.icon] shown before the label, text or a Node (e.g. an SVG); hidden from screen readers
+ * @param {string} [options.ariaLabel] accessible name, needed when there is no label
+ * @param {boolean} [options.caret=false] show a small arrow after the label
+ * @param {string} [options.toggleClass] extra CSS class(es) of the toggle button
  * @param {{label?: string, onclick?: Function, href?: string, disabled?: boolean, divider?: boolean}[]} options.items
  * @param {"left"|"right"} [options.align="left"]
  * @returns {{element: HTMLElement, open: Function, close: Function}}
@@ -245,10 +249,15 @@ export function generateDropdown(options = {}) {
     const menuId = uid("dropdown");
     const menu = el("div", { class: cx("dropdown-menu", options.align === "right" && "dropdown-right"), id: menuId, attrs: { role: "menu", hidden: true } });
     const button = el("button", {
-        class: "athena-button button-secondary dropdown-toggle",
-        text: options.label,
-        attrs: { type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": menuId }
+        class: cx("athena-button button-secondary dropdown-toggle", options.icon && !options.label && "dropdown-icon-only", options.toggleClass),
+        attrs: {
+            type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": menuId,
+            "aria-label": options.ariaLabel
+        }
     });
+    if (options.icon) button.append(setContent(el("span", { class: "dropdown-icon", attrs: { "aria-hidden": "true" } }), options.icon));
+    if (options.label) button.append(document.createTextNode(options.label));
+    if (options.caret) button.append(el("span", { class: "dropdown-caret", text: "▾", attrs: { "aria-hidden": "true" } }));
     const element = el("div", { id: options.id, class: cx("dropdown", options.class) }, button, menu);
 
     const enabledItems = () => [...menu.querySelectorAll("[role=menuitem]:not([disabled])")];
