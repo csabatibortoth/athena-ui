@@ -701,8 +701,8 @@ component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, 
 session, themes. Set `CHROME_PATH` if the browser is not found. `DEBUG=1` prints the browser log when the page does not report results.
 
 - **The page runs under a strict Content-Security-Policy** (`default-src 'none'; script-src 'self'; style-src 'self'`, set by `run.mjs`), and a `securitypolicyviolation` fails the test
-  that caused it. That is the guarantee that Athena UI needs no `'unsafe-inline'`. (Three tests that hand the sanitizer hostile markup are let through for the one report Chrome
-  makes while it parses an inline handler in an inert document.)
+  that caused it. That is the guarantee that Athena UI needs no `'unsafe-inline'`. (Three tests that hand the sanitizer hostile markup are let through for the reports Chrome
+  makes while it parses an inline handler, a style attribute or a `<style>` element in an inert document.)
 - One test feeds markup to about 40 components and checks that text from data stays text.
 - `WITH_JQUERY=1 npm run test:browser` loads jQuery from its CDN, to check that an application that still has it works too (`JQUERY_URL` for another address).
 - The unit tests also check that `docs/styling.md` is up to date, and that a TypeScript file using the library compiles against `types/` (needs `npm install` for TypeScript).

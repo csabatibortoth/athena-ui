@@ -28,8 +28,10 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
 // The page runs under a strict Content-Security-Policy (see run.mjs). Every violation the browser reports is attributed to the test that was running.
 const violations = [];
-// These tests feed the sanitizer markup that is hostile on purpose (onclick, onerror attributes). The sanitizer reads it in an inert document and
-// none of it runs or reaches the page, but Chrome still reports the inline handler it meets while parsing. Only that one report is let through.
+// These tests feed the sanitizer markup that is hostile on purpose (onclick and onerror attributes, a style attribute, a <style> element). The sanitizer
+// reads it in an inert document and none of it runs or reaches the page, but Chrome still reports the inline handler or style it meets while parsing.
+// Only those three kinds of report are let through, and only for these tests.
+const INERT_PARSE_REPORT = /^(script-src-attr|style-src-attr|style-src-elem)/;
 const HOSTILE_INPUT = new Set(["wysiwyg: source view round trips and sanitizes", "rich text: unsafe markup never survives", "rich text: paste is sanitized, empty content reads as empty"]);
 document.addEventListener("securitypolicyviolation", event => violations.push(`${event.violatedDirective} blocked ${event.blockedURI || "inline"} ${event.sample ?? ""}`.trim()));
 
@@ -1045,7 +1047,8 @@ test("Cookies: set, get, remove, encoding, expiry and the attributes", () => {
     assert("athena_t1" in Cookies.get(), "all cookies include it");
     Cookies.set("athena_t2", "x", { expires: 1 });
     equal(Cookies.get("athena_t2"), "x");
-    Cookies.set("athena_t2", "y", { expires: new Date(Date.now() - 1000) });
+    // The page may run in virtual time (see run.mjs), whose clock is ahead of the real one: the date has to be clearly in the past
+    Cookies.set("athena_t2", "y", { expires: new Date(0) });
     equal(Cookies.get("athena_t2"), undefined, "a past date removes it");
     Cookies.remove("athena_t1");
     equal(Cookies.get("athena_t1"), undefined);
@@ -1542,7 +1545,7 @@ for (const { name, fn } of tests) {
         failure = error.message;
     }
     await tick(10);   // the browser reports a violation as a task of its own
-    const reported = violations.slice(seen).filter(text => !(HOSTILE_INPUT.has(name) && text.startsWith("script-src-attr")));
+    const reported = violations.slice(seen).filter(text => !(HOSTILE_INPUT.has(name) && INERT_PARSE_REPORT.test(text)));
     if (!failure && reported.length) failure = `Content-Security-Policy violation: ${reported.join(" | ")}`;
     results.push(failure ? `FAIL ${name}: ${failure}` : `ok   ${name}`);
 }
