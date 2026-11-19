@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "paths": { "athena-ui-js": ["./types/athena-ui.d.ts"], "athena-ui-js/*": ["./types/*.d.ts"] }
+  },
+  "files": ["tests/types/consumer.ts"]
+}

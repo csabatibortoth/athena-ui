@@ -1,27 +1,12 @@
-/* Default Athena UI Theme */
+/* Default Athena UI Theme
 
-/* Colors and sizes. The dark theme only overrides these. */
+   Every rule of Athena UI is in the cascade layer "athena". CSS that is not in a layer (the normal CSS of an application) beats it whatever the
+   specificity, so overriding a style never needs a more specific selector. The design tokens (colours, radius, spacing, focus ring, dialog widths,
+   row height) are in tokens.css, which this file imports into the same layer. See docs/styling.md for the classes and variables of every component. */
 
-:root {
-    --athena-bg: #fff;
-    --athena-fg: #1a1a1a;
-    --athena-muted: #666;
-    --athena-border: #000;
-    --athena-line: #ccc;
-    --athena-surface: #f2f2f2;
-    --athena-surface-alt: #fafafa;
-    --athena-hover: #e8f0fe;
-    --athena-overlay: rgb(0 0 0 / 40%);
-    --athena-accent: #2f6db5;
-    --athena-accent-fg: #fff;
-    --athena-danger: #c0392b;
-    --athena-success: #1e8449;
-    --athena-warning: #9a6700;
-    --athena-info: #2471a3;
-    --athena-radius: 6px;
-    --athena-shadow: 0 4px 14px rgb(0 0 0 / 18%);
-    --grid-gap: 16px;
-}
+@import url("../tokens.css") layer(athena);
+
+@layer athena {
 
 body {
     background-color: var(--athena-bg);
@@ -37,7 +22,7 @@ select,
 textarea {
     background-color: var(--athena-bg);
     color: var(--athena-fg);
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: 3px;
     padding: 4px 6px;
     font: inherit;
@@ -104,7 +89,7 @@ textarea {
     color: var(--athena-fg);
     margin: auto;
     padding: 20px;
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     width: 80%;
 }
 
@@ -194,19 +179,19 @@ textarea {
 .athena-form {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--athena-space-3);
     max-width: 480px;
 }
 
 .form-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--athena-space-2);
 }
 
 .field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--athena-space-1);
 }
 
 .field-label,
@@ -239,7 +224,7 @@ textarea {
 }
 
 .field-group {
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     padding: 6px 10px;
 }
@@ -345,7 +330,7 @@ textarea {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--athena-space-3);
     padding: 10px 14px;
     border: 1px solid var(--alert-color, var(--athena-info));
     border-left-width: 5px;
@@ -391,7 +376,7 @@ textarea {
     z-index: 2000;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--athena-space-2);
     width: min(360px, calc(100vw - 32px));
 }
 
@@ -403,7 +388,7 @@ textarea {
     height: 10px;
     border-radius: 5px;
     background-color: var(--athena-surface);
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     overflow: hidden;
 }
 
@@ -445,24 +430,33 @@ textarea {
     margin-bottom: 2px;
 }
 
-/* Dialog (built on .modal) */
+/* Dialog: the native <dialog> element, opened with showModal() */
 
-.dialog-backdrop {
-    display: block; /* shown by the class, not by an inline style (CSP) */
-    padding-top: 12vh;
-}
-
-.dialog {
-    position: relative;
-    width: min(var(--dialog-width, 480px), 92%);
+dialog.dialog {
+    width: min(var(--dialog-width, var(--athena-dialog-medium)), 92%);
+    max-width: none;
+    padding: 0;
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
+    background-color: var(--athena-bg);
+    color: var(--athena-fg);
     box-shadow: var(--athena-shadow);
 }
 
-.dialog-small { --dialog-width: 360px; }
-.dialog-medium { --dialog-width: 480px; }
-.dialog-large { --dialog-width: 720px; }
-.dialog-full { --dialog-width: 100%; min-height: calc(100vh - 12vh - 40px); }
+dialog.dialog::backdrop {
+    background-color: var(--athena-overlay);
+}
+
+/* The content fills the dialog up to its edge, so a click on the backdrop is a click on the dialog element itself */
+.dialog-inner {
+    position: relative;
+    padding: 20px;
+}
+
+.dialog-small { --dialog-width: var(--athena-dialog-small); }
+.dialog-medium { --dialog-width: var(--athena-dialog-medium); }
+.dialog-large { --dialog-width: var(--athena-dialog-large); }
+.dialog-full { --dialog-width: 100%; min-height: calc(100vh - 40px); }
 
 .dialog-title {
     margin: 0 28px 12px 0;
@@ -482,13 +476,13 @@ textarea {
 .dialog-body {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--athena-space-2);
 }
 
 .dialog-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--athena-space-2);
     margin-top: 16px;
 }
 
@@ -497,7 +491,7 @@ textarea {
 .tab-list {
     display: flex;
     flex-wrap: wrap;
-    border-bottom: 1px solid var(--athena-line);
+    border-bottom: var(--athena-border-width) solid var(--athena-line);
 }
 
 .tab {
@@ -543,14 +537,14 @@ textarea {
 .pagination {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--athena-space-1);
     align-items: center;
 }
 
 .page-button {
     min-width: 32px;
     padding: 4px 8px;
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: 4px;
     background-color: var(--athena-bg);
     color: var(--athena-fg);
@@ -568,33 +562,34 @@ textarea {
     color: var(--athena-accent-fg);
 }
 
-/* Accordion */
+/* Accordion: <details> and <summary> */
 
 .accordion-item {
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
 }
 
 .accordion-item + .accordion-item {
     border-top: 0;
 }
 
-.accordion-title {
-    margin: 0;
-    font-size: 1em;
-}
-
 .accordion-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
     padding: 10px 14px;
-    border: 0;
     background-color: var(--athena-surface);
     color: var(--athena-fg);
-    font: inherit;
-    text-align: left;
+    list-style: none;
     cursor: pointer;
+}
+
+.accordion-header::-webkit-details-marker {
+    display: none;
+}
+
+.accordion-header:focus-visible {
+    outline: var(--athena-focus-width) solid var(--athena-focus, var(--athena-accent));
+    outline-offset: -2px;
 }
 
 .accordion-icon::before {
@@ -603,7 +598,7 @@ textarea {
     transition: transform 0.15s;
 }
 
-.accordion-open > .accordion-title .accordion-icon::before,
+.accordion-item[open] > .accordion-header .accordion-icon::before,
 .sidebar-parent[aria-expanded="true"] .accordion-icon::before {
     transform: rotate(180deg);
 }
@@ -627,7 +622,7 @@ textarea {
     margin-top: 4px;
     padding: 4px 0;
     background-color: var(--athena-bg);
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     box-shadow: var(--athena-shadow);
 }
@@ -691,7 +686,7 @@ textarea {
 .sidebar-link {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--athena-space-2);
     width: 100%;
     padding: 8px 12px;
     border: 0;
@@ -721,7 +716,7 @@ textarea {
 /* Cards, sections, grid */
 
 .card {
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     background-color: var(--athena-bg);
     overflow: hidden;
@@ -743,7 +738,7 @@ textarea {
 
 .card-footer {
     padding: 10px 14px;
-    border-top: 1px solid var(--athena-line);
+    border-top: var(--athena-border-width) solid var(--athena-line);
     background-color: var(--athena-surface-alt);
 }
 
@@ -763,7 +758,7 @@ textarea {
     font-weight: 600;
     background-color: var(--athena-surface);
     color: var(--athena-fg);
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
 }
 
 .badge-pill {
@@ -828,7 +823,7 @@ textarea {
 
 .stat {
     padding: 14px;
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     background-color: var(--athena-bg);
 }
@@ -896,12 +891,12 @@ textarea {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
+    gap: var(--athena-space-1);
 }
 
 .combobox-multiple {
     padding: 2px 4px;
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: 3px;
     background-color: var(--athena-bg);
 }
@@ -923,7 +918,7 @@ textarea {
 .chip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--athena-space-1);
     padding: 1px 4px 1px 8px;
     border-radius: 999px;
     background-color: var(--athena-accent);
@@ -952,7 +947,7 @@ textarea {
     padding: 4px 0;
     list-style: none;
     background-color: var(--athena-bg);
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     box-shadow: var(--athena-shadow);
 }
@@ -1035,7 +1030,7 @@ textarea {
 
 .stepper-steps {
     display: flex;
-    gap: 8px;
+    gap: var(--athena-space-2);
     padding: 0;
     margin: 0 0 16px;
     list-style: none;
@@ -1094,7 +1089,7 @@ textarea {
 
 .athena-table th,
 .athena-table td {
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     padding: 6px 10px;
     text-align: left;
 }
@@ -1174,7 +1169,7 @@ textarea {
 .athena-table td.athena-align-right { text-align: right; }
 
 .athena-table tr:focus-visible {
-    outline: 2px solid var(--athena-focus, currentColor);
+    outline: var(--athena-focus-width) solid var(--athena-focus, currentColor);
     outline-offset: -2px;
 }
 
@@ -1291,7 +1286,7 @@ textarea {
     padding: 4px 0;
     list-style: none;
     background-color: var(--athena-bg);
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     box-shadow: var(--athena-shadow);
 }
@@ -1350,7 +1345,7 @@ textarea {
 
 .athena-table-scroll {
     overflow: auto;
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
 }
 
 .athena-table-virtual {
@@ -1365,17 +1360,17 @@ textarea {
 }
 
 .athena-table-virtual tbody tr:not(.athena-table-spacer) {
-    height: var(--row-height, 36px);
+    height: var(--row-height, var(--athena-row-height));
 }
 
 /* The window of rows is computed from a fixed row height, so every row has to be exactly that high. */
 /* The doubled class beats a general `.athena-table td` padding of the application. */
 .athena-table.athena-table-virtual td {
     box-sizing: border-box;
-    height: var(--row-height, 36px);
+    height: var(--row-height, var(--athena-row-height));
     padding-top: 0;
     padding-bottom: 0;
-    line-height: calc(var(--row-height, 36px) - 2px);
+    line-height: calc(var(--row-height, var(--athena-row-height)) - 2px);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1403,7 +1398,7 @@ textarea {
 /* Rich text editor */
 
 .richtext {
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     background-color: var(--athena-bg);
 }
@@ -1418,7 +1413,7 @@ textarea {
     align-items: center;
     gap: 2px;
     padding: 4px;
-    border-bottom: 1px solid var(--athena-line);
+    border-bottom: var(--athena-border-width) solid var(--athena-line);
     background-color: var(--athena-surface);
     border-radius: var(--athena-radius) var(--athena-radius) 0 0;
 }
@@ -1525,7 +1520,7 @@ textarea {
 .theme-picker {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--athena-space-4);
 }
 
 .theme-picker-group {
@@ -1537,16 +1532,16 @@ textarea {
 .theme-picker-options {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: var(--athena-space-3);
 }
 
 .theme-picker-option {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--athena-space-1);
     min-width: 140px;
     padding: 8px;
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     cursor: pointer;
 }
@@ -1557,7 +1552,7 @@ textarea {
 }
 
 .theme-picker-option:has(input:focus-visible) {
-    outline: 2px solid var(--athena-focus, var(--athena-accent));
+    outline: var(--athena-focus-width) solid var(--athena-focus, var(--athena-accent));
     outline-offset: 2px;
 }
 
@@ -1574,7 +1569,7 @@ textarea {
 
 .theme-preview {
     display: block;
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: 4px;
     overflow: hidden;
     background: var(--athena-bg);
@@ -1705,7 +1700,7 @@ textarea {
 }
 
 .athena-chart [tabindex]:focus-visible {
-    outline: 2px solid var(--athena-focus, currentColor);
+    outline: var(--athena-focus-width) solid var(--athena-focus, currentColor);
     outline-offset: 2px;
 }
 
@@ -1775,7 +1770,7 @@ textarea {
 }
 
 .athena-menu .menu-control:focus-visible {
-    outline: 2px solid var(--athena-focus, var(--athena-accent));
+    outline: var(--athena-focus-width) solid var(--athena-focus, var(--athena-accent));
     outline-offset: -2px;
 }
 
@@ -1827,7 +1822,7 @@ textarea {
     list-style: none;
     background: var(--athena-bg);
     color: var(--athena-fg);
-    border: 1px solid var(--athena-line);
+    border: var(--athena-border-width) solid var(--athena-line);
     border-radius: var(--athena-radius);
     box-shadow: var(--athena-shadow);
 }
@@ -1854,7 +1849,7 @@ textarea {
     z-index: 30;
     inset: auto 0 0;
     background: var(--athena-bg);
-    border-top: 1px solid var(--athena-line);
+    border-top: var(--athena-border-width) solid var(--athena-line);
 }
 
 .athena-menu-bottom-tabs .athena-menu-list {
@@ -1893,7 +1888,7 @@ textarea {
         z-index: 30;
         inset: auto 0 0;
         background: var(--athena-bg);
-        border-top: 1px solid var(--athena-line);
+        border-top: var(--athena-border-width) solid var(--athena-line);
     }
 
     .athena-menu-responsive .athena-menu-list {
@@ -1997,7 +1992,7 @@ textarea {
 }
 
 .athena-chart .chart-hit:focus-visible {
-    outline: 2px solid var(--athena-focus, var(--athena-accent));
+    outline: var(--athena-focus-width) solid var(--athena-focus, var(--athena-accent));
     outline-offset: 2px;
 }
 
@@ -2028,7 +2023,7 @@ textarea {
     flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--athena-space-3);
 }
 
 .page-title {
@@ -2043,12 +2038,12 @@ textarea {
 .page-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--athena-space-2);
 }
 
 .facts {
     display: grid;
-    gap: 8px;
+    gap: var(--athena-space-2);
     margin: 0;
 }
 
@@ -2069,7 +2064,7 @@ textarea {
 
 .facts-inline .fact {
     flex-direction: row;
-    gap: 12px;
+    gap: var(--athena-space-3);
 }
 
 .facts-inline dt {
@@ -2081,7 +2076,7 @@ textarea {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: var(--athena-space-2);
     padding: 32px 16px;
     text-align: center;
     color: var(--athena-muted);
@@ -2107,7 +2102,7 @@ textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--athena-space-2);
     padding: 24px;
     color: var(--athena-muted);
 }
@@ -2128,3 +2123,5 @@ textarea {
 .stat.is-ok .stat-value { color: var(--athena-success); }
 .stat.is-warn .stat-value { color: var(--athena-warning); }
 .stat.is-bad .stat-value { color: var(--athena-danger); }
+
+}

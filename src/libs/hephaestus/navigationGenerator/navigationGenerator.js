@@ -193,37 +193,33 @@ export function generatePagination(options = {}) {
  */
 export function generateAccordion(options = {}) {
     const element = el("div", { id: options.id, class: cx("accordion", options.class) });
+    const group = options.multiple ? null : uid("accordion-group");   // details elements with the same name open one at a time
     const sections = [];
+
+    // The browser does the rest (the keyboard, aria-expanded, find in page). The name attribute closes the others where it is supported;
+    // this does it in the browsers that do not know it yet.
+    function onToggle(section) {
+        if (!section.item.open || options.multiple) return;
+        for (const other of sections) if (other !== section && other.item.open) other.item.open = false;
+    }
+
+    (options.items ?? []).forEach(item => {
+        const summary = el("summary", { class: "accordion-header" }, el("span", { text: item.title }), el("span", { class: "accordion-icon", attrs: { "aria-hidden": "true" } }));
+        const panel = el("div", { class: "accordion-panel" });
+        setContent(panel, item.content);
+        const details = el("details", { class: "accordion-item", attrs: { name: group, open: item.open ? true : null } }, summary, panel);
+        const section = { item: details, summary, panel };
+        details.addEventListener("toggle", () => onToggle(section));
+        sections.push(section);
+        element.append(details);
+    });
+    // With several items marked open and one at a time, the first one wins
+    if (!options.multiple) sections.filter(section => section.item.open).slice(1).forEach(section => { section.item.open = false; });
 
     function toggle(index, open) {
         const section = sections[index];
-        const willOpen = open ?? section.button.getAttribute("aria-expanded") !== "true";
-        if (willOpen && !options.multiple) sections.forEach((other, i) => i !== index && setOpen(other, false));
-        setOpen(section, willOpen);
+        if (section) section.item.open = open ?? !section.item.open;
     }
-    function setOpen(section, open) {
-        section.button.setAttribute("aria-expanded", String(open));
-        section.panel.hidden = !open;
-        section.item.classList.toggle("accordion-open", open);
-    }
-
-    (options.items ?? []).forEach((item, index) => {
-        const base = uid("accordion");
-        const button = el("button", {
-            class: "accordion-header",
-            id: `${base}-header`,
-            attrs: { type: "button", "aria-controls": `${base}-panel` },
-            on: { click: () => toggle(index) }
-        }, el("span", { text: item.title }), el("span", { class: "accordion-icon", attrs: { "aria-hidden": "true" } }));
-        const panel = el("div", { class: "accordion-panel", id: `${base}-panel`, attrs: { role: "region", "aria-labelledby": button.id } });
-        setContent(panel, item.content);
-        const wrapper = el("div", { class: "accordion-item" }, el("h3", { class: "accordion-title" }, button), panel);
-        const section = { item: wrapper, button, panel };
-        sections.push(section);
-        element.append(wrapper);
-        setOpen(section, false);
-    });
-    (options.items ?? []).forEach((item, index) => { if (item.open) toggle(index, true); });
 
     mount(options.parent, element);
     return asHandle({ element, toggle });

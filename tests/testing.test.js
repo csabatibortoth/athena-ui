@@ -181,21 +181,19 @@ test("HTMLElementGenerator and HTMLControlGenerator work from Athena without jQu
         HTMLControlGenerator({ inputType: "text" });
         HTMLControlGenerator({ inputType: "banana", parent: "wrapper" });
         assert.equal(document.querySelectorAll("input").length, before);
-        // create: the plain element without jQuery, a jQuery object with it
+        // create: the plain element, even when the page has jQuery
         const plain = HTMLControlGenerator.create({ inputType: "number", id: "n", min: 1, max: 5 });
         assert.equal(plain.tagName, "INPUT");
         assert.equal(plain.max, "5");
         assert.equal(HTMLControlGenerator.create({ inputType: "banana" }), undefined);
         globalThis.jQuery = element => ({ jquery: "4.0.0", 0: element, length: 1 });
-        const wrapped = HTMLControlGenerator.create({ inputType: "text", id: "w" });
-        assert.equal(wrapped.jquery, "4.0.0");
-        assert.equal(wrapped[0].id, "w");
+        assert.equal(HTMLControlGenerator.create({ inputType: "text", id: "w" }).tagName, "INPUT");
         delete globalThis.jQuery;
-        // register: a factory can return an element or a jQuery object
+        // register: a factory returns the element
         HTMLControlGenerator.register("pair", options => { const s = document.createElement("span"); s.id = options.id; return s; });
         assert.equal(HTMLControlGenerator.create({ inputType: "pair", id: "p" }).id, "p");
-        registerControl("jq", options => ({ jquery: "x", 0: Object.assign(document.createElement("i"), { id: options.id }) }));
-        assert.equal(HTMLControlGenerator.create({ inputType: "jq", id: "q" }).id, "q");
+        registerControl("tag", options => Object.assign(document.createElement("i"), { id: options.id }));
+        assert.equal(HTMLControlGenerator.create({ inputType: "tag", id: "q" }).id, "q");
         // the Hungarian addon
         registerHungarianInputControls();
         const pin = HTMLControlGenerator.create({ inputType: "hunPIN", id: "pin", value: "123456789", inputClass: "seg" });
@@ -207,6 +205,27 @@ test("HTMLElementGenerator and HTMLControlGenerator work from Athena without jQu
         assert.deepEqual([...tid.querySelectorAll("input")].map(i => i.value), ["12345678", "1", "2"]);
     } finally {
         console.error = error;
+        dom.uninstall();
+    }
+});
+
+test("showDialog works in jsdom through installDom (a stand-in for showModal)", async t => {
+    const JSDOM = await findJsdom();
+    if (!JSDOM) return t.skip("no jsdom found");
+    const dom = installDom(JSDOM);
+    try {
+        const { showDialog, confirmDialog } = await import("../src/libs/hephaestus/dialogGenerator/dialogGenerator.js");
+        const dialog = showDialog({ title: "T", content: "hello", size: "small", buttons: [{ text: "Yes", value: "y" }] });
+        assert.equal(dialog.element.tagName, "DIALOG");
+        assert.ok(dialog.element.hasAttribute("open"));
+        assert.equal(document.querySelector(".dialog-title").textContent, "T");
+        document.querySelector(".dialog-footer button").click();
+        assert.equal(await dialog, "y");
+        assert.equal(document.querySelector("dialog"), null);
+        const asked = confirmDialog("Sure?");
+        document.querySelector("dialog").dispatchEvent(new window.Event("cancel", { cancelable: true }));
+        assert.equal(await asked, false);
+    } finally {
         dom.uninstall();
     }
 });

@@ -2,52 +2,21 @@
 //Author: Csaba Tóth https://github.com/csabatibortoth/
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
-//Version: 1.3.0
+//Version: 2.0.0
+
+// The whole API as ES module exports. There are no side effects: importing this file does not touch the page, does not load a script and does not
+// put anything on globalThis. For pages that need globals use `athena-ui-js/classic`, and to download only what you use import from the entry points
+// (`athena-ui-js/table`, `athena-ui-js/dialog`, ...).
 
 import config, { applyConfig } from "./libs/config/config.js";
 import { getAppConfig, setHooks } from "./libs/config/hooks.js";
-import { loadLibs, loadScript, loadTheme } from "./libs/hephaestus/hephaestus.js";
-import * as layout from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
-import * as header from "./libs/hephaestus/LayoutGenerator/headerContentGenerator.js";
-import * as wrapper from "./libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js";
-import * as footer from "./libs/hephaestus/LayoutGenerator/footerContentGenerator.js";
-import * as menu from "./libs/hephaestus/MenuGenerator/basicMenuGenerator.js";
-import * as menuGenerator from "./libs/hephaestus/MenuGenerator/menuGenerator.js";
-import * as loginForm from "./libs/hephaestus/formGenerator/loginFormGenerator.js";
-import * as registrationForm from "./libs/hephaestus/formGenerator/registrationFormGenerator.js";
-import * as lostPasswordForm from "./libs/hephaestus/formGenerator/lostPasswordFormGenerator.js";
-import * as chart from "./libs/hephaestus/chartGenerator/chartGenerator.js";
-import * as table from "./libs/hephaestus/tableGenerator/tableGenerator.js";
-import * as changePasswordForm from "./libs/hephaestus/formGenerator/changePasswordFormGenerator.js";
-import * as formBuilder from "./libs/hephaestus/formGenerator/formBuilder.js";
-import * as feedback from "./libs/hephaestus/feedbackGenerator/feedbackGenerator.js";
-import * as dialog from "./libs/hephaestus/dialogGenerator/dialogGenerator.js";
-import * as navigation from "./libs/hephaestus/navigationGenerator/navigationGenerator.js";
-import * as components from "./libs/hephaestus/componentGenerator/componentGenerator.js";
-import * as inputs from "./libs/hephaestus/inputGenerator/inputGenerator.js";
-import * as dropZone from "./libs/hephaestus/inputGenerator/dropZoneGenerator.js";
-import * as richText from "./libs/hephaestus/inputGenerator/richTextGenerator.js";
-import * as sanitize from "./libs/core/sanitize.js";
-import * as router from "./libs/hephaestus/router/router.js";
-import * as session from "./libs/hephaestus/auth/session.js";
-import * as authState from "./libs/hephaestus/auth/authState.js";
-import * as authForms from "./libs/hephaestus/formGenerator/authForms.js";
-import * as i18n from "./libs/core/i18n.js";
-import * as validation from "./libs/core/validation.js";
-import * as format from "./libs/core/format.js";
-import * as dateRange from "./libs/core/dateRange.js";
-import * as csv from "./libs/core/csv.js";
-import * as theme from "./libs/core/theme.js";
-import * as themePicker from "./libs/hephaestus/componentGenerator/themePicker.js";
-import * as modal from "./libs/hephaestus/modalGenerator/modalGenerator.js";
-import Cookies from "./libs/js-cookie/src/api.mjs";
-import { HTMLElementGenerator } from "./libs/core/elementGenerator.js";
-import { HTMLControlGenerator, registerControl, generateControl } from "./libs/core/controls.js";
-import { registerHungarianInputControls } from "./libs/core/hungarianControls.js";
-
+import { loadScript, loadTheme } from "./libs/hephaestus/hephaestus.js";
+import { generateBasicLayout, setLayoutRoot } from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
+import { asHandle, resolveElement, uid } from "./libs/core/dom.js";
+import { setLocale } from "./libs/core/i18n.js";
 
 /**
- * Loads the libraries and the theme in parallel, then generates the layout.
+ * Loads the theme, waits for the page and generates the layout.
  *
  * @param {object} [options]
  * @param {{id?: number, href?: string}} [options.theme] registered theme id or custom stylesheet
@@ -62,17 +31,52 @@ import { registerHungarianInputControls } from "./libs/core/hungarianControls.js
  */
 export async function init(options = {}) {
     applyConfig(getAppConfig(), options.config);
-    i18n.setLocale(config.locale);
+    setLocale(config.locale);
     setHooks(options);
 
     await Promise.all([
-        loadLibs(config.customLoader ? [config.customLoader] : [], { crypto: config.enable_encrypt_password }),
+        config.customLoader ? loadScript(config.customLoader) : undefined,
         loadTheme(options.theme ?? options.themes),
         new Promise(resolve => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", resolve, { once: true }) : resolve()))
     ]);
 
-    layout.generateBasicLayout();
+    generateBasicLayout();
     return config;
+}
+
+/**
+ * Starts Athena UI inside an element of your page instead of the body, so it can be one part of a larger page (or of several apps).
+ * It does what init() does (settings, language, theme, hooks), and the layout (container, header, wrapper, footer) is generated into
+ * `root`. The parts follow the settings: `config: { generateHeader: false, generateFooter: false }` leaves only the wrapper, which is where
+ * the components go by default (the element with the id "wrapper"). One app per page: the parts have fixed ids.
+ *
+ * @param {object} options the options of init(), and
+ * @param {string|Element} options.root the element to build into (an element, an id or a selector)
+ * @returns {Promise<{element: HTMLElement, container: HTMLElement, header: HTMLElement|null, wrapper: HTMLElement|null, footer: HTMLElement|null,
+ *           config: object, update: Function, destroy: Function}>}
+ */
+export async function createApp(options = {}) {
+    const root = resolveElement(options.root);
+    if (!root) throw new Error("Athena UI: createApp needs a root element (an element, an id or a selector)");
+    if (!root.id) root.id = uid("athena-app");
+    setLayoutRoot(root.id);
+    let effective;
+    try {
+        effective = await init(options);
+    } finally {
+        setLayoutRoot("");
+    }
+    return asHandle({
+        element: root,
+        container: document.getElementById("container"),
+        header: document.getElementById("header"),
+        wrapper: document.getElementById("wrapper"),
+        footer: document.getElementById("footer"),
+        config: effective,
+        destroy() {
+            document.getElementById("container")?.remove();
+        }
+    });
 }
 
 /**
@@ -83,57 +87,11 @@ export function setTheme(selected) {
     return loadTheme(selected);
 }
 
-const AthenaUI = {
-    init,
-    config,
-    loadScript,
-    Cookies,
-    HTMLElementGenerator,
-    HTMLControlGenerator,
-    registerControl,
-    generateControl,
-    registerHungarianInputControls,
-    ...layout,
-    ...header,
-    ...wrapper,
-    ...footer,
-    ...menu,
-    ...menuGenerator,
-    ...loginForm,
-    ...registrationForm,
-    ...lostPasswordForm,
-    ...changePasswordForm,
-    ...formBuilder,
-    ...feedback,
-    ...dialog,
-    ...navigation,
-    ...components,
-    ...inputs,
-    ...dropZone,
-    ...richText,
-    ...sanitize,
-    ...router,
-    ...session,
-    ...authState,
-    ...authForms,
-    ...i18n,
-    ...validation,
-    ...csv,
-    ...dateRange,
-    ...format,
-    setTheme,
-    ...chart,
-    ...table,
-    ...theme,
-    ...themePicker,
-    ...modal
-};
-
-// Classic scripts (the customLoader, inline handlers) keep working: the whole API
-// stays reachable as globals, like in the pre-module versions.
-Object.assign(globalThis, AthenaUI, { AthenaUI });
-
-export { config, loadScript, Cookies, HTMLElementGenerator, HTMLControlGenerator, registerControl, generateControl, registerHungarianInputControls };
+export { config, loadScript };
+export { default as Cookies } from "./libs/core/cookies.js";
+export * from "./libs/core/elementGenerator.js";
+export * from "./libs/core/controls.js";
+export * from "./libs/core/hungarianControls.js";
 export * from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/headerContentGenerator.js";
 export * from "./libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js";
@@ -147,6 +105,7 @@ export * from "./libs/hephaestus/chartGenerator/chartGenerator.js";
 export * from "./libs/hephaestus/tableGenerator/tableGenerator.js";
 export * from "./libs/hephaestus/formGenerator/changePasswordFormGenerator.js";
 export * from "./libs/hephaestus/formGenerator/formBuilder.js";
+export * from "./libs/hephaestus/formGenerator/authForms.js";
 export * from "./libs/hephaestus/feedbackGenerator/feedbackGenerator.js";
 export * from "./libs/hephaestus/dialogGenerator/dialogGenerator.js";
 export * from "./libs/hephaestus/navigationGenerator/navigationGenerator.js";
@@ -159,7 +118,6 @@ export * from "./libs/core/sanitize.js";
 export * from "./libs/hephaestus/router/router.js";
 export * from "./libs/hephaestus/auth/session.js";
 export * from "./libs/hephaestus/auth/authState.js";
-export * from "./libs/hephaestus/formGenerator/authForms.js";
 export * from "./libs/core/i18n.js";
 export * from "./libs/core/validation.js";
 export * from "./libs/core/csv.js";
@@ -168,4 +126,3 @@ export * from "./libs/core/format.js";
 export * from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 export * from "./libs/core/theme.js";
 export * from "./libs/hephaestus/componentGenerator/themePicker.js";
-export default AthenaUI;

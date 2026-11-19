@@ -61,7 +61,3 @@ export function showMessage(formId, text, isError = true) {
 export function readControl(formId, name) {
     return document.getElementById(`${formId}-${name}-control`)?.value ?? "";
 }
-
-export function hashPassword(password) {
-    return config.enable_encrypt_password ? CryptoJS.SHA256(password).toString() : password;
-}

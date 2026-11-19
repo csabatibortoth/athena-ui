@@ -3,7 +3,7 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 //Moved here from HTMLControlGenerator 0.4.1 (https://github.com/csabatibortoth/HTMLControlGenerator), which is no longer developed.
-//The calls are the same; jQuery is not needed any more (see HTMLControlGenerator.create for what it returns).
+//The calls are the same; there is no jQuery in it any more (since 2.0 `create` returns the element, not a jQuery object).
 
 import { el, resolveElement } from "./dom.js";
 import { noBodyOrParentError, reportError, undefinedError, wrongInputTypeError } from "./errors.js";
@@ -83,19 +83,16 @@ function list(options) {
 
 const factories = new Map([...INPUT_TYPES.map(type => [type, input]), ["select", select], ["ul", list], ["ol", list]]);
 
-// A factory registered by an addon may return an element or a jQuery object.
-const unwrap = made => (made && made.jquery ? made[0] : made);
-
 /** Builds the control described by `options` without appending it. Returns the element, or null (an error is reported). */
 export function buildControl(options) {
     if (options === undefined) return reportError(undefinedError("options", "HTMLControlGenerator"));
     const factory = factories.get(options.inputType);
     if (!factory) return reportError(wrongInputTypeError("options", "HTMLControlGenerator", options));
-    return unwrap(factory(options));
+    return factory(options);
 }
 
 /**
- * Registers a new input type. `factory(options)` returns the element to append (a jQuery object is accepted too).
+ * Registers a new input type. `factory(options)` returns the element to append.
  * Addons use this to plug in their controls, see registerHungarianInputControls.
  */
 export function registerControl(inputType, factory) {
@@ -140,14 +137,9 @@ export function HTMLControlGenerator(options) {
 }
 
 /**
- * Builds the control without appending it. Like the standalone project it returns a jQuery object when jQuery is on the page
- * (Odin NS Manager relies on that), and the plain element when it is not. Undefined when the options are not valid.
+ * Builds the control without appending it and returns the element (the standalone project returned a jQuery object: wrap it yourself with
+ * `$(HTMLControlGenerator.create(options))` if you still need one). Undefined when the options are not valid.
  */
-HTMLControlGenerator.create = options => {
-    const control = buildControl(options);
-    if (!control) return undefined;
-    const jquery = globalThis.jQuery;
-    return typeof jquery === "function" ? jquery(control) : control;
-};
+HTMLControlGenerator.create = options => buildControl(options) ?? undefined;
 
 HTMLControlGenerator.register = registerControl;

@@ -44,6 +44,12 @@ const server = createServer((request, response) => {
         return;
     }
     response.setHeader("Content-Type", TYPES[extname(file)] ?? "application/octet-stream");
+    // The page runs under a strict policy: no inline script, no inline style attribute, nothing from other origins (jQuery's CDN only
+    // when asked for). Athena UI promises to work under it, and the suite fails when the browser reports a violation.
+    if (extname(file) === ".html") {
+        response.setHeader("Content-Security-Policy",
+            "default-src 'none'; script-src 'self' https://code.jquery.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'");
+    }
     response.end(readFileSync(file));
 });
 await new Promise(done => server.listen(0, "127.0.0.1", done));

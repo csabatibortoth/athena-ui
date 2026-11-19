@@ -4,7 +4,6 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { cx, el, setContent, uid } from "../../core/dom.js";
-import { trapFocus } from "../../core/focus.js";
 import { translate } from "../../core/i18n.js";
 import { generateButton, generateForm } from "../formGenerator/formBuilder.js";
 
@@ -20,7 +19,7 @@ import { generateButton, generateForm } from "../formGenerator/formBuilder.js";
  * @param {(value) => (boolean|Promise<boolean>)} [options.beforeClose] return false to keep the dialog open
  * @param {"small"|"medium"|"large"|"full"} [options.size="medium"] width of the dialog (360 / 480 / 720 px / the whole window)
  * @param {string} [options.class] extra CSS class(es) of the dialog element
- * @returns {Promise<*> & {element: HTMLElement, backdrop: HTMLElement, close: (value?) => Promise<void>}}
+ * @returns {Promise<*> & {element: HTMLDialogElement, backdrop: HTMLDialogElement, close: (value?) => Promise<void>}}
  *          resolves with the pressed button's value; the promise also carries the handle of the open dialog
  */
 export function showDialog(options = {}) {
@@ -30,15 +29,16 @@ export function showDialog(options = {}) {
         const titleId = uid("dialog-title");
         const body = setContent(el("div", { class: "dialog-body" }), content);
         const footer = el("div", { class: "dialog-footer" });
-        const dialog = el("div", {
-            class: cx("modal-content dialog", options.size && `dialog-${options.size}`, options.class),
-            attrs: { role: "dialog", "aria-modal": "true", "aria-labelledby": title ? titleId : null }
-        });
-        if (title) dialog.append(el("h2", { class: "dialog-title", id: titleId, text: title }));
-        dialog.append(body, footer);
-        const backdrop = el("div", { class: "modal dialog-backdrop" }, dialog);
+        // A native <dialog>, opened with showModal(): the browser traps the focus, closes it with Esc, puts it above everything (the top layer),
+        // makes the page behind it inert, draws the backdrop (::backdrop) and gives the focus back. No inline style is needed.
+        const inner = el("div", { class: "dialog-inner" });
+        const dialog = el("dialog", {
+            class: cx("dialog", options.size && `dialog-${options.size}`, options.class),
+            attrs: { "aria-labelledby": title ? titleId : null }
+        }, inner);
+        if (title) inner.append(el("h2", { class: "dialog-title", id: titleId, text: title }));
+        inner.append(body, footer);
 
-        let release = () => {};
         let closing = false;
         const close = async value => {
             if (closing) return;
@@ -47,19 +47,25 @@ export function showDialog(options = {}) {
                 closing = false;
                 return;
             }
-            release();
-            backdrop.remove();
+            if (dialog.open) dialog.close();
+            dialog.remove();
             resolve(value);
         };
 
+        // Esc: the browser asks (cancel); a dialog that cannot be dismissed stays, and beforeClose can still say no
+        dialog.addEventListener("cancel", event => {
+            event.preventDefault();
+            if (dismissible) close(null);
+        });
         if (dismissible) {
-            dialog.prepend(el("button", {
+            inner.prepend(el("button", {
                 class: "dialog-close",
                 text: "×",
                 attrs: { type: "button", "aria-label": translate("close") },
                 on: { click: () => close(null) }
             }));
-            backdrop.addEventListener("mousedown", event => { if (event.target === backdrop) close(null); });
+            // A click on the backdrop lands on the dialog element itself (its content fills it up to the edge)
+            dialog.addEventListener("mousedown", event => { if (event.target === dialog) close(null); });
         }
         for (const spec of buttons) {
             const { element } = generateButton({
@@ -71,10 +77,12 @@ export function showDialog(options = {}) {
             if (spec.autofocus) element.dataset.autofocus = "true";
         }
 
-        document.body.append(backdrop);
-        release = trapFocus(dialog, { onEscape: dismissible ? () => close(null) : undefined });
+        document.body.append(dialog);
+        // Without showModal (an old browser, or jsdom without athena-ui-js/testing) it is opened as a plain, non-modal dialog.
+        if (typeof dialog.showModal === "function") dialog.showModal();
+        else dialog.setAttribute("open", "");
         dialog.querySelector("[data-autofocus]")?.focus();
-        handle = { element: dialog, backdrop, close: value => close(value ?? null) };
+        handle = { element: dialog, backdrop: dialog, close: value => close(value ?? null) };
     });
     // The executor above runs synchronously, so the handle exists here.
     return Object.assign(promise, handle);

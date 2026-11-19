@@ -229,3 +229,38 @@ describe("isSafeUrl", () => {
         }
     });
 });
+
+describe("translate: plural forms and Intl formats", () => {
+    test("chooses the form by count, with the rules of the language", () => {
+        setLocale("en");
+        assert.equal(translate("validation.minLength", { min: 1, count: 1 }), "Enter at least 1 character.");
+        assert.equal(translate("validation.minLength", { min: 8, count: 8 }), "Enter at least 8 characters.");
+        addMessages("en", { files: { 0: "No files", one: "{count} file", other: "{count:number} files" } });
+        assert.equal(translate("files", { count: 0 }), "No files");
+        assert.equal(translate("files", { count: 1 }), "1 file");
+        assert.equal(translate("files", { count: 1200 }), "1,200 files");
+        // a language with more forms
+        addMessages("pl", { files: { one: "{count} plik", few: "{count} pliki", many: "{count} plików", other: "{count} pliku" } });
+        setLocale("pl");
+        assert.equal(translate("files", { count: 1 }), "1 plik");
+        assert.equal(translate("files", { count: 3 }), "3 pliki");
+        assert.equal(translate("files", { count: 5 }), "5 plików");
+        setLocale("en");
+    });
+
+    test("formats numbers and dates in the current language", () => {
+        addMessages("en", { price: "Total {sum:number}, until {day:date}" });
+        const day = new Date(Date.UTC(2026, 10, 19, 12));
+        setLocale("en");
+        assert.equal(translate("price", { sum: 123456.5, day }), "Total 123,456.5, until Nov 19, 2026");
+        setLocale("hu");
+        assert.match(translate("price", { sum: 123456.5, day }), /123\s456,5/);
+        setLocale("en");
+    });
+
+    test("a plural message without a count uses 'other'; a missing param stays", () => {
+        setLocale("en");
+        assert.equal(translate("files"), "{count:number} files");
+        assert.equal(translate("page", { page: 1 }), "Page 1 / {pages}");
+    });
+});
