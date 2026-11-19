@@ -1976,3 +1976,15 @@ textarea {
         background: none;
     }
 }
+
+.athena-table-placeholder td {
+    color: var(--athena-muted);
+}
+
+.athena-table-status {
+    margin-top: 4px;
+}
+
+.athena-table-status[hidden] {
+    display: none;
+}

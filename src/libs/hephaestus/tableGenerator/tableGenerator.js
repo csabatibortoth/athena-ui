@@ -60,7 +60,11 @@ const compare = (a, b) =>
  *        Promise<{rows: object[], total?: number, nextCursor?: *}>} [options.dataSource] load the rows from a server instead of
  *        keeping them all in the browser. Sorting, the filter box and the pager call it again. Answer with `total` for numbered pages
  *        (`page` is 0-based), or with `nextCursor` for a "Load more" button (`cursor` is what the last answer gave, undefined for the
- *        first request; the rows are appended). A failed request shows the error with a Retry button. Not combined with `virtual`.
+ *        first request; the rows are appended). A failed request shows the error with a Retry button.
+ *        Together with `virtual` the list scrolls like one of `total` rows (every answer must carry `total`): the rows in view are asked for
+ *        in chunks of `chunkSize` (`page` is the chunk number), rows that have not arrived yet show a placeholder, and sorting or the filter
+ *        start again from the top.
+ * @param {number} [options.chunkSize=50] rows per request of a data source with `virtual`
  * @param {number} [options.filterDelay=300] ms to wait after typing before the data source is asked
  * @param {{label: string, onclick: (row: object) => void, danger?: boolean, hidden?: (row: object) => boolean, ariaLabel?: (row: object) => string}[]} [options.rowActions]
  *        a column of buttons at the end of every row
@@ -76,9 +80,13 @@ export function generateTable(options = {}) {
     } = options;
     const remote = typeof options.dataSource === "function";
     const rowActions = options.rowActions?.length ? options.rowActions : null;
-    const virtual = options.virtual && !remote
+    const virtual = options.virtual
         ? { height: 400, rowHeight: 36, overscan: 5, ...(options.virtual === true ? {} : options.virtual) }
         : null;
+    const remoteVirtual = remote && Boolean(virtual);
+    const chunkSize = Math.max(1, options.chunkSize ?? 50);
+    const chunks = new Map();               // chunk number -> "loading" | "done" | "failed" (remote virtual)
+    let flushTimer = 0;
     const pageSize = virtual ? 0 : (options.pageSize ?? (remote ? 25 : 0));
     // What the data source told us: { loading, error, total, nextCursor, cursorMode }
     const server = { loading: false, error: null, total: null, nextCursor: undefined, cursorMode: false, request: 0 };
@@ -350,6 +358,15 @@ export function generateTable(options = {}) {
     function renderRow(row, index) {
         const tr = el("tr");
         if (virtual) tr.setAttribute("aria-rowindex", String(index + 2));
+        if (row === undefined) {
+            // A row of a data source that has not arrived yet
+            tr.className = "athena-table-placeholder";
+            tr.setAttribute("aria-busy", "true");
+            const td = el("td", null, "…");
+            td.colSpan = colCount();
+            tr.append(td);
+            return tr;
+        }
         addClasses(tr, options.rowClass?.(row));
         if (onRowClick) {
             tr.classList.add("clickable");
@@ -462,6 +479,7 @@ export function generateTable(options = {}) {
                 rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
             });
             windowKey = `${win.start}:${win.end}`;
+            if (remoteVirtual) ensureChunks();
             if (win.offsetTop) tbody.append(spacer(win.offsetTop));
             for (let i = win.start; i < win.end; i++) tbody.append(renderRow(current[i], i));
             if (win.offsetBottom) tbody.append(spacer(win.offsetBottom));
@@ -553,12 +571,13 @@ export function generateTable(options = {}) {
     // starts empty (a tiny scroll area when the rows are set) still draws a full window.
     const viewportHeight = () => Math.max(scroller.clientHeight, Math.min(virtual.height, current.length * virtual.rowHeight));
 
-    function refreshWindow() {
+    function refreshWindow(force = false) {
+        if (remoteVirtual) ensureChunks();
         const win = virtualWindow({
             scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
             rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
         });
-        if (`${win.start}:${win.end}` === windowKey) return;
+        if (!force && `${win.start}:${win.end}` === windowKey) return;
         const focused = document.activeElement;
         const keepFocus = focused && table.tBodies[0]?.contains(focused);
         table.tBodies[0].replaceWith(renderBody());
@@ -588,6 +607,7 @@ export function generateTable(options = {}) {
      * An answer that arrives after a newer request was made is ignored.
      */
     async function load({ reset = false, more = false } = {}) {
+        if (remoteVirtual) return loadVirtual();
         if (reset) {
             state.page = 0;
             server.nextCursor = undefined;
@@ -622,6 +642,110 @@ export function generateTable(options = {}) {
                 if (!more) selectionChanged();
             }
         }
+    }
+
+    /* ------------------REMOTE + VIRTUAL------------------- */
+
+    const status = remoteVirtual ? el("div", "athena-table-status") : null;
+    if (status) {
+        status.setAttribute("role", "status");
+        root.append(status);
+    }
+
+    function updateStatus() {
+        if (!status) return;
+        const failed = [...chunks.values()].includes("failed");
+        status.replaceChildren();
+        status.hidden = !failed;
+        if (!failed) return;
+        status.append(el("span", "athena-table-error", server.error ?? translate("noData")), " ");
+        const retry = el("button", "athena-button button-secondary button-small", translate("retry"));
+        retry.type = "button";
+        retry.addEventListener("click", () => {
+            for (const [chunk, value] of chunks) if (value === "failed") chunks.delete(chunk);
+            server.error = null;
+            updateStatus();
+            ensureChunks();
+        });
+        status.append(retry);
+    }
+
+    const query = () => ({ pageSize: chunkSize, cursor: undefined, sort: state.sortKey ? { key: state.sortKey, descending: state.descending } : null, filter: state.query });
+
+    function place(chunk, list) {
+        list.forEach((row, i) => {
+            const index = chunk * chunkSize + i;
+            if (index < rows.length) rows[index] = row;
+        });
+    }
+
+    // Starts again: the first chunk tells how many rows there are, the others come while the person scrolls.
+    async function loadVirtual() {
+        const generation = ++server.request;
+        clearTimeout(flushTimer);
+        chunks.clear();
+        rows = [];
+        selected.clear();
+        if (scroller) scroller.scrollTop = 0;
+        server.loading = true;
+        server.error = null;
+        render();
+        try {
+            const answer = await options.dataSource({ page: 0, ...query() });
+            if (generation !== server.request) return;
+            if (!Number.isInteger(answer?.total) || answer.total < 0) throw new Error("A data source with virtual scrolling has to answer with total");
+            rows = new Array(answer.total);
+            place(0, answer.rows ?? []);
+            chunks.set(0, "done");
+            server.total = answer.total;
+        } catch (error) {
+            if (generation !== server.request) return;
+            server.error = error?.message ?? String(error);
+            rows = [];
+        } finally {
+            if (generation === server.request) {
+                server.loading = false;
+                render();
+                selectionChanged();
+                updateStatus();
+                if (!server.error) ensureChunks();
+            }
+        }
+    }
+
+    async function loadChunk(chunk, generation) {
+        chunks.set(chunk, "loading");
+        try {
+            const answer = await options.dataSource({ page: chunk, ...query() });
+            if (generation !== server.request) return;
+            place(chunk, answer?.rows ?? []);
+            chunks.set(chunk, "done");
+        } catch (error) {
+            if (generation !== server.request) return;
+            chunks.set(chunk, "failed");
+            server.error = error?.message ?? String(error);
+        } finally {
+            if (generation === server.request) {
+                refreshWindow(true);
+                updateStatus();
+            }
+        }
+    }
+
+    // Asks for the chunks under the rows in view (and the rows around them). Waits a moment, so scrolling past does not ask for everything.
+    function ensureChunks() {
+        clearTimeout(flushTimer);
+        const generation = server.request;
+        flushTimer = setTimeout(() => {
+            if (generation !== server.request || !rows.length) return;
+            const win = virtualWindow({
+                scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
+                rowHeight: virtual.rowHeight, total: rows.length, overscan: virtual.overscan
+            });
+            const first = Math.floor(win.start / chunkSize);
+            const last = Math.floor((win.end - 1) / chunkSize);
+            for (let chunk = first; chunk <= last; chunk++) if (!chunks.has(chunk)) loadChunk(chunk, generation);
+        }, 40);
     }
 
     // The window of rows depends on the height of the scroll area, which is unknown while the list is empty or
@@ -664,9 +788,9 @@ export function generateTable(options = {}) {
         },
         getColumnWidths: () => ({ ...widths }),
         // The filtered and sorted rows as CSV text
-        toCsv: () => toCsv(columns, current),
+        toCsv: () => toCsv(columns, current.filter(row => row !== undefined)),
         exportCsv(filename = "table.csv") {
-            downloadFile(filename, toCsv(columns, current));
+            downloadFile(filename, toCsv(columns, current.filter(row => row !== undefined)));
         }
     });
 }

@@ -579,6 +579,53 @@ test("menu: groups inside groups, keyboard in and out, active path, badges", asy
     menu.destroy();
 });
 
+test("table: data source with virtual scrolling asks for chunks while scrolling", async () => {
+    const asked = [];
+    let failChunk = null;
+    const table = A.generateTable({
+        parent: "wrapper", id: "rv", chunkSize: 50, virtual: { height: 200, rowHeight: 30 }, filter: true, filterDelay: 10,
+        columns: [{ key: "id" }, { key: "name" }],
+        dataSource: async ({ page, pageSize, sort, filter }) => {
+            asked.push(page);
+            if (failChunk === page) throw new Error("Chunk failed");
+            const total = filter ? 120 : 10000;
+            const rows = Array.from({ length: Math.min(pageSize, total - page * pageSize) }, (_, i) => ({ id: page * pageSize + i, name: (filter ? filter + " " : "row ") + (page * pageSize + i) }));
+            return { rows: sort?.descending ? rows.reverse() : rows, total };
+        }
+    });
+    const scroller = $1("#rv .athena-table-scroll");
+    const rendered = () => $$("#rv tbody tr:not(.athena-table-spacer)");
+    const until = async check => { for (let i = 0; i < 80 && !check(); i++) await tick(25); assert(check(), "timed out, asked " + asked.join()); };
+    await until(() => rendered().length > 0 && !rendered()[0].classList.contains("athena-table-placeholder"));
+    equal($1("#rv table").getAttribute("aria-rowcount"), "10001");
+    assert(scroller.scrollHeight >= 10000 * 30, "scroll height of all the rows: " + scroller.scrollHeight);
+    assert(rendered().length < 40, "only a window in the DOM");
+    equal($1("td", rendered()[0]).textContent, "0");
+    // scrolling far away: the rows around it are asked for, nothing in between
+    scroller.scrollTop = 30 * 5000;
+    scroller.dispatchEvent(new Event("scroll"));
+    await until(() => rendered().some(tr => $1("td", tr).textContent === "5000"));
+    assert(asked.includes(100), "chunk of row 5000 was asked: " + asked.join());
+    assert(!asked.includes(50) && !asked.includes(60), "chunks in between were skipped: " + asked.join());
+    // a chunk that fails shows a message with Retry, then recovers
+    failChunk = 152;
+    scroller.scrollTop = 30 * 7600;
+    scroller.dispatchEvent(new Event("scroll"));
+    await until(() => $1("#rv .athena-table-status button"));
+    assert(!$1("#rv .athena-table-status").hidden, "status visible");
+    failChunk = null;
+    $1("#rv .athena-table-status button").click();
+    await until(() => rendered().some(tr => $1("td", tr).textContent === "7600"));
+    assert($1("#rv .athena-table-status").hidden, "status hidden after the retry");
+    // filter and sort start again from the top with a new total
+    type($1("#rv .athena-table-filter"), "x");
+    await until(() => $1("#rv table").getAttribute("aria-rowcount") === "121");
+    equal(scroller.scrollTop, 0);
+    $$("#rv thead th.sortable")[0].click();
+    $$("#rv thead th.sortable")[0].click();
+    await until(() => rendered().length > 0 && $1("td", rendered()[0]).textContent === "49");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;
