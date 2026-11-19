@@ -1988,3 +1988,31 @@ textarea {
 .athena-table-status[hidden] {
     display: none;
 }
+
+/* Charts: pointer layer, zoom */
+
+.athena-chart .chart-hit {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+.athena-chart .chart-hit:focus-visible {
+    outline: 2px solid var(--athena-focus, var(--athena-accent));
+    outline-offset: 2px;
+}
+
+.athena-chart .chart-marker {
+    stroke: var(--athena-muted);
+    stroke-dasharray: 3 3;
+    pointer-events: none;
+}
+
+.athena-chart .chart-selection {
+    fill: var(--athena-accent);
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.athena-chart .chart-reset {
+    cursor: pointer;
+}

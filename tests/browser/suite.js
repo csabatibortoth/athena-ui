@@ -626,6 +626,67 @@ test("table: data source with virtual scrolling asks for chunks while scrolling"
     await until(() => rendered().length > 0 && $1("td", rendered()[0]).textContent === "49");
 });
 
+test("charts: zoom with the keyboard, the pointer and code; long series; streaming push", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="zc"></div>');
+    const t0 = Date.UTC(2026, 10, 19, 0, 0, 0);
+    const n = 2000;
+    const times = Array.from({ length: n }, (_, i) => t0 + i * 60000);
+    const data = Array.from({ length: n }, (_, i) => Math.sin(i / 50) * 10 + (i === 1000 ? 40 : 0));
+    const zooms = [];
+    const chart = A.generateChart({ parent: "zc", id: "zoomable", type: "line", zoom: true, times, series: [{ name: "wave", data }], onZoom: r => zooms.push(r) });
+    // a long series: few DOM nodes, no dots, the peak is kept
+    assert($$("#zoomable .chart-point").length === 0, "no dots for a long series");
+    const points = $1("#zoomable .chart-line").getAttribute("points").split(" ").length;
+    assert(points < 1200, "decimated to the width of the plot: " + points);
+    assert($$("#zoomable .chart-tick").length > 5, "ticks");
+    const peakY = Math.min(...$1("#zoomable .chart-line").getAttribute("points").split(" ").map(p => Number(p.split(",")[1])));
+    assert(peakY < 100, "the single peak survives the decimation: " + peakY);
+    // keyboard: + zooms in, arrows pan, 0 resets
+    const hit = $1("#zoomable .chart-hit");
+    equal(hit.getAttribute("tabindex"), "0");
+    key(hit, "+");
+    const z1 = chart.getZoom();
+    assert(z1 && z1.to - z1.from < (n * 60000) * 0.6, "zoomed in");
+    equal(zooms.length, 1);
+    assert($1("#zoomable .chart-reset"), "reset button while zoomed");
+    key($1("#zoomable .chart-hit"), "ArrowRight");
+    const z2 = chart.getZoom();
+    assert(z2.from > z1.from, "panned right");
+    key($1("#zoomable .chart-hit"), "0");
+    equal(chart.getZoom(), null);
+    assert(!$1("#zoomable .chart-reset"), "no reset button when not zoomed");
+    // by code, and the axis follows: fewer points, so the dots come back
+    chart.zoom(t0 + 10 * 60000, t0 + 30 * 60000);
+    equal($$("#zoomable .chart-point").length > 0, true, "dots when few points are in view");
+    // dragging over the plot
+    chart.resetZoom();
+    const box = $1("#zoomable .chart-hit").getBoundingClientRect();
+    const fire = (type, x) => $1("#zoomable .chart-hit").dispatchEvent(new PointerEvent(type, { clientX: x, clientY: box.top + 20, pointerId: 3, bubbles: true, button: 0 }));
+    fire("pointerdown", box.left + box.width * 0.25);
+    fire("pointermove", box.left + box.width * 0.5);
+    assert(!$1("#zoomable .chart-selection").hasAttribute("display"), "selection shown while dragging");
+    fire("pointerup", box.left + box.width * 0.5);
+    const dragged = chart.getZoom();
+    assert(dragged && dragged.from > t0 + n * 60000 * 0.2 && dragged.to < t0 + n * 60000 * 0.55, "zoomed to the dragged range");
+    // double click resets
+    $1("#zoomable .chart-hit").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    equal(chart.getZoom(), null);
+    // streaming: pushes are batched, old points drop out
+    const live = A.generateChart({ parent: "zc", id: "live", type: "area", maxPoints: 5, times: [t0, t0 + 1000], series: [{ name: "v", data: [1, 2] }] });
+    for (let i = 0; i < 20; i++) live.push({ x: t0 + (i + 2) * 1000, values: i });
+    const data5 = () => $$("#live ~ details tbody tr").length;
+    for (let i = 0; i < 60 && !$1("#live").getAttribute("aria-label").includes("v"); i++) await tick(25);
+    await tick(250);
+    const svgNow = document.getElementById("live");
+    assert(svgNow, "chart still there");
+    equal($$("#live .chart-point").length, 5, "only the last 5 points are kept");
+    equal(svgNow.querySelector(".chart-point").getAttribute("aria-label").includes("15"), true, "the oldest kept point is number 15");
+    void data5;
+    live.destroy();
+    chart.destroy();
+    $1("#zc").remove();
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

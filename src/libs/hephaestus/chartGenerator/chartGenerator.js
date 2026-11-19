@@ -6,12 +6,13 @@
 // Dependency free SVG charts: bar, line, area, sparkline, pie and donut. Colours come from the theme (--series-1 ... --series-8,
 // see the stylesheet), nothing is styled inline, so a strict Content-Security-Policy works.
 
-import { resolveElement } from "../../core/dom.js";
+import { resolveElement, uid } from "../../core/dom.js";
 import { getLocale, translate } from "../../core/i18n.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const SERIES_COLORS = 8;
 const MARGIN = { top: 40, right: 20, bottom: 50, left: 55 };
+const DOT_LIMIT = 80;       // up to this many points in view every point is a dot with a tooltip; more: the tooltip follows the pointer
 
 const svgEl = (tag, attrs = {}, text) => {
     const node = document.createElementNS(NS, tag);
@@ -64,6 +65,28 @@ function timeFormatter(step) {
 }
 
 const toTime = value => (value instanceof Date ? value.getTime() : typeof value === "number" ? value : Date.parse(value));
+
+/**
+ * Keeps about `buckets` x positions of a long series: of every bucket the lowest and the highest value stay (in their order),
+ * so peaks are not lost. Returns the kept indices.
+ */
+export function decimate(indices, values, buckets) {
+    if (indices.length <= buckets * 2) return indices;
+    const size = indices.length / buckets;
+    const kept = [];
+    for (let b = 0; b < buckets; b++) {
+        const slice = indices.slice(Math.floor(b * size), Math.floor((b + 1) * size));
+        if (!slice.length) continue;
+        let low = slice[0];
+        let high = slice[0];
+        for (const i of slice) {
+            if (values[i] < values[low]) low = i;
+            if (values[i] > values[high]) high = i;
+        }
+        kept.push(...(low === high ? [low] : low < high ? [low, high] : [high, low]));
+    }
+    return kept;
+}
 
 /* ------------------PARTS------------------- */
 
@@ -135,8 +158,8 @@ function addTip(ctx, node, x, y, lines) {
     node.addEventListener("blur", ctx.tooltip.hide);
 }
 
-// Draws grid, ticks and axes for the value range [min, min + scale.span].
-function addAxes(svg, { labels, min, scale, width, height, timeAxis }) {
+// Draws the value grid and the y axis for the range [min, min + scale.span].
+function addValueAxis(svg, { min, scale, width, height }) {
     const plotW = width - MARGIN.left - MARGIN.right;
     const plotH = height - MARGIN.top - MARGIN.bottom;
     const y = value => MARGIN.top + plotH - ((value - min) / scale.span) * plotH;
@@ -146,35 +169,18 @@ function addAxes(svg, { labels, min, scale, width, height, timeAxis }) {
         svg.append(svgEl("line", { x1: MARGIN.left, x2: MARGIN.left + plotW, y1: y(v), y2: y(v), class: "chart-grid" }));
         svg.append(svgEl("text", { x: MARGIN.left - 8, y: y(v) + 4, "text-anchor": "end", class: "chart-tick" }, formatNumber(v)));
     }
-    const band = plotW / Math.max(labels.length, 1);
-    let x;
-    if (timeAxis) {
-        x = t => MARGIN.left + ((t - timeAxis.from) / (timeAxis.to - timeAxis.from || 1)) * plotW;
-        const { ticks: stops, step } = timeTicks(timeAxis.from, timeAxis.to);
-        const format = timeFormatter(step);
-        for (const t of stops) {
-            svg.append(svgEl("line", { x1: x(t), x2: x(t), y1: MARGIN.top + plotH, y2: MARGIN.top + plotH + 4, class: "chart-axis" }));
-            svg.append(svgEl("text", { x: x(t), y: MARGIN.top + plotH + 18, "text-anchor": "middle", class: "chart-tick" }, format(t)));
-        }
-    } else {
-        x = i => MARGIN.left + band * (i + 0.5);
-        // Many labels would overlap: show about every n-th.
-        const every = Math.max(1, Math.ceil(labels.length / Math.max(Math.floor(plotW / 60), 1)));
-        labels.forEach((label, i) => {
-            if (i % every === 0) svg.append(svgEl("text", { x: x(i), y: MARGIN.top + plotH + 18, "text-anchor": "middle", class: "chart-tick" }, label));
-        });
-    }
     svg.append(svgEl("line", { x1: MARGIN.left, x2: MARGIN.left, y1: MARGIN.top, y2: MARGIN.top + plotH, class: "chart-axis" }));
     // The category axis sits at zero when the range includes it, so negative bars hang below it.
     const baseline = y(Math.min(Math.max(0, min), min + scale.span));
     svg.append(svgEl("line", { x1: MARGIN.left, x2: MARGIN.left + plotW, y1: baseline, y2: baseline, class: "chart-axis" }));
-    return { band, y, x, baseline };
+    return { y, baseline, plotW, plotH };
 }
 
-function valueRange(series, zero = true) {
-    const values = series.flatMap(s => s.data).filter(Number.isFinite);
-    let min = zero ? Math.min(0, ...values) : Math.min(...values);
-    const max = Math.max(zero ? 0 : -Infinity, ...values);
+function valueRange(values, zero = true) {
+    const finite = values.filter(Number.isFinite);
+    if (!finite.length) return { min: 0, scale: niceScale(1) };
+    let min = zero ? Math.min(0, ...finite) : Math.min(...finite);
+    const max = Math.max(zero ? 0 : -Infinity, ...finite);
     const scale = niceScale(max - min);
     if (!zero) min = Math.floor(min / scale.step) * scale.step;   // start the axis at a round number
     return { min, scale: niceScale(max - min) };
@@ -184,8 +190,11 @@ function valueRange(series, zero = true) {
 
 function drawBar(svg, ctx) {
     const { labels, series, width, height } = ctx;
-    const { min, scale } = valueRange(series);
-    const { band, y } = addAxes(svg, { labels, min, scale, width, height });
+    const { min, scale } = valueRange(series.flatMap(s => s.data));
+    const { y, plotW, plotH } = addValueAxis(svg, { min, scale, width, height });
+    const band = plotW / Math.max(labels.length, 1);
+    labels.forEach((label, i) => svg.append(svgEl("text",
+        { x: MARGIN.left + band * (i + 0.5), y: MARGIN.top + plotH + 18, "text-anchor": "middle", class: "chart-tick" }, label)));
     const groupWidth = band * 0.8;
     const barWidth = groupWidth / series.length;
     series.forEach((s, si) => s.data.forEach((value, i) => {
@@ -201,31 +210,187 @@ function drawBar(svg, ctx) {
     }));
 }
 
+// Line and area charts, with a category or a time axis, zoom (a range of the x axis) and long series (no dots, a pointer tooltip).
 function drawLine(svg, ctx) {
-    const { labels, series, width, height, times, area, options } = ctx;
-    const { min, scale } = valueRange(series, area || options.zero !== false);
-    const timeAxis = times ? { from: Math.min(...times), to: Math.max(...times) } : null;
-    const { y, x, baseline } = addAxes(svg, { labels, min, scale, width, height, timeAxis });
-    const positionX = i => (times ? x(times[i]) : x(i));
-    const timeFormat = timeAxis ? new Intl.DateTimeFormat(getLocale(), { dateStyle: "medium", timeStyle: "medium" }) : null;
+    const { labels, series, width, height, times, area, options, zoom } = ctx;
+    const plotW = width - MARGIN.left - MARGIN.right;
+    const plotH = height - MARGIN.top - MARGIN.bottom;
+    const count = Math.max(...series.map(s => s.data.length));
+    const position = i => (times ? times[i] : i);                          // x position of point i in the units of the axis
+    const full = times ? { from: Math.min(...times.slice(0, count)), to: Math.max(...times.slice(0, count)) } : { from: -0.5, to: count - 0.5 };
+    const view = zoom ? { from: Math.max(zoom.from, full.from), to: Math.min(zoom.to, full.to) } : full;
+    if (!(view.to > view.from)) Object.assign(view, full);
+    const x = p => MARGIN.left + ((p - view.from) / (view.to - view.from || 1)) * plotW;
+
+    // The points in view, plus one on each side so the line leaves the plot
+    const visible = series.map(s => {
+        const inside = [];
+        for (let i = 0; i < s.data.length; i++) {
+            const p = position(i);
+            if (p >= view.from && p <= view.to && Number.isFinite(s.data[i])) inside.push(i);
+        }
+        return inside;
+    });
+    const zeroBased = area || options.zero !== false;
+    const { min, scale } = valueRange(series.flatMap((s, si) => visible[si].map(i => s.data[i])), zeroBased);
+    const { y, baseline } = addValueAxis(svg, { min, scale, width, height });
+
+    // x axis
+    if (times) {
+        const { ticks: stops, step } = timeTicks(view.from, view.to);
+        const format = timeFormatter(step);
+        for (const t of stops) {
+            svg.append(svgEl("line", { x1: x(t), x2: x(t), y1: MARGIN.top + plotH, y2: MARGIN.top + plotH + 4, class: "chart-axis" }));
+            svg.append(svgEl("text", { x: x(t), y: MARGIN.top + plotH + 18, "text-anchor": "middle", class: "chart-tick" }, format(t)));
+        }
+    } else {
+        const first = Math.max(Math.ceil(view.from + 0.5), 0);
+        const last = Math.min(Math.floor(view.to - 0.5), count - 1);
+        const every = Math.max(1, Math.ceil((last - first + 1) / Math.max(Math.floor(plotW / 60), 1)));
+        for (let i = first; i <= last; i += every) svg.append(svgEl("text", { x: x(i), y: MARGIN.top + plotH + 18, "text-anchor": "middle", class: "chart-tick" }, labels[i] ?? ""));
+    }
+
+    const clipId = uid("chart-clip");
+    const clip = svgEl("clipPath", { id: clipId });
+    clip.append(svgEl("rect", { x: MARGIN.left, y: MARGIN.top - 4, width: plotW, height: plotH + 8 }));
+    svg.append(clip);
+    const timeFormat = times ? new Intl.DateTimeFormat(getLocale(), { dateStyle: "medium", timeStyle: "medium" }) : null;
+    const when = i => (times ? timeFormat.format(times[i]) : (labels[i] ?? ""));
+    const dotted = Math.max(...visible.map(v => v.length)) <= DOT_LIMIT;
+
     series.forEach((s, si) => {
-        const base = seriesProps(s, si);
-        const points = s.data.map((v, i) => [positionX(i), y(v)]).filter(([, py], i) => Number.isFinite(s.data[i]) && Number.isFinite(py));
-        const group = svgEl("g", { "data-series": si, ...base });
+        // Neighbours outside the view keep the line running to the edge of the plot
+        const inside = visible[si];
+        const lo = inside.length ? inside[0] : 0;
+        const hi = inside.length ? inside.at(-1) : -1;
+        const around = [];
+        for (let i = Math.max(lo - 1, 0); i <= Math.min(hi + 1, s.data.length - 1); i++) if (Number.isFinite(s.data[i])) around.push(i);
+        const drawn = decimate(around, s.data, Math.floor(plotW));
+        const points = drawn.map(i => [x(position(i)), y(s.data[i])]);
+        const group = svgEl("g", { "data-series": si, ...seriesProps(s, si) });
+        const clipped = svgEl("g", { "clip-path": `url(#${clipId})` });
         if (area && points.length) {
             const outline = [`M${points[0][0]},${baseline}`, ...points.map(p => `L${p.join(",")}`), `L${points.at(-1)[0]},${baseline}`, "Z"];
-            group.append(svgEl("path", { d: outline.join(" "), class: "chart-area" }));
+            clipped.append(svgEl("path", { d: outline.join(" "), class: "chart-area" }));
         }
-        group.append(svgEl("polyline", { points: points.map(p => p.join(",")).join(" "), class: "chart-line", fill: "none" }));
-        s.data.forEach((value, i) => {
-            if (!Number.isFinite(value)) return;
-            const dot = svgEl("circle", { cx: positionX(i), cy: y(value), r: 4, class: "chart-point" });
-            const when = timeAxis ? timeFormat.format(times[i]) : (labels[i] ?? "");
-            addTip(ctx, dot, positionX(i), y(value), [`${s.name ?? ""} ${when}`.trim(), formatNumber(value)]);
-            group.append(dot);
-        });
+        clipped.append(svgEl("polyline", { points: points.map(p => p.join(",")).join(" "), class: "chart-line", fill: "none" }));
+        group.append(clipped);
+        if (dotted) {
+            for (const i of inside) {
+                const dot = svgEl("circle", { cx: x(position(i)), cy: y(s.data[i]), r: 4, class: "chart-point" });
+                addTip(ctx, dot, x(position(i)), y(s.data[i]), [`${s.name ?? ""} ${when(i)}`.trim(), formatNumber(s.data[i])]);
+                group.append(dot);
+            }
+        }
         svg.append(group);
     });
+
+    if (options.interactive === false) return;
+
+    // A transparent layer over the plot: the tooltip follows the pointer, a drag selects a range to zoom into, and the keyboard pans and zooms.
+    const hit = svgEl("rect", { class: "chart-hit", x: MARGIN.left, y: MARGIN.top, width: plotW, height: plotH, fill: "transparent" });
+    const marker = svgEl("line", { class: "chart-marker", y1: MARGIN.top, y2: MARGIN.top + plotH, display: "none" });
+    const selection = svgEl("rect", { class: "chart-selection", y: MARGIN.top, height: plotH, display: "none" });
+    const toPosition = clientX => {
+        const box = hit.getBoundingClientRect();
+        const scaleX = box.width ? plotW / box.width : 1;
+        return view.from + (((clientX - box.left) * scaleX) / plotW) * (view.to - view.from);
+    };
+    // The point (of the first series that has one) nearest to a position on the axis
+    const nearest = target => {
+        let best = null;
+        series.forEach((s, si) => {
+            const idx = visible[si];
+            let lowIdx = 0;
+            let highIdx = idx.length - 1;
+            while (lowIdx < highIdx) {
+                const mid = (lowIdx + highIdx) >> 1;
+                if (position(idx[mid]) < target) lowIdx = mid + 1;
+                else highIdx = mid;
+            }
+            for (const c of [idx[lowIdx - 1], idx[lowIdx]]) {
+                if (c != null && (best == null || Math.abs(position(c) - target) < Math.abs(position(best) - target))) best = c;
+            }
+        });
+        return best;
+    };
+    const showAt = index => {
+        if (index == null) return;
+        const px = x(position(index));
+        marker.setAttribute("x1", px);
+        marker.setAttribute("x2", px);
+        marker.removeAttribute("display");
+        const lines = [when(index), ...series.map(s => (Number.isFinite(s.data[index]) ? `${s.name ? `${s.name}: ` : ""}${formatNumber(s.data[index])}` : null)).filter(Boolean)];
+        const top = Math.min(...series.map(s => (Number.isFinite(s.data[index]) ? y(s.data[index]) : Infinity)));
+        ctx.tooltip.show(px, Number.isFinite(top) ? top : MARGIN.top, lines);
+    };
+    const hideAt = () => {
+        marker.setAttribute("display", "none");
+        ctx.tooltip.hide();
+    };
+    let dragStart = null;
+    hit.addEventListener("pointermove", event => {
+        if (dragStart != null) {
+            const a = Math.min(dragStart, event.clientX);
+            const b = Math.max(dragStart, event.clientX);
+            const box = hit.getBoundingClientRect();
+            const k = box.width ? plotW / box.width : 1;
+            selection.setAttribute("x", MARGIN.left + (a - box.left) * k);
+            selection.setAttribute("width", (b - a) * k);
+            selection.removeAttribute("display");
+            return;
+        }
+        showAt(nearest(toPosition(event.clientX)));
+    });
+    hit.addEventListener("pointerleave", () => { if (dragStart == null) hideAt(); });
+    if (options.zoom) {
+        hit.addEventListener("pointerdown", event => {
+            if (event.button != null && event.button !== 0) return;
+            dragStart = event.clientX;
+            try { hit.setPointerCapture(event.pointerId); } catch { /* the pointer is gone */ }
+        });
+        const finish = event => {
+            if (dragStart == null) return;
+            const from = toPosition(Math.min(dragStart, event.clientX));
+            const to = toPosition(Math.max(dragStart, event.clientX));
+            const moved = Math.abs(event.clientX - dragStart);
+            dragStart = null;
+            selection.setAttribute("display", "none");
+            if (moved > 6 && ctx.hooks?.zoom) ctx.hooks.zoom({ from, to });
+        };
+        hit.addEventListener("pointerup", finish);
+        hit.addEventListener("pointercancel", () => { dragStart = null; selection.setAttribute("display", "none"); });
+        hit.addEventListener("dblclick", () => ctx.hooks?.zoom(null));
+        hit.setAttribute("tabindex", "0");
+        hit.setAttribute("role", "application");
+        hit.setAttribute("aria-label", translate("chart.zoomHint"));
+        hit.addEventListener("keydown", event => {
+            const span = view.to - view.from;
+            const mid = (view.from + view.to) / 2;
+            let next;
+            if (event.key === "+" || event.key === "=") next = { from: mid - span / 4, to: mid + span / 4 };
+            else if (event.key === "-" || event.key === "_") next = { from: mid - span, to: mid + span };
+            else if (event.key === "ArrowLeft") next = { from: view.from - span / 4, to: view.to - span / 4 };
+            else if (event.key === "ArrowRight") next = { from: view.from + span / 4, to: view.to + span / 4 };
+            else if (event.key === "0" || event.key === "Escape") next = null;
+            else return;
+            event.preventDefault();
+            ctx.hooks?.zoom(next);
+        });
+        if (zoom) {
+            const reset = svgEl("g", { class: "chart-reset", role: "button", tabindex: 0, "aria-label": translate("chart.resetZoom") });
+            reset.append(svgEl("text", { x: width - MARGIN.right, y: 24, "text-anchor": "end", class: "chart-legend" }, `↺ ${translate("chart.resetZoom")}`));
+            reset.addEventListener("click", () => ctx.hooks?.zoom(null));
+            reset.addEventListener("keydown", event => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    ctx.hooks?.zoom(null);
+                }
+            });
+            svg.append(reset);
+        }
+    }
+    svg.append(marker, selection, hit);
 }
 
 // A small line without axes, legend or title: for a table cell or a stat tile. Its tooltips still work.
@@ -351,50 +516,105 @@ function buildDataTable({ labels, series, times, title, type }) {
  * @param {boolean} [options.legend] default: shown for several series, and for pie / donut. Clicking an entry hides / shows its series.
  * @param {boolean} [options.table=false] adds a "Show as table" section with the values below the chart
  * @param {boolean} [options.zero=true] line charts: false lets the value axis start near the smallest value
- * @returns {(SVGElement & {element: SVGElement, update: (options?: object) => void, destroy: () => void})|null}
+ * @param {boolean} [options.zoom=false] line and area charts: drag over the plot to zoom into that range, double click (or the
+ *        reset button, or 0 / Esc) to zoom out; with the keyboard on the plot: + and - zoom, the arrow keys pan
+ * @param {{from: number, to: number}|null} [options.zoomRange] the range in view, in the units of the x axis: milliseconds with
+ *        `times`, otherwise the index of the point (-0.5 is the left edge of the first point)
+ * @param {(range: ({from: number, to: number}|null)) => void} [options.onZoom] called when a person zooms or resets
+ * @param {number} [options.maxPoints] `push` keeps at most this many points per series (the oldest are dropped)
+ * @param {boolean} [options.interactive=true] line and area charts: false leaves out the pointer layer (tooltip that follows the pointer, zoom)
+ * @returns {(SVGElement & {element: SVGElement, update: (options?: object) => SVGElement, destroy: () => void,
+ *            zoom: (from: number, to: number) => void, resetZoom: () => void, getZoom: () => ({from: number, to: number}|null),
+ *            push: (point: {x?: (number|Date|string), label?: string, values: (number|number[])}, config?: {maxPoints?: number}) => void,
+ *            dataTable: (HTMLElement|null)})|null}
  *          the SVG element, which also carries the handle ({ element, update(options), destroy() }) of the other
  *          components; null when the options are invalid. `parent` is an element, an id or a selector.
+ *          `push` adds a point to every series (a number for the first series, or one value per series; `x` is the time with
+ *          `times`, `label` the category) and draws the chart again at most once per frame, however often it is called.
  */
 export function generateChart(options = {}) {
-    const built = buildChart(options);
+    const state = { used: { ...options, series: (options.series ?? []).map(s => ({ ...s, data: [...(s.data ?? [])] })) }, current: null, queued: false };
+    if (options.labels) state.used.labels = [...options.labels];
+    if (options.times) state.used.times = [...options.times];
+    const hooks = {
+        zoom: range => {
+            state.used = { ...state.used, zoomRange: range ?? null };
+            handle.redraw();
+            options.onZoom?.(range ?? null);
+        }
+    };
+    const handle = {
+        element: () => state.current.svg,
+        redraw() {
+            const next = buildChart(state.used, hooks);
+            if (!next) return state.current?.svg;
+            if (state.current) {
+                state.current.svg.replaceWith(next.svg);
+                state.current.table?.remove();
+                if (next.table) next.svg.after(next.table);
+            }
+            state.current = next;
+            return attach(next.svg);
+        },
+        update(changes = {}) {
+            state.used = { ...state.used, ...changes };
+            return handle.redraw();
+        },
+        destroy() {
+            state.current.svg.remove();
+            state.current.table?.remove();
+        },
+        zoom: (from, to) => hooks.zoom({ from, to }),
+        resetZoom: () => hooks.zoom(null),
+        getZoom: () => state.used.zoomRange ?? null,
+        push(point, config = {}) {
+            const used = state.used;
+            const values = Array.isArray(point.values) ? point.values : [point.values];
+            used.series.forEach((s, i) => s.data.push(values[i] ?? NaN));
+            if (used.times) used.times.push(toTime(point.x ?? Date.now()));
+            else if (used.labels) used.labels.push(String(point.label ?? used.labels.length + 1));
+            const limit = config.maxPoints ?? used.maxPoints;
+            const extra = limit ? used.series[0].data.length - limit : 0;
+            if (extra > 0) {
+                for (const s of used.series) s.data.splice(0, extra);
+                used.times?.splice(0, extra);
+                used.labels?.splice(0, extra);
+            }
+            if (state.queued) return;
+            state.queued = true;
+            // Once per frame (the timer is for pages where frames are paused or late)
+            let timer = 0;
+            const run = () => {
+                if (!state.queued) return;
+                state.queued = false;
+                clearTimeout(timer);
+                handle.redraw();
+            };
+            requestAnimationFrame(run);
+            timer = setTimeout(run, 100);
+        }
+    };
+    const attach = svg => Object.defineProperties(svg, {
+        element: { get: () => state.current.svg, configurable: true },
+        update: { value: handle.update, configurable: true },
+        destroy: { value: handle.destroy, configurable: true },
+        zoom: { value: handle.zoom, configurable: true },
+        resetZoom: { value: handle.resetZoom, configurable: true },
+        getZoom: { value: handle.getZoom, configurable: true },
+        push: { value: handle.push, configurable: true },
+        dataTable: { get: () => state.current.table ?? null, configurable: true }
+    });
+
+    const built = buildChart(state.used, hooks);
     if (!built) return null;
+    state.current = built;
     const host = resolveElement(options.parent ?? "wrapper") ?? document.body;
     host.append(built.svg);
     if (built.table) built.svg.after(built.table);
-    return withHandle(built, options);
+    return attach(built.svg);
 }
 
-// update(changes) draws the chart again with the old options plus the changes, in the same place.
-function withHandle(built, options) {
-    let current = built;
-    let used = options;
-    const { svg } = built;
-    const handle = {
-        get element() { return current.svg; },
-        update(changes = {}) {
-            const next = buildChart({ ...used, ...changes });
-            if (!next) return current.svg;
-            used = { ...used, ...changes };
-            current.svg.replaceWith(next.svg);
-            current.table?.remove();
-            if (next.table) next.svg.after(next.table);
-            current = next;
-            return withHandle(next, used);
-        },
-        destroy() {
-            current.svg.remove();
-            current.table?.remove();
-        }
-    };
-    return Object.defineProperties(svg, {
-        element: { get: () => handle.element, configurable: true },
-        update: { value: handle.update, configurable: true },
-        destroy: { value: handle.destroy, configurable: true },
-        dataTable: { get: () => current.table ?? null, configurable: true }
-    });
-}
-
-function buildChart(options = {}) {
+function buildChart(options = {}, hooks) {
     const { type = "bar", id, title } = options;
     const sparkline = type === "sparkline";
     const width = options.width ?? (sparkline ? 120 : 600);
@@ -422,7 +642,7 @@ function buildChart(options = {}) {
 
     // The tooltip is created first, so the shapes can use it, and moved to the end afterwards, so it is drawn on top.
     const tooltip = createTooltip(svg, width);
-    const ctx = { labels, series, width, height, times, options, tooltip };
+    const ctx = { labels, series, width, height, times, options, tooltip, hooks, zoom: options.zoomRange ?? null };
     const pieLegend = draw(svg, ctx);
     if (!sparkline && (options.legend ?? (Boolean(pieLegend) || series.length > 1))) {
         addLegend(svg, pieLegend ?? series.map((s, i) => ({ name: s.name ?? `${translate("series")} ${i + 1}`, props: seriesProps(s, i), series: i })), width, height, ctx);
