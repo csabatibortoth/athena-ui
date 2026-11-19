@@ -1079,6 +1079,41 @@ test("CSS: Athena is in a cascade layer, so a plain rule of the application wins
     delete root.dataset.mode;
 });
 
+test("createApp: the layout is built into any element, header and footer are optional", async () => {
+    // the page of the tests already has an app from init(): take it away first (one app per page)
+    const old = document.getElementById("container");
+    const oldParent = old.parentElement;
+    old.remove();
+    try {
+    document.body.insertAdjacentHTML("beforeend", '<section id="part-of-a-page"><h2 id="mine">Mine</h2></section>');
+    const app = await A.createApp({ root: "#part-of-a-page", config: { generateHeader: false, generateFooter: false, generateWrappercontent: false } });
+    equal(app.element.id, "part-of-a-page");
+    assert(app.element.contains(app.container) && app.container.id === "container", "container inside the root");
+    assert(app.element.contains(app.wrapper) && app.wrapper.id === "wrapper", "the wrapper is inside the root");
+    equal(app.header, null);
+    equal(app.footer, null);
+    equal($1("#mine").textContent, "Mine", "what was in the root stays");
+    A.generateButton({ parent: "wrapper", text: "in the app" });
+    assert(app.wrapper.querySelector("button"), "components go into the wrapper by default");
+    equal(app.container.parentElement, app.element, "not in the body");
+    app.destroy();
+    equal(document.getElementById("container"), null);
+    $1("#part-of-a-page").remove();
+    // with a header
+    document.body.insertAdjacentHTML("beforeend", '<div id="app-two"></div>');
+    const second = await A.createApp({ root: $1("#app-two"), config: { generateHeader: true, generateFooter: false, generateHeadercontent: false, generateWrappercontent: false } });
+    assert(second.header && second.element.contains(second.header), "header inside the root");
+    second.destroy();
+    $1("#app-two").remove();
+    let failed = false;
+    try { await A.createApp({ root: "#nothing-here" }); } catch { failed = true; }
+    assert(failed, "a missing root is an error");
+    } finally {
+        document.getElementById("container")?.remove();
+        oldParent.append(old);
+    }
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

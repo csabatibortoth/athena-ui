@@ -11,7 +11,8 @@
 import config, { applyConfig } from "./libs/config/config.js";
 import { getAppConfig, setHooks } from "./libs/config/hooks.js";
 import { loadScript, loadTheme } from "./libs/hephaestus/hephaestus.js";
-import { generateBasicLayout } from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
+import { generateBasicLayout, setLayoutRoot } from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
+import { asHandle, resolveElement, uid } from "./libs/core/dom.js";
 import { setLocale } from "./libs/core/i18n.js";
 
 /**
@@ -41,6 +42,41 @@ export async function init(options = {}) {
 
     generateBasicLayout();
     return config;
+}
+
+/**
+ * Starts Athena UI inside an element of your page instead of the body, so it can be one part of a larger page (or of several apps).
+ * It does what init() does (settings, language, theme, hooks), and the layout (container, header, wrapper, footer) is generated into
+ * `root`. The parts follow the settings: `config: { generateHeader: false, generateFooter: false }` leaves only the wrapper, which is where
+ * the components go by default (the element with the id "wrapper"). One app per page: the parts have fixed ids.
+ *
+ * @param {object} options the options of init(), and
+ * @param {string|Element} options.root the element to build into (an element, an id or a selector)
+ * @returns {Promise<{element: HTMLElement, container: HTMLElement, header: HTMLElement|null, wrapper: HTMLElement|null, footer: HTMLElement|null,
+ *           config: object, update: Function, destroy: Function}>}
+ */
+export async function createApp(options = {}) {
+    const root = resolveElement(options.root);
+    if (!root) throw new Error("Athena UI: createApp needs a root element (an element, an id or a selector)");
+    if (!root.id) root.id = uid("athena-app");
+    setLayoutRoot(root.id);
+    let effective;
+    try {
+        effective = await init(options);
+    } finally {
+        setLayoutRoot("");
+    }
+    return asHandle({
+        element: root,
+        container: document.getElementById("container"),
+        header: document.getElementById("header"),
+        wrapper: document.getElementById("wrapper"),
+        footer: document.getElementById("footer"),
+        config: effective,
+        destroy() {
+            document.getElementById("container")?.remove();
+        }
+    });
 }
 
 /**

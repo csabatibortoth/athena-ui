@@ -18,6 +18,14 @@ function generateSection(id, className, parent = "container") {
     });
 }
 
+// The element (by id) the container is generated into. Empty: the body, like init(). createApp({ root }) sets it.
+let layoutRoot = "";
+
+/** Chooses where generateContainer() puts the page layout: the id of an element, or "" for the body. */
+export function setLayoutRoot(id = "") {
+    layoutRoot = id;
+}
+
 export function generateBasicLayout() {
     generateContainer();
     if (config.generateHeader) generateHeader();
@@ -26,7 +34,7 @@ export function generateBasicLayout() {
 }
 
 export function generateContainer() {
-    generateSection("container", config.container_class, "");
+    generateSection("container", config.container_class, layoutRoot);
 }
 
 /* HEADER ELEMENT GENERATION */
