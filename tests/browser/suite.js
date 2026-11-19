@@ -1320,9 +1320,10 @@ test("motion: the preference lives on <html>, the tokens follow it, the function
     equal(A.setMotion("sideways"), false, "an unknown value is refused");
     A.setMotion("system");
     assert(!("motion" in root.dataset), "system: no attribute");
+    const systemReduced = A.prefersReducedMotion();     // what the system says (the machine of the test decides)
     A.setMotion("reduce");
     stop();
-    equal(seen.join(), "full:false,reduce:true,system:" + A.prefersReducedMotion() + ",reduce:true");
+    equal(seen.join(), "full:false,reduce:true,system:" + systemReduced + ",reduce:true");
 });
 
 test("motion: animate() runs a Web Animation and resolves at the end; under reduced motion it does nothing", async () => {
