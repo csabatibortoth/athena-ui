@@ -38,5 +38,5 @@ jobs:
       - name: The demo package builds
         run: npm run demo:build
 
-      - name: The npm package is what it should be
-        run: npm pack --dry-run
+      - name: The npm package holds everything the entry points need
+        run: npm run check:package
