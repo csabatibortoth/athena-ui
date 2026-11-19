@@ -794,6 +794,42 @@ test("small parts: page header, facts, empty state, loading, stat tone and note,
     equal(A.formatRelativeTime("nonsense"), "");
 });
 
+test("date and time range: presets fill the inputs, custom edits clear the preset, getRange moves with the clock", async () => {
+    const seen = [];
+    const range = A.generateDateTimeRange({ parent: "wrapper", label: "Time", onChange: v => seen.push(v.preset) });
+    const [select, from, to] = range.inputs;
+    equal(from.type, "datetime-local");
+    equal(select.options.length, 6);
+    select.value = "1h";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    equal(seen.join(), "1h");
+    const a = new Date(from.value);
+    const b = new Date(to.value);
+    assert(Math.abs((b - a) - 3600000) < 61000, "one hour apart: " + (b - a));
+    const r1 = range.getRange();
+    assert(Math.abs(r1.to.getTime() - Date.now()) < 5000, "ends now");
+    await tick(30);
+    assert(range.getRange().to.getTime() > r1.to.getTime(), "a preset moves with the clock");
+    // editing an input makes it a custom range
+    from.value = "2026-01-01T08:00";
+    from.dispatchEvent(new Event("change", { bubbles: true }));
+    equal(seen.join(), "1h,");
+    equal(select.value, "");
+    equal(range.getValue().preset, "");
+    equal(range.getRange().from.getFullYear(), 2026);
+    // reversed range is reported
+    to.value = "2025-12-31T08:00";
+    to.dispatchEvent(new Event("change", { bubbles: true }));
+    assert(range.validate().length > 0, "reversed range reported");
+    assert($1(".field-error", range.element.parentElement).textContent.length > 0, "error text shown");
+    range.setValue({ preset: "7d" });
+    equal(select.value, "7d");
+    assert(Math.abs(new Date(to.value) - new Date(from.value) - 7 * 86400000) < 61000, "7 days");
+    equal(A.toLocalInput(new Date(2026, 10, 19, 9, 5)), "2026-11-19T09:05");
+    equal(A.fromLocalInput("nope"), null);
+    range.destroy();
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

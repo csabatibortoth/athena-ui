@@ -35,6 +35,7 @@ import * as session from "./libs/hephaestus/auth/session.js";
 import * as i18n from "./libs/core/i18n.js";
 import * as validation from "./libs/core/validation.js";
 import * as format from "./libs/core/format.js";
+import * as dateRange from "./libs/core/dateRange.js";
 import * as csv from "./libs/core/csv.js";
 import * as theme from "./libs/core/theme.js";
 import * as themePicker from "./libs/hephaestus/componentGenerator/themePicker.js";
@@ -113,6 +114,7 @@ const AthenaUI = {
     ...i18n,
     ...validation,
     ...csv,
+    ...dateRange,
     ...format,
     setTheme,
     ...chart,
@@ -154,6 +156,7 @@ export * from "./libs/hephaestus/auth/session.js";
 export * from "./libs/core/i18n.js";
 export * from "./libs/core/validation.js";
 export * from "./libs/core/csv.js";
+export * from "./libs/core/dateRange.js";
 export * from "./libs/core/format.js";
 export * from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 export * from "./libs/core/theme.js";
