@@ -4,6 +4,9 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { asHandle, cx, el, mount, resolveElement, setContent, uid } from "../../core/dom.js";
+import { generateBreadcrumbs } from "../navigationGenerator/navigationGenerator.js";
+import { generateSpinner } from "../feedbackGenerator/feedbackGenerator.js";
+import { translate } from "../../core/i18n.js";
 
 /**
  * Generates a link. External links open in a new tab and get `rel="noopener noreferrer"`.
@@ -143,10 +146,14 @@ export function generateAvatar(options = {}) {
  * @param {string|number} options.value
  * @param {number} [options.delta] change in percent, shown with an arrow
  * @param {boolean} [options.invertDelta] a falling value is good news (costs, errors)
- * @returns {{element: HTMLElement, setValue: Function}}
+ * @param {"ok"|"warn"|"bad"} [options.tone] colours the tile (the class is-ok / is-warn / is-bad) and adds the word to the screen reader text
+ * @param {string} [options.note] small text under the value ("of 120 hosts", "updated 2 min ago")
+ * @returns {{element: HTMLElement, setValue: Function, setNote: Function, setTone: Function}}
  */
 export function generateStat(options = {}) {
-    const value = el("div", { class: "stat-value", text: String(options.value ?? "") });
+    const valueText = document.createTextNode(String(options.value ?? ""));
+    const toneWord = el("span", { class: "athena-visually-hidden" });
+    const value = el("div", { class: "stat-value" }, valueText, toneWord);
     const element = el("div", { id: options.id, class: cx("stat", options.class) }, el("div", { class: "stat-label", text: options.label }), value);
     if (options.delta != null) {
         const good = options.invertDelta ? options.delta < 0 : options.delta > 0;
@@ -154,9 +161,25 @@ export function generateStat(options = {}) {
         const arrow = options.delta > 0 ? "▲" : options.delta < 0 ? "▼" : "■";
         element.append(el("div", { class: cx("stat-delta", `stat-${kind}`), text: `${arrow} ${Math.abs(options.delta)}%` }));
     }
+    const note = el("div", { class: "stat-note" });
+    value.after(note);
+    const setValue = text => { valueText.data = String(text); };
+    const setNote = text => { note.textContent = text ?? ""; note.hidden = !text; };
+    const setTone = tone => {
+        for (const name of ["ok", "warn", "bad"]) element.classList.toggle(`is-${name}`, name === tone);
+        toneWord.textContent = tone ? ` (${translate(`tone.${tone}`)})` : "";
+    };
+    setNote(options.note);
+    setTone(options.tone);
     mount(options.parent, element);
-    const setValue = text => { value.textContent = String(text); };
-    return asHandle({ element, setValue, update: ({ value: text } = {}) => { if (text != null) setValue(text); } });
+    return asHandle({
+        element, setValue, setNote, setTone,
+        update: ({ value: text, note: noteText, tone } = {}) => {
+            if (text != null) setValue(text);
+            if (noteText !== undefined) setNote(noteText);
+            if (tone !== undefined) setTone(tone);
+        }
+    });
 }
 
 /**
@@ -199,4 +222,98 @@ export function generateTooltip(target, text) {
     node.setAttribute("aria-describedby", id);
     host.append(tip);
     return tip;
+}
+
+/* ------------------PAGE PARTS------------------- */
+
+/**
+ * The top of a page: breadcrumbs, the title (a heading), a description and the actions of the page.
+ *
+ * @param {object} options
+ * @param {string|Element} [options.parent]
+ * @param {string} options.title
+ * @param {string} [options.description]
+ * @param {{label: string, href?: string, onclick?: Function}[]} [options.breadcrumbs] see generateBreadcrumbs
+ * @param {(Node|string)[]|Node} [options.actions] buttons, shown at the end of the header
+ * @param {1|2|3} [options.level=1] heading level
+ * @returns {{element: HTMLElement, setTitle: Function, setDescription: Function, actions: HTMLElement}}
+ */
+export function generatePageHeader(options = {}) {
+    const title = el(`h${options.level ?? 1}`, { class: "page-title", text: options.title });
+    const description = el("p", { class: "page-description", text: options.description ?? "" });
+    description.hidden = !options.description;
+    const actions = setContent(el("div", { class: "page-actions" }), options.actions);
+    const heading = el("div", { class: "page-heading" }, title, description);
+    const element = el("header", { id: options.id, class: cx("page-header", options.class) });
+    if (options.breadcrumbs?.length) generateBreadcrumbs({ parent: element, items: options.breadcrumbs });
+    element.append(el("div", { class: "page-header-row" }, heading, actions));
+    mount(options.parent, element);
+    return asHandle({
+        element, actions,
+        setTitle: text => { title.textContent = text; },
+        setDescription: text => { description.textContent = text ?? ""; description.hidden = !text; }
+    });
+}
+
+/**
+ * A list of facts: a term and its description, in pairs (a <dl>).
+ *
+ * @param {object} options
+ * @param {string|Element} [options.parent]
+ * @param {{term: string, description: (string|number|Node|Array), title?: string}[]} options.items text is inserted as text
+ * @param {boolean} [options.inline=false] terms and descriptions side by side
+ * @returns {{element: HTMLElement, setItems: Function}}
+ */
+export function generateFacts(options = {}) {
+    const element = el("dl", { id: options.id, class: cx("facts", options.inline && "facts-inline", options.class) });
+    const setItems = items => {
+        element.replaceChildren();
+        for (const item of items ?? []) {
+            const group = el("div", { class: "fact" }, el("dt", { text: item.term }), setContent(el("dd", { attrs: { title: item.title } }), item.description));
+            element.append(group);
+        }
+    };
+    setItems(options.items);
+    mount(options.parent, element);
+    return asHandle({ element, setItems, update: ({ items } = {}) => { if (items) setItems(items); } });
+}
+
+/**
+ * What a list shows when there is nothing in it: a title, a short explanation and what to do about it.
+ *
+ * @param {object} options
+ * @param {string|Element} [options.parent]
+ * @param {string} options.title
+ * @param {string} [options.message]
+ * @param {string|Node} [options.icon] decorative
+ * @param {{text: string, onclick: Function, variant?: string}} [options.action] a button
+ */
+export function generateEmptyState(options = {}) {
+    const element = el("div", { id: options.id, class: cx("empty-state", options.class) });
+    if (options.icon) element.append(setContent(el("div", { class: "empty-icon", attrs: { "aria-hidden": "true" } }), options.icon));
+    element.append(el("p", { class: "empty-title", text: options.title }));
+    if (options.message) element.append(el("p", { class: "empty-message", text: options.message }));
+    if (options.action) {
+        const button = el("button", { class: `athena-button button-${options.action.variant ?? "primary"}`, text: options.action.text, attrs: { type: "button" } });
+        button.addEventListener("click", event => options.action.onclick?.(event));
+        element.append(button);
+    }
+    mount(options.parent, element);
+    return asHandle({ element });
+}
+
+/**
+ * A placeholder while something loads: a spinner and a text (a live region, so a screen reader says it).
+ *
+ * @param {object} [options]
+ * @param {string|Element} [options.parent]
+ * @param {string} [options.text] default: the translated "Loading..."
+ */
+export function generateLoading(options = {}) {
+    const text = options.text ?? translate("loading");
+    const element = el("div", { id: options.id, class: cx("loading-state", options.class), attrs: { role: "status", "aria-live": "polite" } });
+    generateSpinner({ parent: element, label: text });
+    element.append(el("span", { class: "loading-text", text }));
+    mount(options.parent, element);
+    return asHandle({ element });
 }

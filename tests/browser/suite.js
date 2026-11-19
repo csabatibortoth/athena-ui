@@ -751,6 +751,49 @@ test("router: auth rules, roles, guard, hooks and onChange", async () => {
     wrapper.removeAttribute("tabindex");
 });
 
+test("small parts: page header, facts, empty state, loading, stat tone and note, format helpers", async () => {
+    const header = A.generatePageHeader({ parent: "wrapper", title: "<b>Hosts</b>", description: "All of them", breadcrumbs: [{ label: "Home", href: "#/" }, { label: "Hosts" }],
+        actions: [A.generateButton({ text: "Add" }).element] });
+    equal(header.element.tagName, "HEADER");
+    equal($1("h1", header.element).textContent, "<b>Hosts</b>");
+    assert(!$1("h1 b", header.element), "title is text");
+    equal($$(".breadcrumb-item", header.element).length, 2);
+    equal($1(".page-actions button", header.element).textContent, "Add");
+    header.setDescription("");
+    assert($1(".page-description", header.element).hidden, "empty description hidden");
+    const facts = A.generateFacts({ parent: "wrapper", inline: true, items: [{ term: "OS", description: "Linux" }, { term: "Tags", description: [A.generateBadge({ text: "a" })] }] });
+    equal($$("dt", facts.element).length, 2);
+    equal($1("dd", facts.element).textContent, "Linux");
+    facts.update({ items: [{ term: "Only", description: "<i>x</i>" }] });
+    equal($1("dd", facts.element).textContent, "<i>x</i>");
+    let clicked = 0;
+    const empty = A.generateEmptyState({ parent: "wrapper", title: "Nothing here", message: "Add one", icon: "∅", action: { text: "Add host", onclick: () => clicked++ } });
+    equal($1(".empty-title", empty.element).textContent, "Nothing here");
+    $1("button", empty.element).click();
+    equal(clicked, 1);
+    const loading = A.generateLoading({ parent: "wrapper" });
+    equal(loading.element.getAttribute("role"), "status");
+    equal($1(".loading-text", loading.element).textContent, "Loading...");
+    const stat = A.generateStat({ parent: "wrapper", label: "CPU", value: 91, tone: "bad", note: "of 100" });
+    assert(stat.element.classList.contains("is-bad"), "tone class");
+    equal($1(".stat-note", stat.element).textContent, "of 100");
+    assert($1(".stat-value", stat.element).textContent.startsWith("91"), "value");
+    assert($1(".stat-value", stat.element).textContent.includes("("), "tone word for screen readers");
+    stat.update({ value: 12, tone: "ok", note: "" });
+    assert(stat.element.classList.contains("is-ok") && !stat.element.classList.contains("is-bad"), "tone changed");
+    assert($1(".stat-note", stat.element).hidden, "empty note hidden");
+    // format helpers
+    equal(A.formatDuration(350), "350 ms");
+    assert(A.formatDuration(7500000).startsWith("2 hr"), "duration: " + A.formatDuration(7500000));
+    const now = Date.UTC(2026, 10, 19, 12, 0, 0);
+    equal(A.formatRelativeTime(now - 2 * 60000, now), "2 minutes ago");
+    equal(A.formatRelativeTime(now + 3 * 86400000, now), "in 3 days");
+    equal(A.formatRelativeTime(now - 86400000, now), "yesterday");
+    equal(A.formatNumber(1234567.891), "1,234,567.89");
+    assert(A.formatDate(Date.UTC(2026, 10, 19, 12)).includes("2026"), "date");
+    equal(A.formatRelativeTime("nonsense"), "");
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

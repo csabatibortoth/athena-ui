@@ -81,6 +81,27 @@ export function generateAlert(options = {}) {
 }
 
 /**
+ * Copies text to the clipboard and says so in a toast. Resolves with true when it worked (it needs a secure page and a click or key
+ * press of the person), false otherwise (a toast with the error is shown).
+ *
+ * @param {string} text
+ * @param {object} [options]
+ * @param {string} [options.message] text of the toast (default: the translated "Copied")
+ * @param {boolean} [options.toast=true] false copies silently
+ * @returns {Promise<boolean>}
+ */
+export async function copyToClipboard(text, { message = translate("copied"), toast = true } = {}) {
+    try {
+        await navigator.clipboard.writeText(String(text));
+        if (toast) showToast({ message, type: "success" });
+        return true;
+    } catch {
+        if (toast) showToast({ message: translate("copyFailed"), type: "error" });
+        return false;
+    }
+}
+
+/**
  * Generates a loading spinner.
  *
  * @param {object} [options]

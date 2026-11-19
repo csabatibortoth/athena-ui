@@ -2016,3 +2016,115 @@ textarea {
 .athena-chart .chart-reset {
     cursor: pointer;
 }
+
+/* Page header, facts, empty state, loading, stat tone and note */
+
+.page-header {
+    margin-bottom: 16px;
+}
+
+.page-header-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.page-title {
+    margin: 0;
+}
+
+.page-description {
+    margin: 4px 0 0;
+    color: var(--athena-muted);
+}
+
+.page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.facts {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+
+.facts .fact {
+    display: flex;
+    flex-direction: column;
+}
+
+.facts dt {
+    color: var(--athena-muted);
+    font-size: 0.85em;
+}
+
+.facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.facts-inline .fact {
+    flex-direction: row;
+    gap: 12px;
+}
+
+.facts-inline dt {
+    min-width: 10em;
+    font-size: inherit;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--athena-muted);
+}
+
+.empty-state .empty-icon {
+    font-size: 2.5em;
+    line-height: 1;
+}
+
+.empty-state .empty-title {
+    margin: 0;
+    color: var(--athena-fg);
+    font-weight: bold;
+}
+
+.empty-state .empty-message {
+    margin: 0;
+    max-width: 40em;
+}
+
+.loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    color: var(--athena-muted);
+}
+
+.stat-note {
+    margin-top: 2px;
+    color: var(--athena-muted);
+    font-size: 0.85em;
+}
+
+.stat-note[hidden] {
+    display: none;
+}
+
+.stat.is-ok { border-left: 4px solid var(--athena-success); }
+.stat.is-warn { border-left: 4px solid var(--athena-warning); }
+.stat.is-bad { border-left: 4px solid var(--athena-danger); }
+.stat.is-ok .stat-value { color: var(--athena-success); }
+.stat.is-warn .stat-value { color: var(--athena-warning); }
+.stat.is-bad .stat-value { color: var(--athena-danger); }
