@@ -6,7 +6,7 @@
 import { cx, el, setContent, uid } from "../../core/dom.js";
 import { trapFocus } from "../../core/focus.js";
 import { translate } from "../../core/i18n.js";
-import { generateButton } from "../formGenerator/formBuilder.js";
+import { generateButton, generateForm } from "../formGenerator/formBuilder.js";
 
 /**
  * Opens a dialog and resolves with the value of the button that was used,
@@ -85,17 +85,97 @@ export async function alertDialog(message, { title, okText = translate("ok") } =
     await showDialog({ title, content: message, buttons: [{ text: okText, value: true, autofocus: true }] });
 }
 
-/** Question with confirm and cancel buttons. Resolves with true / false. */
-export async function confirmDialog(message, { title, confirmText = translate("ok"), cancelText = translate("cancel"), danger = false } = {}) {
-    const result = await showDialog({
+/** Question with confirm and cancel buttons. Resolves with true / false. See showConfirm for `typeToConfirm`. */
+export function confirmDialog(message, options = {}) {
+    return showConfirm({ ...options, message });
+}
+
+/**
+ * Asks for a confirmation. Resolves with true when confirmed, false when cancelled or dismissed.
+ *
+ * @param {object} options
+ * @param {string} [options.title]
+ * @param {string|Node|Array} options.message
+ * @param {string} [options.confirmText]
+ * @param {string} [options.cancelText]
+ * @param {boolean} [options.danger=false] red confirm button
+ * @param {string} [options.typeToConfirm] the person has to type exactly this text before the dialog confirms
+ *        (for things that cannot be undone: the name of what is deleted)
+ * @param {"small"|"medium"|"large"|"full"} [options.size]
+ * @returns {Promise<boolean> & {element: HTMLElement, close: Function}}
+ */
+export function showConfirm({ title, message, confirmText = translate("ok"), cancelText = translate("cancel"), danger = false, typeToConfirm, size } = {}) {
+    let input = null;
+    const error = el("div", { class: "field-error", attrs: { role: "alert" } });
+    const content = [message];
+    if (typeToConfirm) {
+        input = el("input", { class: "confirm-input", attrs: { type: "text", autocomplete: "off", "aria-label": typeToConfirm, "data-autofocus": "true" } });
+        content.push(el("p", { class: "confirm-prompt", text: translate("typeToConfirm", { text: typeToConfirm }) }), input, error);
+    }
+    const dialog = showDialog({
         title,
-        content: message,
+        content,
+        size,
         buttons: [
             { text: cancelText, value: false, variant: "secondary" },
-            { text: confirmText, value: true, variant: danger ? "danger" : "primary", autofocus: true }
-        ]
+            { text: confirmText, value: true, variant: danger ? "danger" : "primary", autofocus: !typeToConfirm }
+        ],
+        beforeClose: value => {
+            if (value !== true || !typeToConfirm || input.value === typeToConfirm) return true;
+            error.textContent = translate("textMismatch");
+            input.focus();
+            return false;
+        }
     });
-    return result === true;
+    return Object.assign(dialog.then(result => result === true), { element: dialog.element, backdrop: dialog.backdrop, close: dialog.close });
+}
+
+/**
+ * A dialog that holds a form (see generateForm): validation, Enter submits, the button shows a spinner while it saves.
+ * `onSubmit(values, form)` saves. When it throws (or rejects) the message is shown in the dialog and the dialog stays open;
+ * `form.setErrors({ field: "message" })` marks single fields, for example with errors of the server. When it returns, the dialog closes.
+ *
+ * @param {object} options
+ * @param {string} [options.title]
+ * @param {string} [options.intro] text above the fields
+ * @param {string|Node|Array} [options.content] nodes above the fields
+ * @param {object[]} options.fields field definitions, see generateField
+ * @param {string} [options.submitText]
+ * @param {string} [options.cancelText]
+ * @param {boolean} [options.danger=false] red submit button
+ * @param {"small"|"medium"|"large"|"full"} [options.size]
+ * @param {(values: object, form: object) => (void|Promise)} options.onSubmit
+ * @param {(form: object) => void} [options.onReady] called with the form once it is built
+ * @returns {Promise<boolean> & {element: HTMLElement, form: object, close: Function}} resolves with true when it was saved, false when dismissed
+ */
+export function showFormDialog({ title, intro, content, fields, submitText = translate("save"), cancelText = translate("cancel"), danger = false, size, onSubmit, onReady } = {}) {
+    let saved = false;
+    let dialog = null;
+    const body = el("div", { class: "dialog-form" });
+    if (intro) body.append(el("p", { class: "dialog-intro", text: intro }));
+    setContent(body, content);
+    const form = generateForm({
+        parent: body,
+        fields,
+        submitText,
+        onSubmit: async (values, f) => {
+            await onSubmit?.(values, f);
+            saved = true;
+            dialog.close(true);
+        }
+    });
+    onReady?.(form);
+    form.element.querySelector(".form-actions").append(
+        generateButton({ text: cancelText, variant: "secondary", onclick: () => dialog.close(null) }).element
+    );
+    if (danger) {
+        form.submitButton.element.classList.remove("button-primary");
+        form.submitButton.element.classList.add("button-danger");
+    }
+    dialog = showDialog({ title, content: body, buttons: [], size });
+    const first = form.element.querySelector("input:not([disabled]):not([type=hidden]), select, textarea");
+    first?.focus();
+    return Object.assign(dialog.then(() => saved), { element: dialog.element, backdrop: dialog.backdrop, form, close: dialog.close });
 }
 
 /**

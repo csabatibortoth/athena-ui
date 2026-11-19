@@ -56,6 +56,18 @@ const compare = (a, b) =>
  * @param {(row: object) => string} [options.rowLabel] aria-label of a focusable row
  * @param {"normal"|"compact"} [options.density="normal"]
  * @param {boolean} [options.wrap] true lets long text wrap, false keeps one line with an ellipsis (default: wrap, except in virtual tables)
+ * @param {(query: {page: number, pageSize: number, cursor: *, sort: ({key: string, descending: boolean}|null), filter: string}) =>
+ *        Promise<{rows: object[], total?: number, nextCursor?: *}>} [options.dataSource] load the rows from a server instead of
+ *        keeping them all in the browser. Sorting, the filter box and the pager call it again. Answer with `total` for numbered pages
+ *        (`page` is 0-based), or with `nextCursor` for a "Load more" button (`cursor` is what the last answer gave, undefined for the
+ *        first request; the rows are appended). A failed request shows the error with a Retry button.
+ *        Together with `virtual` the list scrolls like one of `total` rows (every answer must carry `total`): the rows in view are asked for
+ *        in chunks of `chunkSize` (`page` is the chunk number), rows that have not arrived yet show a placeholder, and sorting or the filter
+ *        start again from the top.
+ * @param {number} [options.chunkSize=50] rows per request of a data source with `virtual`
+ * @param {number} [options.filterDelay=300] ms to wait after typing before the data source is asked
+ * @param {{label: string, onclick: (row: object) => void, danger?: boolean, hidden?: (row: object) => boolean, ariaLabel?: (row: object) => string}[]} [options.rowActions]
+ *        a column of buttons at the end of every row
  * Column extras: `render(row, value)` returns text or a Node (built by the caller, so safe by construction), `align`
  * ("left" | "center" | "right"), `title` (false switches the tooltip with the full text off).
  * @returns {{element: HTMLElement, update: Function, destroy: Function, setRows: Function, getSelected: () => object[], clearSelection: Function,
@@ -66,10 +78,19 @@ export function generateTable(options = {}) {
         parent = "wrapper", id = "table", columns = [], sortable = true,
         filter = false, selectable = false, resizableColumns = false, onRowClick, onSelectionChange
     } = options;
+    const remote = typeof options.dataSource === "function";
+    const rowActions = options.rowActions?.length ? options.rowActions : null;
     const virtual = options.virtual
         ? { height: 400, rowHeight: 36, overscan: 5, ...(options.virtual === true ? {} : options.virtual) }
         : null;
-    const pageSize = virtual ? 0 : (options.pageSize ?? 0);
+    const remoteVirtual = remote && Boolean(virtual);
+    const chunkSize = Math.max(1, options.chunkSize ?? 50);
+    const chunks = new Map();               // chunk number -> "loading" | "done" | "failed" (remote virtual)
+    let flushTimer = 0;
+    const pageSize = virtual ? 0 : (options.pageSize ?? (remote ? 25 : 0));
+    // What the data source told us: { loading, error, total, nextCursor, cursorMode }
+    const server = { loading: false, error: null, total: null, nextCursor: undefined, cursorMode: false, request: 0 };
+    const colCount = () => columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0);
     const host = resolveElement(parent) ?? document.body;
     let rows = [...(options.rows ?? [])];
     let current = rows;                     // filtered and sorted rows
@@ -101,11 +122,14 @@ export function generateTable(options = {}) {
         filterInput.type = "search";
         filterInput.placeholder = translate("filter");
         filterInput.setAttribute("aria-label", translate("filter"));
+        let filterTimer = 0;
         filterInput.addEventListener("input", () => {
-            state.query = filterInput.value.toLowerCase();
+            state.query = remote ? filterInput.value.trim() : filterInput.value.toLowerCase();
             state.page = 0;
             if (scroller) scroller.scrollTop = 0;
-            render();
+            if (!remote) return render();
+            clearTimeout(filterTimer);
+            filterTimer = setTimeout(() => load({ reset: true }), options.filterDelay ?? 300);
         });
         root.append(filterInput);
     }
@@ -120,6 +144,7 @@ export function generateTable(options = {}) {
     host.append(root);
 
     function visibleRows() {
+        if (remote) return rows;   // the server filtered, sorted and paged them
         let result = rows;
         if (state.query) {
             result = result.filter(row =>
@@ -260,7 +285,8 @@ export function generateTable(options = {}) {
                 const sort = () => {
                     state.descending = state.sortKey === col.key && !state.descending;
                     state.sortKey = col.key;
-                    render();
+                    if (remote) load({ reset: true });
+                    else render();
                 };
                 th.addEventListener("click", sort);
                 th.addEventListener("keydown", e => {
@@ -275,6 +301,12 @@ export function generateTable(options = {}) {
                 }
             }
             if (resizableColumns) makeResizer(th, col);
+            tr.append(th);
+        }
+        if (rowActions) {
+            const th = el("th", "athena-table-actions");
+            th.scope = "col";
+            th.append(el("span", "athena-visually-hidden", translate("actions")));
             tr.append(th);
         }
         const thead = el("thead");
@@ -318,7 +350,7 @@ export function generateTable(options = {}) {
         tr.setAttribute("aria-hidden", "true");
         tr.style.height = `${height}px`;
         const td = el("td");
-        td.colSpan = columns.length + (selectable ? 1 : 0);
+        td.colSpan = colCount();
         tr.append(td);
         return tr;
     }
@@ -326,6 +358,15 @@ export function generateTable(options = {}) {
     function renderRow(row, index) {
         const tr = el("tr");
         if (virtual) tr.setAttribute("aria-rowindex", String(index + 2));
+        if (row === undefined) {
+            // A row of a data source that has not arrived yet
+            tr.className = "athena-table-placeholder";
+            tr.setAttribute("aria-busy", "true");
+            const td = el("td", null, "…");
+            td.colSpan = colCount();
+            tr.append(td);
+            return tr;
+        }
         addClasses(tr, options.rowClass?.(row));
         if (onRowClick) {
             tr.classList.add("clickable");
@@ -384,17 +425,52 @@ export function generateTable(options = {}) {
             }
             tr.append(td);
         }
+        if (rowActions) {
+            const td = el("td", "athena-table-actions");
+            for (const action of rowActions) {
+                if (action.hidden?.(row)) continue;
+                const button = el("button", `athena-button button-${action.danger ? "danger" : "secondary"} button-small`, action.label);
+                button.type = "button";
+                if (action.ariaLabel) button.setAttribute("aria-label", action.ariaLabel(row));
+                button.addEventListener("click", event => {
+                    event.stopPropagation();
+                    action.onclick(row);
+                });
+                td.append(button);
+            }
+            tr.append(td);
+        }
+        return tr;
+    }
+
+    function messageRow(className, text, retry) {
+        const td = el("td", className, text);
+        td.colSpan = Math.max(colCount(), 1);
+        if (retry) {
+            const button = el("button", "athena-button button-secondary button-small", translate("retry"));
+            button.type = "button";
+            button.addEventListener("click", () => load({}));
+            td.append(" ", button);
+        }
+        const tr = el("tr");
+        tr.append(td);
         return tr;
     }
 
     function renderBody() {
         const tbody = el("tbody");
+        if (remote && server.error && !current.length) {
+            const row = messageRow("athena-table-error", server.error, true);
+            row.firstChild.setAttribute("role", "alert");
+            tbody.append(row);
+            return tbody;
+        }
+        if (remote && server.loading && !current.length) {
+            tbody.append(messageRow("athena-table-loading", translate("loading")));
+            return tbody;
+        }
         if (!current.length) {
-            const td = el("td", "athena-table-empty", options.emptyText ?? translate("noData"));
-            td.colSpan = Math.max(columns.length + (selectable ? 1 : 0), 1);
-            const tr = el("tr");
-            tr.append(td);
-            tbody.append(tr);
+            tbody.append(messageRow("athena-table-empty", options.emptyText ?? translate("noData")));
             return tbody;
         }
         if (virtual) {
@@ -403,18 +479,58 @@ export function generateTable(options = {}) {
                 rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
             });
             windowKey = `${win.start}:${win.end}`;
+            if (remoteVirtual) ensureChunks();
             if (win.offsetTop) tbody.append(spacer(win.offsetTop));
             for (let i = win.start; i < win.end; i++) tbody.append(renderRow(current[i], i));
             if (win.offsetBottom) tbody.append(spacer(win.offsetBottom));
             return tbody;
         }
-        const pageRows = pageSize > 0 ? current.slice(state.page * pageSize, (state.page + 1) * pageSize) : current;
+        const pageRows = remote ? current : pageSize > 0 ? current.slice(state.page * pageSize, (state.page + 1) * pageSize) : current;
         for (const row of pageRows) tbody.append(renderRow(row));
         return tbody;
     }
 
+    function renderRemotePager() {
+        if (server.cursorMode) {
+            pager.hidden = !server.nextCursor && !server.error;
+            const more = el("button", "athena-button button-secondary", translate("loadMore"));
+            more.type = "button";
+            more.disabled = server.loading;
+            more.addEventListener("click", () => load({ more: true }));
+            pager.replaceChildren(more);
+            showPagerError();
+            return;
+        }
+        const pages = server.total == null ? state.page + 2 : Math.max(1, Math.ceil(server.total / pageSize));
+        pager.hidden = pages === 1;
+        const go = delta => () => {
+            state.page += delta;
+            load({});
+        };
+        const prev = el("button", null, `‹ ${translate("previous")}`);
+        prev.type = "button";
+        prev.disabled = state.page === 0 || server.loading;
+        prev.addEventListener("click", go(-1));
+        const next = el("button", null, `${translate("next")} ›`);
+        next.type = "button";
+        next.disabled = state.page >= pages - 1 || server.loading;
+        next.addEventListener("click", go(1));
+        pager.replaceChildren(prev, el("span", null, ` ${translate("page", { page: state.page + 1, pages: server.total == null ? "?" : pages })} `), next);
+        showPagerError();
+    }
+
+    // A failed request while rows are on the screen (the next page, "Load more"): say so next to the buttons.
+    function showPagerError() {
+        if (!server.error || !current.length) return;
+        pager.hidden = false;
+        const message = el("span", "athena-table-error", server.error);
+        message.setAttribute("role", "alert");
+        pager.append(" ", message);
+    }
+
     function renderPager(total) {
         if (!pager) return;
+        if (remote) return renderRemotePager();
         const pages = Math.max(1, Math.ceil(total / pageSize));
         state.page = Math.min(state.page, pages - 1);
         pager.hidden = pages === 1;
@@ -438,6 +554,8 @@ export function generateTable(options = {}) {
     function render() {
         const scrollTop = scroller?.scrollTop ?? 0;
         current = visibleRows();
+        root.toggleAttribute("aria-busy", remote && server.loading);
+        root.classList.toggle("athena-table-is-loading", remote && server.loading);
         renderPager(current.length);
         if (virtual) table.setAttribute("aria-rowcount", String(current.length + 1));
         const parts = [renderHead(current), renderBody()];
@@ -453,12 +571,13 @@ export function generateTable(options = {}) {
     // starts empty (a tiny scroll area when the rows are set) still draws a full window.
     const viewportHeight = () => Math.max(scroller.clientHeight, Math.min(virtual.height, current.length * virtual.rowHeight));
 
-    function refreshWindow() {
+    function refreshWindow(force = false) {
+        if (remoteVirtual) ensureChunks();
         const win = virtualWindow({
             scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
             rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
         });
-        if (`${win.start}:${win.end}` === windowKey) return;
+        if (!force && `${win.start}:${win.end}` === windowKey) return;
         const focused = document.activeElement;
         const keepFocus = focused && table.tBodies[0]?.contains(focused);
         table.tBodies[0].replaceWith(renderBody());
@@ -470,11 +589,163 @@ export function generateTable(options = {}) {
         scroller.addEventListener("scroll", () => {
             if (queued) return;
             queued = true;
-            requestAnimationFrame(() => {
+            // Once per frame; the timer is for pages where frames are paused or late (a hidden tab, a busy page).
+            let timer = 0;
+            const run = () => {
+                if (!queued) return;
                 queued = false;
+                clearTimeout(timer);
                 refreshWindow();
-            });
+            };
+            requestAnimationFrame(run);
+            timer = setTimeout(run, 100);
         });
+    }
+
+    /**
+     * Asks the data source. { reset } starts again from the first page, { more } appends the next cursor page.
+     * An answer that arrives after a newer request was made is ignored.
+     */
+    async function load({ reset = false, more = false } = {}) {
+        if (remoteVirtual) return loadVirtual();
+        if (reset) {
+            state.page = 0;
+            server.nextCursor = undefined;
+        }
+        const request = ++server.request;
+        server.loading = true;
+        server.error = null;
+        render();
+        try {
+            const answer = await options.dataSource({
+                page: state.page,
+                pageSize,
+                cursor: more ? server.nextCursor : undefined,
+                sort: state.sortKey ? { key: state.sortKey, descending: state.descending } : null,
+                filter: state.query
+            });
+            if (request !== server.request) return;
+            const loaded = answer?.rows ?? [];
+            server.cursorMode = answer?.nextCursor !== undefined || (more && server.cursorMode);
+            server.nextCursor = answer?.nextCursor ?? undefined;
+            server.total = answer?.total ?? null;
+            rows = more ? [...rows, ...loaded] : [...loaded];
+            if (!more) selected.clear();
+        } catch (error) {
+            if (request !== server.request) return;
+            server.error = error?.message ?? String(error);
+            if (!more) rows = [];
+        } finally {
+            if (request === server.request) {
+                server.loading = false;
+                render();
+                if (!more) selectionChanged();
+            }
+        }
+    }
+
+    /* ------------------REMOTE + VIRTUAL------------------- */
+
+    const status = remoteVirtual ? el("div", "athena-table-status") : null;
+    if (status) {
+        status.setAttribute("role", "status");
+        root.append(status);
+    }
+
+    function updateStatus() {
+        if (!status) return;
+        const failed = [...chunks.values()].includes("failed");
+        status.replaceChildren();
+        status.hidden = !failed;
+        if (!failed) return;
+        status.append(el("span", "athena-table-error", server.error ?? translate("noData")), " ");
+        const retry = el("button", "athena-button button-secondary button-small", translate("retry"));
+        retry.type = "button";
+        retry.addEventListener("click", () => {
+            for (const [chunk, value] of chunks) if (value === "failed") chunks.delete(chunk);
+            server.error = null;
+            updateStatus();
+            ensureChunks();
+        });
+        status.append(retry);
+    }
+
+    const query = () => ({ pageSize: chunkSize, cursor: undefined, sort: state.sortKey ? { key: state.sortKey, descending: state.descending } : null, filter: state.query });
+
+    function place(chunk, list) {
+        list.forEach((row, i) => {
+            const index = chunk * chunkSize + i;
+            if (index < rows.length) rows[index] = row;
+        });
+    }
+
+    // Starts again: the first chunk tells how many rows there are, the others come while the person scrolls.
+    async function loadVirtual() {
+        const generation = ++server.request;
+        clearTimeout(flushTimer);
+        chunks.clear();
+        rows = [];
+        selected.clear();
+        if (scroller) scroller.scrollTop = 0;
+        server.loading = true;
+        server.error = null;
+        render();
+        try {
+            const answer = await options.dataSource({ page: 0, ...query() });
+            if (generation !== server.request) return;
+            if (!Number.isInteger(answer?.total) || answer.total < 0) throw new Error("A data source with virtual scrolling has to answer with total");
+            rows = new Array(answer.total);
+            place(0, answer.rows ?? []);
+            chunks.set(0, "done");
+            server.total = answer.total;
+        } catch (error) {
+            if (generation !== server.request) return;
+            server.error = error?.message ?? String(error);
+            rows = [];
+        } finally {
+            if (generation === server.request) {
+                server.loading = false;
+                render();
+                selectionChanged();
+                updateStatus();
+                if (!server.error) ensureChunks();
+            }
+        }
+    }
+
+    async function loadChunk(chunk, generation) {
+        chunks.set(chunk, "loading");
+        try {
+            const answer = await options.dataSource({ page: chunk, ...query() });
+            if (generation !== server.request) return;
+            place(chunk, answer?.rows ?? []);
+            chunks.set(chunk, "done");
+        } catch (error) {
+            if (generation !== server.request) return;
+            chunks.set(chunk, "failed");
+            server.error = error?.message ?? String(error);
+        } finally {
+            if (generation === server.request) {
+                refreshWindow(true);
+                updateStatus();
+            }
+        }
+    }
+
+    // Asks for the chunks under the rows in view (and the rows around them). Waits a moment, so scrolling past does not ask for everything.
+    function ensureChunks() {
+        clearTimeout(flushTimer);
+        const generation = server.request;
+        flushTimer = setTimeout(() => {
+            if (generation !== server.request || !rows.length) return;
+            const win = virtualWindow({
+                scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
+                rowHeight: virtual.rowHeight, total: rows.length, overscan: virtual.overscan
+            });
+            const first = Math.floor(win.start / chunkSize);
+            const last = Math.floor((win.end - 1) / chunkSize);
+            for (let chunk = first; chunk <= last; chunk++) if (!chunks.has(chunk)) loadChunk(chunk, generation);
+        }, 40);
     }
 
     // The window of rows depends on the height of the scroll area, which is unknown while the list is empty or
@@ -490,8 +761,11 @@ export function generateTable(options = {}) {
     }
 
     render();
+    if (remote) load({ reset: true });
     return asHandle({
         element: root,
+        /** Asks the data source again (the first page, keeping sort and filter). Resolves when the answer is shown. */
+        reload: () => (remote ? load({ reset: true }) : Promise.resolve()),
         // update() draws the table again; update({ rows }) also replaces the rows.
         update(next) {
             if (next?.rows) this.setRows(next.rows);
@@ -514,9 +788,9 @@ export function generateTable(options = {}) {
         },
         getColumnWidths: () => ({ ...widths }),
         // The filtered and sorted rows as CSV text
-        toCsv: () => toCsv(columns, current),
+        toCsv: () => toCsv(columns, current.filter(row => row !== undefined)),
         exportCsv(filename = "table.csv") {
-            downloadFile(filename, toCsv(columns, current));
+            downloadFile(filename, toCsv(columns, current.filter(row => row !== undefined)));
         }
     });
 }

@@ -6,7 +6,7 @@
 export const BORDERED_CLASS = "default-cointainer-bordered";
 
 export const defaults = Object.freeze({
-    version: "1.2.0",
+    version: "1.3.0",
     container_class: "container",
     header_class: "header-container",
     header_menu_class: "header-menu menu",
@@ -50,6 +50,8 @@ const config = { ...defaults };
 
 export default config;
 
+let warnedEncrypt = false;
+
 // Copies every known setting that is defined in the given sources onto the live config.
 export function applyConfig(...sources) {
     for (const source of sources) {
@@ -57,6 +59,11 @@ export function applyConfig(...sources) {
         for (const key of Object.keys(defaults)) {
             if (source[key] !== undefined) config[key] = source[key];
         }
+    }
+    if (config.enable_encrypt_password && !warnedEncrypt) {
+        warnedEncrypt = true;
+        console.warn("Athena UI: enable_encrypt_password is deprecated and will be removed in 2.0. Hashing a password in the browser only turns the hash "
+            + "into the password. Send it over HTTPS and hash it on the server. generateSignInForm / generateSignUpForm do not hash.");
     }
     return config;
 }

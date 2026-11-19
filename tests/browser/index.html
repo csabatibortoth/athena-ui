@@ -5,8 +5,10 @@
     <meta charset="utf-8">
     <title>Athena UI browser tests</title>
     <script>
-        // jQuery is a peer dependency of Athena UI. ?jquery=<url> overrides the CDN (see run.mjs).
-        document.write(`<script src="${new URLSearchParams(location.search).get("jquery") ?? "https://code.jquery.com/jquery-4.0.0.min.js"}"><\/script>`);
+        // jQuery is optional since 1.3: the tests run without it. ?jquery=cdn loads it from the jQuery CDN, ?jquery=<url> from there
+        // (see run.mjs), to check that an application that still has jQuery works too.
+        const jquery = new URLSearchParams(location.search).get("jquery");
+        if (jquery) document.write(`<script src="${jquery === "cdn" ? "https://code.jquery.com/jquery-4.0.0.min.js" : jquery}"><\/script>`);
     </script>
     <script type="module" src="suite.js"></script>
 </head>

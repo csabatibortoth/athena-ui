@@ -4,7 +4,7 @@
 //Repository: https://github.com/csabatibortoth/athena-ui
 
 import { createCombobox } from "../../core/combobox.js";
-import { createDateRange } from "../../core/dateRange.js";
+import { createDateRange, createDateTimeRange } from "../../core/dateRange.js";
 import { asHandle, cx, el, mount, setContent, uid } from "../../core/dom.js";
 import { formatBytes, matchesAccept } from "../../core/format.js";
 import { translate } from "../../core/i18n.js";
@@ -67,6 +67,35 @@ function wrapCombobox(options, mode) {
  */
 export function generateDateRange(options = {}) {
     const range = createDateRange(options);
+    const wrapper = el("div", { class: "field" });
+    const error = el("div", { class: "field-error", attrs: { role: "alert" } });
+    if (options.label) wrapper.append(el("span", { class: "field-label", text: options.label }));
+    wrapper.append(range.element, error);
+    range.element.addEventListener("change", () => { error.textContent = range.validate(); });
+    mount(options.parent, wrapper);
+    return asHandle(range, { also: wrapper });
+}
+
+/**
+ * Generates a from / to range with date AND time (datetime-local inputs), and a list of presets: last 15 minutes, hour,
+ * 24 hours, 7 days, 30 days, or "Custom". For log filters, charts and reports that need times, not whole days.
+ * A preset moves with the clock: getRange() measures it from now when it is called.
+ *
+ * @param {object} options
+ * @param {string|Element} [options.parent]
+ * @param {string} [options.label]
+ * @param {string} [options.from] initial start, "2026-01-31T08:00"
+ * @param {string} [options.to] initial end
+ * @param {string} [options.preset] id of the preset to start with ("15m", "1h", "24h", "7d", "30d")
+ * @param {{id: string, label?: string, labelKey?: string, minutes: number}[]} [options.presets] your own list
+ * @param {boolean} [options.seconds=false]
+ * @param {string} [options.min]
+ * @param {string} [options.max]
+ * @param {(value: {from: string, to: string, preset: string}) => void} [options.onChange]
+ * @returns {{element: HTMLElement, getValue: Function, getRange: () => ({from: Date|null, to: Date|null}), setValue: Function, validate: () => string}}
+ */
+export function generateDateTimeRange(options = {}) {
+    const range = createDateTimeRange(options);
     const wrapper = el("div", { class: "field" });
     const error = el("div", { class: "field-error", attrs: { role: "alert" } });
     if (options.label) wrapper.append(el("span", { class: "field-label", text: options.label }));

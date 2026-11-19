@@ -1,11 +1,11 @@
 # Athena UI
 
-A small jQuery based UI framework for development and education purposes. It generates a page
+A small UI framework for development and education purposes (jQuery is optional). It generates a page
 layout (header, menu, content wrapper, footer) from a single `init()` call, loads its own libraries
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **1.2.0**
+Current version: **1.3.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -19,14 +19,21 @@ Known limits are listed below, so you can judge whether it fits your project:
 - The session cookie is readable from JavaScript. It is a UI state, not a security boundary: authenticate on the server.
 - Virtual table rows have to be a fixed height, one line per cell (set it with `virtual.rowHeight`; the CSS variable `--row-height` follows).
 - Translations: English and Hungarian.
+- jQuery is optional since 1.3.0. The older generators (`generateLoginForm`, the layout and the header / footer menu built from `menuItems`) still work, and
+  they no longer need it. Everything new (`generateMenu`, the sign in forms, dialogs, charts, tables, ...) is plain DOM.
 
 ## Features
 
 - Generated page layout: container, header (logo, title, menu), wrapper, footer (menu, copyright text)
 - Menus built from your own item lists, with a navigation callback
 - Login, registration and lost password forms with optional SHA-256 password hashing
-- SVG charts (bar, line, pie, donut) without extra dependencies
-- Tables with sortable columns, filter box, pagination, row selection, inline editing, resizable columns, virtual scrolling for thousands of rows and CSV export
+- SVG charts (bar, line, area, sparkline, pie, donut) with a time axis, tooltips, zoom, a clickable legend, a table of values and streaming, without extra dependencies
+- Tables with sortable columns, filter box, pagination, row selection, inline editing, resizable columns, virtual scrolling for thousands of rows, rows loaded from a server (pages, "Load more", or scrolling through a data source), row actions and CSV export
+- Navigation menu (`generateMenu`): real links and buttons, groups of any depth, badges, a user menu with an avatar, tabs at the bottom on a phone
+- Sign in, sign up and password forms that password managers understand, and a signed-in state that lives in memory only
+- Themes and modes (light / dark / like the system) with a theme manager, a picker and a no-flash boot script
+- Form dialogs, confirmations (also "type the name to confirm"), date and time ranges with presets, page header, facts list, empty and loading states
+- Safe DOM building (`el`, `createSafeBuilder`): text stays text, no event attributes, no inline style
 - Form builder: text, number, date, textarea, select, radio / checkbox groups, switch, autocomplete, multi select, with validation
 - Buttons, toasts, alerts, spinner, progress bar, alert / confirm / prompt dialogs
 - Tabs, accordion, dropdown, sidebar, breadcrumbs, pagination and a hash / history router
@@ -41,16 +48,14 @@ Known limits are listed below, so you can judge whether it fits your project:
 
 ## Requirements
 
-- [jQuery](https://jquery.com/) v4.0.0, loaded before Athena UI
+- jQuery is optional (v4.0.0, only if your own code or an older application uses it). Athena UI itself does not need it.
 - A browser with ES module support
 - The page has to be served over HTTP(S). Modules do not load from `file://`.
 
-Bundled as git submodules:
+Bundled as git submodules (third party):
 
 | Library | Version | Used for |
 | --- | --- | --- |
-| [HTMLControlGenerator](https://github.com/csabatibortoth/HTMLControlGenerator) | 0.4.0 | inputs, lists |
-| [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) | 0.3.0 | divs, headings, images |
 | [crypto-js](https://github.com/brix/crypto-js) | 4.2.0 | password hashing |
 | [js-cookie](https://github.com/js-cookie/js-cookie) | 3.0.8 | cookie handling |
 
@@ -71,8 +76,7 @@ Serve the `src` folder with any static web server and open `index.html` to see t
 ## Usage
 
 ```html
-<script src="https://code.jquery.com/jquery-4.0.0.min.js"
-    integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
+<!-- jQuery is not needed -->
 <script type="module">
     import { init, clearWrapper, generateLoginForm } from "./athena-ui.js";
 
@@ -120,7 +124,7 @@ the theme are loaded and the layout is generated.
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"1.2.0"` | Version shown in the footer |
+| `version` | `"1.3.0"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -158,6 +162,14 @@ Everything is exported from `athena-ui.js`:
 | `showDialog`, `alertDialog`, `confirmDialog`, `promptDialog` | See [Dialogs](#dialogs) |
 | `generateTabs`, `generateBreadcrumbs`, `generatePagination`, `generateAccordion`, `generateDropdown`, `generateSidebar` | See [Navigation](#navigation) |
 | `createRouter(options)` | See [Router](#router) |
+| `generateMenu(options)`, `generateHeaderMenu({ items })` | See [Menu component](#menu-component) |
+| `generateSignInForm`, `generateSignUpForm`, `generatePasswordResetForm`, `generatePasswordChangeForm`, `createAuthState` | See [Signing in](#signing-in-recommended) |
+| `showFormDialog`, `showConfirm` | See [Dialogs](#dialogs) |
+| `createThemeManager`, `generateThemePicker` | See [Themes and modes](#themes-and-modes-light--dark--like-the-system) |
+| `generateDateTimeRange`, `toLocalInput`, `fromLocalInput` | See [Date and time range](#date-and-time-range) |
+| `generatePageHeader`, `generateFacts`, `generateEmptyState`, `generateLoading`, `copyToClipboard` | See [Page parts and formatting](#page-parts-and-formatting) |
+| `formatBytes`, `formatNumber`, `formatDuration`, `formatRelativeTime`, `formatDate` | Format helpers on top of `Intl`, in the current language |
+| `el`, `setContent`, `resolveElement`, `asHandle`, `createSafeBuilder` | See [Safe DOM building](#safe-dom-building) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
 | `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateDropZone`, `generateStepper`, `generateDateRange`, `generateRichText`, `generateWysiwyg` | See [Inputs](#inputs) |
 | `sanitizeHtml(html)`, `htmlToText(html)`, `isSafeUrl(url)` | The allow-list sanitizer behind the rich text editor |
@@ -169,26 +181,42 @@ Everything is exported from `athena-ui.js`:
 | `openModal(id)`, `closeModal(id)` | Show / hide a `.modal` element (default id: `myModal`). Elements with the `close` class close their modal. |
 | `loadScript(src)` | Load a classic script once, returns a Promise |
 | `Cookies` | The [js-cookie](https://github.com/js-cookie/js-cookie) API |
-| `HTMLElementGenerator(options)` | The [HTMLElementGenerator](https://github.com/csabatibortoth/HTMLElementGenerator) function |
+| `HTMLElementGenerator(options)` | Generates a div, span, p, heading or img and appends it to the element with the id `parent` |
+| `HTMLControlGenerator(options)`, `HTMLControlGenerator.create(options)`, `HTMLControlGenerator.register(type, factory)` | Generates inputs, selects and lists from an options object. `create` builds without appending and returns the element (a jQuery object when the page has jQuery). `registerHungarianInputControls()` adds the types `hunPIN`, `hunCRID` and `hunTID` |
+
+HTMLElementGenerator and HTMLControlGenerator used to be projects of their own. They are part of Athena UI now (the calls and options are the
+same, and HTMLControlGenerator no longer needs jQuery); the old repositories are no longer developed.
 
 ### Charts
 
 ```js
-generateChart({
-    type: "bar",                 // "bar" | "line" | "pie" | "donut"
-    parent: "wrapper",           // id of the parent element (default)
+const chart = generateChart({
+    type: "line",                // "bar" | "line" | "area" | "sparkline" | "pie" | "donut"
+    parent: "wrapper",           // element, id or selector (default "wrapper")
     title: "Revenue",
     labels: ["Q1", "Q2", "Q3"],
     series: [
         { name: "2025", data: [12, 19, 8] },
         { name: "2026", data: [14, 17, 12], color: "#e15759" }
-    ]
+    ],
+    table: true                  // adds "Show as table" with the values
 });
 ```
 
-Charts are inline SVG and support negative values. `pie` and `donut` use the first series, one slice per
-label. Other options: `id`, `width` (600), `height` (360), `legend` (shown for several series and for
-pie / donut). Returns the `<svg>` element, or `null` when the options are invalid.
+Charts are inline SVG, nothing is styled inline (a strict Content-Security-Policy works), negative values are supported. `pie` and `donut` use the
+first series, one slice per label. `sparkline` is a small line without axes (120 x 32 by default) for a table cell or a tile.
+Other options: `id`, `width` (600), `height` (360), `legend`, `zero: false` (a line chart's value axis may start near the smallest value).
+
+- **Colours** come from the theme: `--series-1` ... `--series-8` (see `appearance.css`), so every chart follows light / dark. `color` overrides one series.
+- **Tooltips** show on hover and on keyboard focus (every point and bar is focusable and named). In a long line chart the tooltip follows the pointer.
+- **Legend**: click (or Enter / Space) on an entry hides and shows that series.
+- **Time axis**: `times: [Date | ms | "2026-11-19T10:00"]` (line and area). Ticks fall on round times, points sit at their real distance.
+- **Zoom** (`zoom: true`, line and area): drag over the plot, double click or the reset button zoom out. On the plot, + and - zoom, the arrow keys pan,
+  0 resets. `chart.zoom(from, to)`, `chart.resetZoom()`, `chart.getZoom()`, `onZoom(range)` and `zoomRange` (ms with `times`, otherwise the point index).
+- **Long series** are thinned to the width of the plot (the lowest and the highest value of every slice stay, so peaks are not lost), and dots are only drawn up to 80 points in view.
+- **Streaming**: `chart.push({ x: Date.now(), values: [12, 3] }, { maxPoints: 500 })` adds a point to every series, drops the oldest ones and redraws at most once per frame.
+- `chart.update({ series })` redraws with changes, `chart.destroy()` removes the chart and its table. `generateChart` returns the `<svg>` element that carries these
+  methods, or `null` when the options are invalid.
 
 ### Tables
 
@@ -214,6 +242,13 @@ Click a header to sort (disable with `sortable: false`, or per column). Other op
 - Hooks and looks: `cellClass(row, column)` and `rowClass(row)` return a class name (or a list) for a cell or a row. `focusableRows: true` makes rows reachable with Tab (`rowLabel(row)` is their aria-label); together with `onRowClick` they open with Enter and Space. `density: "compact"`, and `wrap: true | false` (long text wraps, or stays on one line with an ellipsis). The pager is hidden when there is only one page.
 - Column extras: `render(row, value)` returns text or a Node (built by you, so it is safe by construction), `align: "left" | "center" | "right"`. Text longer than 24 characters gets its full text as a tooltip (`title: false` switches it off).
 - A virtual table that starts empty draws a full window as soon as it gets rows, and measures again when the scroll area changes size.
+- **Rows from a server**: `dataSource: async ({ page, pageSize, cursor, sort, filter }) => ({ rows, total })`. Sorting, the (debounced) filter box and the pager ask it again,
+  a slow request shows a loading state, a failed one an error with a Retry button, and an answer that comes too late is ignored. Answer with `total` for numbered pages
+  (`page` is 0-based), or with `nextCursor` for a "Load more" button (`cursor` is what the last answer gave). `table.reload()` asks again.
+- **Rows from a server and virtual scrolling**: `dataSource` together with `virtual` (every answer needs `total`) scrolls through `total` rows. The rows in view are asked for in chunks of
+  `chunkSize` (default 50, `page` is the chunk number), chunks you scroll past are skipped, rows that have not arrived yet show a placeholder, and a failed chunk can be retried.
+  The select-all checkbox only selects the rows that have arrived.
+- `rowActions: [{ label: "Delete", danger: true, onclick: row => remove(row), hidden: row => row.locked, ariaLabel: row => "Delete " + row.name }]` adds a column of buttons.
 - `exportCsv()` downloads the filtered and sorted rows. Cells that start with `=`, `+`, `-` or `@` are prefixed with `'` so a spreadsheet does not run them as formulas.
 
 ### Forms
@@ -273,6 +308,21 @@ Options: `size` ("small" 360 px, "medium" 480 px, "large" 720 px, "full") and `c
 `showDialog` returns a promise that also carries the open dialog: `const dialog = showDialog({ size: "large", ... }); dialog.element; dialog.close(value);`.
 The dialog is shown by a CSS class, not by an inline style, so a strict Content-Security-Policy works.
 
+**Form dialog** and **confirmation**:
+
+```js
+const saved = await showFormDialog({
+    title: "Add host", intro: "The agent connects with this name.", size: "small", submitText: "Add",
+    fields: [{ name: "name", label: "Name", required: true }],
+    onSubmit: async (values, form) => {
+        const answer = await api.addHost(values);                   // when this throws, the message shows in the dialog and it stays open
+        if (answer.errors) throw Object.assign(new Error("Check the fields"), { fields: answer.errors });   // or form.setErrors({ name: "Already taken" })
+    }
+});                                                                    // true when saved, false when dismissed
+
+if (await showConfirm({ title: "Delete host", message: "This cannot be undone.", confirmText: "Delete", danger: true, typeToConfirm: host.name })) { /* ... */ }
+```
+
 Dialogs trap the focus, close with Esc (resolving `null` / `false`) and restore the focus. Text content is
 never parsed as HTML. `openModal` / `closeModal` got the same focus handling.
 
@@ -310,6 +360,33 @@ init({
 A submenu opens with a click, Enter, Space or the Down arrow, closes with Esc, a click outside or by choosing an entry,
 and supports the arrow keys, Home and End. The same works in the footer menu.
 
+### Menu component
+
+`generateMenu` is a navigation menu that does not use globals. Items are real links (`href`) or buttons, so Tab, Enter and Space work, and screen readers hear what they are.
+
+```js
+const menu = generateMenu({
+    parent: "header",                              // an element, an id or a selector
+    layout: "responsive",                          // "bar" | "bottom-tabs" | "responsive" (tabs at the bottom under 700px, groups open as sheets)
+    followHash: true,                              // the item whose href equals location.hash is the active one
+    onNavigate: (item, event) => console.log(item.id),   // only when a person uses an item, never from select() or while building
+    items: [
+        { id: "home", label: "Home", icon: "⌂", href: "#/" },
+        { id: "inbox", label: "Inbox", href: "#/inbox", badge: 3, badgeLabel: "3 unread" },
+        { id: "tools", label: "Tools", children: [
+            { id: "export", label: "Export" },
+            { id: "more", label: "More", children: [{ id: "csv", label: "CSV" }, { id: "json", label: "JSON" }] }
+        ] },
+        { id: "user", label: "Anna Kiss", avatar: { name: "Anna Kiss" }, align: "end", children: [{ id: "out", label: "Sign out" }] }
+    ]
+});
+menu.select("inbox");                  // marks the current page (class is-active, aria-current="page", has-active on the groups around it)
+menu.setBadge("inbox", { text: 12, tone: "bad" });   // a count, text, or { text, tone: "info" | "ok" | "warn" | "bad" }; 0 / null removes it
+```
+
+Groups nest to any depth: ArrowDown / ArrowUp open the first level, ArrowRight opens a deeper group and ArrowLeft closes it, Esc closes the innermost group
+first, Home / End jump, a click outside closes everything. A badge above 99 shows "99+". `generateHeaderMenu({ items, onNavigate })` puts the same menu into the header.
+
 ### Router
 
 ```js
@@ -325,6 +402,22 @@ const router = createRouter({
 });
 router.start();
 router.navigate("/users/5?tab=info");
+```
+
+Routes can carry the sign-in rules, so a page does not check them itself:
+
+```js
+const router = createRouter({
+    auth: auth.routerRules({ loginPath: "/login", homePath: "/", forbiddenPath: "/denied" }),   // { isSignedIn, hasRole, ... }
+    focusContent: true, scrollTop: true,                    // after a page is shown: focus the outlet, scroll to the top
+    onShown: ctx => menu.select(ctx.path),                  // also onRender (before the page function) and router.onChange(listener)
+    routes: {
+        "/login": { handler: renderLogin, guestOnly: true },                    // a signed-in person goes home
+        "/account": { handler: renderAccount, auth: true },                     // not signed in: /login?next=%2Faccount
+        "/admin": { handler: renderAdmin, auth: true, roles: ["admin"] },
+        "/report": { handler: renderReport, guard: ctx => ctx.query.id ? undefined : "/reports" }   // false stays, a path redirects
+    }
+});
 ```
 
 `mode: "history"` uses real paths instead of the hash, the server then has to answer every path with the page.
@@ -435,6 +528,30 @@ The global `appConfig`, `menuItems`, `nav`, `login`, `register` and `lostPasswor
 not given. `appConfig.athenaUIFolder` is not needed anymore, paths are resolved relative to
 `athena-ui.js`.
 
+### Signing in (recommended)
+
+`generateSignInForm`, `generateSignUpForm`, `generatePasswordResetForm` and `generatePasswordChangeForm` are real `<form>` elements with the autocomplete tokens
+that password managers look for (`username`, `current-password`, `new-password`, `email`), so Enter submits and the browser can save and fill passwords.
+
+```js
+const auth = createAuthState({ restore: () => fetch("/api/me", { credentials: "same-origin" }).then(r => (r.ok ? r.json() : null)) });
+await auth.restore();                                   // after a reload: ask the server who is signed in
+
+generateSignInForm({
+    parent: "wrapper", remember: true,
+    onSubmit: async ({ username, password, remember }) => {
+        const response = await fetch("/api/login", { method: "POST", body: JSON.stringify({ username, password, remember }), credentials: "same-origin" });
+        if (!response.ok) throw new Error("Wrong user name or password");        // shown in the form, which stays usable
+        auth.signIn(await response.json());                                      // { name, roles: [...] }
+    }
+});
+```
+
+An error with a `fields` object (`{ username: "Already taken" }`) marks those fields as well. The password is sent as typed, over HTTPS: hash it on the server.
+Hashing it in the browser (`enable_encrypt_password`) only turns the hash into the password, so that setting is **deprecated** and will be removed in 2.0.
+`createAuthState` keeps who is signed in **in memory only**: nothing readable is written to a cookie or the storage, the session itself is a server set `HttpOnly` cookie,
+and the server decides what a person may do. `auth.hasRole(role)`, `auth.onChange(listener)` and `auth.routerRules()` connect it to menus and the router.
+
 ## Themes
 
 A theme is a single stylesheet. Register it in `src/res/themes/themes.js` and select it with
@@ -448,6 +565,72 @@ The default theme is in `src/res/themes/default/style.css`; `{ id: 1 }` is a dar
 ```
 
 Switch themes at runtime with `setTheme({ id: 1 })`.
+
+### Themes and modes (light / dark / like the system)
+
+A second system lets people choose a theme **and** a mode. It is just two attributes on `<html>` that `src/res/themes/appearance.css` reads:
+
+```html
+<link rel="stylesheet" href="athena-ui/src/res/themes/default/style.css">
+<link rel="stylesheet" href="athena-ui/src/res/themes/appearance.css">
+<script src="athena-ui/src/theme-boot.js" data-key="myapp.appearance" data-theme="athena"></script>   <!-- before the page is drawn: no flash of the wrong colours -->
+```
+
+```js
+const manager = createThemeManager({ themes: [{ id: "athena", name: "Athena" }, { id: "contrast", name: "High contrast" }], storageKey: "myapp.appearance",
+    themeColorVariable: "--athena-bg" });                  // <meta name="theme-color"> follows this variable
+manager.setTheme("contrast"); manager.setMode("dark");    // "system" | "light" | "dark"; saved in localStorage, other tabs follow
+manager.onChange(({ theme, mode, dark }) => redrawChartsOrWhatever());
+generateThemePicker({ parent: "account-page", manager });  // radio groups with a small preview of every theme
+```
+
+**The contract of a theme** (also at the top of `appearance.css`): a theme is a pair of CSS blocks that set the tokens
+`--athena-bg`, `-fg`, `-muted`, `-line`, `-border`, `-surface`, `-surface-alt`, `-hover`, `-overlay`, `-accent`, `-accent-fg`, `-focus`, `-danger`, `-success`, `-warning`, `-info`, `-shadow` and `--series-1` ... `--series-8`:
+
+```css
+[data-theme="ocean"][data-mode="light"] { --athena-bg: #f4f9fb; /* ... */ }
+[data-theme="ocean"][data-mode="dark"]  { --athena-bg: #0b1c24; /* ... */ }
+```
+
+The selectors match any element with the two attributes, so a preview or a dark panel on a light page is just an element with `data-theme` and `data-mode`.
+Athena and High contrast (light and dark) are included; without the script the page follows the system.
+
+### Date and time range
+
+```js
+const range = generateDateTimeRange({ parent: "wrapper", label: "Time", preset: "24h", onChange: ({ from, to, preset }) => reload() });
+range.getRange();     // { from: Date, to: Date }. A preset ("15m", "1h", "24h", "7d", "30d") is measured from NOW when this is called
+range.getValue();     // { from: "2026-11-19T08:00", to: "...", preset: "24h" }, the values of the inputs
+```
+
+Two `datetime-local` inputs and a list of presets (your own with `presets: [{ id, label, minutes }]`). Typing in an input makes it a custom range.
+`toLocalInput(date)` and `fromLocalInput(value)` convert between a Date and the value of such an input.
+
+### Page parts and formatting
+
+```js
+generatePageHeader({ parent: "wrapper", title: "Hosts", description: "All monitored machines", breadcrumbs: [{ label: "Home", href: "#/" }, { label: "Hosts" }], actions: [addButton] });
+generateFacts({ parent: "wrapper", items: [{ term: "System", description: "Linux" }, { term: "Seen", description: formatRelativeTime(host.lastSeen) }] });
+generateEmptyState({ parent: "wrapper", title: "No hosts yet", message: "Install the agent.", action: { text: "Add host", onclick: add } });
+generateLoading({ parent: "wrapper" });                                    // spinner + text, a live region
+generateStat({ parent: "wrapper", label: "CPU", value: "91 %", tone: "bad", note: "of 4 cores" });   // tone: "ok" | "warn" | "bad" (colour + a word for screen readers)
+await copyToClipboard(token);                                              // and says "Copied" in a toast
+formatBytes(1536); formatNumber(1234567.891); formatDuration(7500000); formatRelativeTime(date); formatDate(date, { time: true });   // Intl, in the current language
+```
+
+### Safe DOM building
+
+`el(tag, { class, id, text, attrs, on, prop }, ...children)` is the way Athena builds its own pages, and it is exported. Strings are only ever inserted as **text**, children can be
+nested lists, listeners have to be functions, and `on*` attributes, `style` and `srcdoc`, unsafe addresses (`javascript:`, `data:`) in `href` / `src` / `action`, and properties that
+parse HTML (`innerHTML`) are refused. `createSafeBuilder({ tags: [...], attributes: [...] })` returns an `el` that only allows what is on your lists, for pages built from data you
+do not control (a plugin API).
+
+### Moved into Athena: HTMLElementGenerator and HTMLControlGenerator
+
+Both used to be projects of their own and are part of Athena UI since 1.3.0 (same calls and options, MIT, same author). `HTMLElementGenerator(options)` is in
+`src/libs/core/elementGenerator.js`, `HTMLControlGenerator(options)` / `.create()` / `.register()` in `src/libs/core/controls.js`; both are exported and global as before.
+`HTMLControlGenerator` no longer needs jQuery (`create` returns a jQuery object when the page has jQuery, otherwise the element).
+`registerHungarianInputControls()` adds the `hunPIN`, `hunCRID` and `hunTID` input types of its old addon. The old repositories are no longer developed.
 
 ### Parents and handles
 
@@ -485,6 +668,8 @@ component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, 
 session, themes. Set `CHROME_PATH` if the browser is not found, and `JQUERY_URL` to load jQuery from somewhere else than the CDN
 (the machine needs internet access otherwise). `DEBUG=1` prints the browser log when the page does not report results.
 
+A test run without jQuery is the default; `WITH_JQUERY=1 npm run test:browser` loads jQuery from its CDN to check that an application that still has it works too.
+
 ## Project structure
 
 ```
@@ -496,9 +681,11 @@ src/
     core/                   DOM / focus helpers, validation, translations, CSV, formatting, sanitizer, table math
     hephaestus/             script and theme loader, generators (layout, menu, forms, charts, tables, feedback,
                             dialogs, navigation, components, inputs), router, session
-    crypto-js/, js-cookie/  submodules
-    libs.js                 classic scripts loaded at runtime
-  res/themes/               default and dark theme
+    crypto-js/, js-cookie/  submodules (third party)
+    libs.js                 classic scripts loaded at runtime (only crypto-js, and only with the deprecated enable_encrypt_password)
+  res/themes/               default and dark theme, appearance.css (themes and modes)
+  theme-boot.js             classic script that sets the saved theme and mode before the page is drawn
+  testing.js                installDom, until, tick for the tests of an application
 tests/                      unit tests (Node) and browser tests (headless Chrome)
 ```
 
@@ -511,6 +698,25 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 1.3.0
+  #### Added:
+   1. Dialogs: `showFormDialog` (async save, errors stay in the dialog, `form.setErrors`) and `showConfirm` (`danger`, `typeToConfirm`)
+   2. Themes: `createThemeManager`, `generateThemePicker`, `theme-boot.js` and `appearance.css` (the contract: `data-theme` + `data-mode`, the tokens, Athena and High contrast in light and dark)
+   3. `generateMenu`: real links and buttons, groups of any depth, badges, avatar user menu, active item, bar / bottom tabs / responsive; `generateHeaderMenu({ items })`
+   4. Tables: `dataSource` (pages, cursor "Load more", loading / empty / error with Retry), `dataSource` together with `virtual`, `rowActions`, `reload()`
+   5. Charts: `area` and `sparkline`, time axis, tooltips, clickable legend, table of values, theme colours, zoom, long series thinning, `push()` for streaming
+   6. Router: `auth`, `guestOnly`, `roles`, `guard`, `onRender` / `onShown`, `focusContent`, `scrollTop`, `router.onChange`
+   7. `generateSignInForm`, `generateSignUpForm`, `generatePasswordResetForm`, `generatePasswordChangeForm`, `createAuthState`
+   8. `generateDateTimeRange` with presets, `generatePageHeader`, `generateFacts`, `generateEmptyState`, `generateLoading`, stat `tone` and `note`, `copyToClipboard`, format helpers
+   9. `el`, `setContent`, `resolveElement`, `asHandle` and `createSafeBuilder` are exported
+   10. HTMLElementGenerator and HTMLControlGenerator (and the Hungarian input addon) are part of Athena UI; no more submodules for them
+  #### Changed:
+   1. jQuery is optional: init() does not need it, the layout, modal, forms and menus use plain DOM, the browser tests run without it
+   2. Only crypto-js can still be loaded as a classic script, and only with `enable_encrypt_password`
+   3. `el()` refuses code attributes and unsafe addresses
+  #### Deprecated:
+   1. `enable_encrypt_password` and the hashing of the old login forms (removed in 2.0): send the password over HTTPS and hash it on the server
 
  ### 1.2.0
   #### Added:

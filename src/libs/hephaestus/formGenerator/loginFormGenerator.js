@@ -3,12 +3,12 @@
 //LICENCE: MIT
 //Repository: https://github.com/csabatibortoth/athena-ui
 
-/* global $, CryptoJS, HTMLControlGenerator */
 
-import { HTMLElementGenerator } from "../HTMLElementGenerator/src/HTMLElementGenerator.js";
+import { HTMLElementGenerator } from "../../core/elementGenerator.js";
 import config from "../../config/config.js";
 import { getLogin } from "../../config/hooks.js";
 import { translate } from "../../core/i18n.js";
+import { generateControl } from "../../core/controls.js";
 
 const FORM_ID = "loginForm";
 
@@ -33,7 +33,7 @@ function generateField(name, label, inputType) {
         class: "container",
         text: `${translate(label)}: `
     });
-    HTMLControlGenerator({
+    generateControl({
         inputType,
         parent: row,
         id: `${row}-control`,
@@ -44,12 +44,12 @@ function generateField(name, label, inputType) {
 // Reads the form. The password is SHA-256 hashed when enable_encrypt_password is set.
 // `remember` is included when the login_remember_me setting shows the checkbox.
 export function getLoginFormData() {
-    const username = $(`#${FORM_ID}-username-control`).val();
-    let password = $(`#${FORM_ID}-password-control`).val();
+    const username = document.getElementById(`${FORM_ID}-username-control`)?.value;
+    let password = document.getElementById(`${FORM_ID}-password-control`)?.value;
     if (config.enable_encrypt_password) password = CryptoJS.SHA256(password).toString();
     const data = { username, password };
-    const remember = $(`#${FORM_ID}-remember-control`);
-    if (remember.length) data.remember = remember.prop("checked");
+    const remember = document.getElementById(`${FORM_ID}-remember-control`);
+    if (remember) data.remember = remember.checked;
     return data;
 }
 
@@ -85,12 +85,12 @@ export function generatePasswordElements() {
 export function generateRememberElement() {
     if (!config.login_remember_me) return;
     const row = generateRow("remember");
-    HTMLControlGenerator({ inputType: "checkbox", parent: row, id: `${row}-control` });
+    generateControl({ inputType: "checkbox", parent: row, id: `${row}-control` });
     HTMLElementGenerator({ elementType: "span", parent: row, id: `${row}-label`, text: translate("rememberMe") });
 }
 
 export function generateSubmitElement() {
-    HTMLControlGenerator({
+    generateControl({
         inputType: "button",
         parent: generateRow("submit"),
         text: translate("login"),
