@@ -57,7 +57,7 @@ export function createDropZone(options = {}) {
         for (const file of list) {
             if (!matchesAccept(file, accept)) rejected.push({ file, reason: `${translate("validation.pattern")} (${file.name})` });
             else if (maxSize != null && file.size > maxSize) rejected.push({ file, reason: translate("validation.fileSize", { name: file.name, max: formatBytes(maxSize) }) });
-            else if (maxFiles != null && valid.length >= maxFiles) rejected.push({ file, reason: translate("validation.maxFiles", { max: maxFiles }) });
+            else if (maxFiles != null && valid.length >= maxFiles) rejected.push({ file, reason: translate("validation.maxFiles", { max: maxFiles, count: maxFiles }) });
             else valid.push(file);
         }
         if (valid.length) options.onDrop?.(valid);

@@ -68,15 +68,15 @@ const messages = {
         dropFiles: "Drop files here or click to browse",
         "validation.required": "This field is required.",
         "validation.email": "Enter a valid email address.",
-        "validation.minLength": "Enter at least {min} characters.",
-        "validation.maxLength": "Enter at most {max} characters.",
+        "validation.minLength": { one: "Enter at least {min} character.", other: "Enter at least {min} characters." },
+        "validation.maxLength": { one: "Enter at most {max} character.", other: "Enter at most {max} characters." },
         "validation.pattern": "The value has an invalid format.",
         "validation.min": "The value must be at least {min}.",
         "validation.max": "The value must be at most {max}.",
         "validation.match": "The values do not match.",
         "validation.invalid": "The value is invalid.",
         "validation.fileSize": "{name} is larger than {max}.",
-        "validation.maxFiles": "At most {max} files are accepted.",
+        "validation.maxFiles": { one: "At most {max} file is accepted.", other: "At most {max} files are accepted." },
         "validation.url": "Enter a valid address (https://, mailto: or tel:).",
         "validation.dateRange": "The end date must not be before the start date.",
         "validation.dateMin": "The date must be {min} or later.",
@@ -218,11 +218,45 @@ export function addMessages(forLocale, texts) {
     messages[forLocale] = { ...messages[forLocale], ...texts };
 }
 
+// The plural category of a count in a language ("one", "other", and for some languages "zero", "two", "few", "many"), from Intl.PluralRules.
+function pluralCategory(count) {
+    try {
+        return new Intl.PluralRules(locale).select(Number(count));
+    } catch {
+        return "other";
+    }
+}
+
+// A text of a message: a string, or an object with the plural forms ({ one: "...", other: "..." })
+function pick(text, params) {
+    if (typeof text === "string" || text == null) return text;
+    const count = params.count;
+    const category = count == null ? "other" : pluralCategory(count);
+    // The exact number wins ("0": "No files"), then the category, then "other"
+    return text[String(count)] ?? text[category] ?? text.other ?? Object.values(text)[0];
+}
+
 /**
  * Looks a text up in the current locale, then in its base language ("hu-HU" -> "hu"), then in English.
- * Unknown keys are returned as they are. {name} placeholders are replaced from params.
+ * Unknown keys are returned as they are.
+ *
+ * Placeholders: {name} is replaced from params as it is, {name:number} is formatted as a number and {name:date} as a date, in the current language (Intl).
+ * Plural forms: a message can be an object with the forms of the language, and the form is chosen by `params.count`:
+ *
+ *     addMessages("en", { files: { zero: "No files", one: "{count} file", other: "{count:number} files" } });
+ *     translate("files", { count: 1200 })   // "1,200 files"
+ *
+ * The keys are the categories of Intl.PluralRules for the language ("one", "other", and where the language has them "zero", "two", "few", "many"),
+ * or an exact number ("0"). "other" is the fallback.
  */
 export function translate(key, params = {}) {
-    const text = messages[locale]?.[key] ?? messages[locale.split("-")[0]]?.[key] ?? messages.en[key] ?? key;
-    return text.replace(/\{(\w+)\}/g, (match, name) => params[name] ?? match);
+    const found = messages[locale]?.[key] ?? messages[locale.split("-")[0]]?.[key] ?? messages.en[key];
+    const text = pick(found, params) ?? key;
+    return text.replace(/\{(\w+)(?::(number|date))?\}/g, (match, name, format) => {
+        const value = params[name];
+        if (value == null) return match;
+        if (format === "number") return new Intl.NumberFormat(locale).format(Number(value));
+        if (format === "date") return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(value instanceof Date ? value : new Date(value));
+        return value;
+    });
 }
