@@ -6,7 +6,7 @@
 
 import config, { applyConfig } from "./libs/config/config.js";
 import { getAppConfig, setHooks } from "./libs/config/hooks.js";
-import { loadLibs, loadScript, loadTheme } from "./libs/hephaestus/hephaestus.js";
+import { loadScript, loadTheme } from "./libs/hephaestus/hephaestus.js";
 import * as layout from "./libs/hephaestus/LayoutGenerator/basicLayoutGenerator.js";
 import * as header from "./libs/hephaestus/LayoutGenerator/headerContentGenerator.js";
 import * as wrapper from "./libs/hephaestus/LayoutGenerator/wrapperContentGenerator.js";
@@ -40,7 +40,7 @@ import * as csv from "./libs/core/csv.js";
 import * as theme from "./libs/core/theme.js";
 import * as themePicker from "./libs/hephaestus/componentGenerator/themePicker.js";
 import * as modal from "./libs/hephaestus/modalGenerator/modalGenerator.js";
-import Cookies from "./libs/js-cookie/src/api.mjs";
+import Cookies from "./libs/core/cookies.js";
 import { HTMLElementGenerator } from "./libs/core/elementGenerator.js";
 import { HTMLControlGenerator, registerControl, generateControl } from "./libs/core/controls.js";
 import { registerHungarianInputControls } from "./libs/core/hungarianControls.js";
@@ -66,7 +66,7 @@ export async function init(options = {}) {
     setHooks(options);
 
     await Promise.all([
-        loadLibs(config.customLoader ? [config.customLoader] : [], { crypto: config.enable_encrypt_password }),
+        config.customLoader ? loadScript(config.customLoader) : undefined,
         loadTheme(options.theme ?? options.themes),
         new Promise(resolve => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", resolve, { once: true }) : resolve()))
     ]);

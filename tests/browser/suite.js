@@ -1015,6 +1015,20 @@ test("text from data is only ever inserted as text, in every component that take
     localStorage.removeItem("athena.test.xss");
 });
 
+test("Cookies: set, get, remove, encoding, expiry and the attributes", () => {
+    const { Cookies } = A;
+    Cookies.set("athena_t1", "a b;c=d&é", { sameSite: "strict" });
+    equal(Cookies.get("athena_t1"), "a b;c=d&é");
+    assert("athena_t1" in Cookies.get(), "all cookies include it");
+    Cookies.set("athena_t2", "x", { expires: 1 });
+    equal(Cookies.get("athena_t2"), "x");
+    Cookies.set("athena_t2", "y", { expires: new Date(Date.now() - 1000) });
+    equal(Cookies.get("athena_t2"), undefined, "a past date removes it");
+    Cookies.remove("athena_t1");
+    equal(Cookies.get("athena_t1"), undefined);
+    equal(Cookies.get("never_set"), undefined);
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

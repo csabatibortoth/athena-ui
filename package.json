@@ -19,7 +19,6 @@
     "src/athena-ui.js",
     "src/testing.js",
     "src/theme-boot.js",
-    "src/libs/libs.js",
     "src/libs/config",
     "src/libs/hephaestus/hephaestus.js",
     "src/libs/hephaestus/LayoutGenerator",
@@ -36,10 +35,6 @@
     "src/libs/hephaestus/chartGenerator",
     "src/libs/hephaestus/tableGenerator",
     "src/libs/hephaestus/modalGenerator",
-    "src/libs/crypto-js/LICENSE",
-    "src/libs/crypto-js/crypto-js.js",
-    "src/libs/js-cookie/LICENSE",
-    "src/libs/js-cookie/src",
     "src/res"
   ],
   "sideEffects": true,

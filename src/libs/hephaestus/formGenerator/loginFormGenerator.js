@@ -41,12 +41,11 @@ function generateField(name, label, inputType) {
     });
 }
 
-// Reads the form. The password is SHA-256 hashed when enable_encrypt_password is set.
+// Reads the form. The password is returned as typed: send it over HTTPS and hash it on the server.
 // `remember` is included when the login_remember_me setting shows the checkbox.
 export function getLoginFormData() {
     const username = document.getElementById(`${FORM_ID}-username-control`)?.value;
-    let password = document.getElementById(`${FORM_ID}-password-control`)?.value;
-    if (config.enable_encrypt_password) password = CryptoJS.SHA256(password).toString();
+    const password = document.getElementById(`${FORM_ID}-password-control`)?.value;
     const data = { username, password };
     const remember = document.getElementById(`${FORM_ID}-remember-control`);
     if (remember) data.remember = remember.checked;
