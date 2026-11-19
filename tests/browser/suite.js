@@ -389,6 +389,65 @@ test("table: data source with a cursor appends rows", async () => {
     equal(cursors.join(), ",3,6");
 });
 
+test("charts: types, theme colours, tooltip, legend toggle, time axis, table of values, no inline style", async () => {
+    const host = document.getElementById("wrapper");
+    host.insertAdjacentHTML("beforeend", '<div id="charts"></div>');
+    const common = { parent: "charts", labels: ["a", "b", "c"], series: [{ name: "One", data: [1, 5, 3] }, { name: "Two", data: [2, 2, 8] }] };
+    for (const type of ["bar", "line", "area", "pie", "donut"]) {
+        const chart = A.generateChart({ ...common, type, title: type, id: "c-" + type });
+        assert(chart.matches("svg.athena-chart"), type + " svg");
+        equal(chart.getAttribute("role"), "img");
+        assert(chart.getAttribute("aria-label").length > 0, "aria-label");
+        equal(chart.querySelectorAll("[style]").length, 0, type + " has an inline style");
+        assert(chart.querySelector(".s1"), type + " uses series classes");
+    }
+    // theme colours: a series colour comes from --series-N
+    document.documentElement.style.setProperty("--series-1", "rgb(1, 2, 3)");
+    equal(getComputedStyle($1("#c-bar .chart-bar.s1")).fill, "rgb(1, 2, 3)");
+    document.documentElement.style.removeProperty("--series-1");
+    // area draws a path under the line
+    assert($1("#c-area .chart-area") && $1("#c-line .chart-area") === null, "area only in the area chart");
+    // tooltip on focus and hover, named points
+    const point = $1("#c-line .chart-point");
+    equal(point.getAttribute("tabindex"), "0");
+    assert(point.getAttribute("aria-label").includes("One"), "point name");
+    point.dispatchEvent(new Event("focus"));
+    assert($1("#c-line .chart-tooltip").classList.contains("is-visible"), "tooltip shown");
+    assert($1("#c-line .chart-tooltip-text").textContent.includes("1"), "tooltip text");
+    point.dispatchEvent(new Event("blur"));
+    assert(!$1("#c-line .chart-tooltip").classList.contains("is-visible"), "tooltip hidden");
+    // legend toggles a series
+    const entry = $1("#c-bar .chart-legend-item");
+    entry.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    assert($$("#c-bar .chart-hidden").length === 3 && entry.getAttribute("aria-pressed") === "false", "series hidden");
+    key(entry, "Enter");
+    equal($$("#c-bar .chart-hidden").length, 0);
+    // sparkline: small, no axes, no legend
+    const spark = A.generateChart({ parent: "charts", type: "sparkline", series: [{ data: [3, 1, 4, 1, 5] }], id: "spark" });
+    equal(spark.getAttribute("width"), "120");
+    assert(!$1("#spark .chart-axis") && !$1("#spark .chart-legend-item"), "sparkline is bare");
+    // time axis: points at their real distance, labels at round times
+    const t0 = Date.UTC(2026, 10, 19, 10, 0, 0);
+    const timed = A.generateChart({ parent: "charts", type: "line", id: "timed", table: true, title: "Load",
+        times: [t0, t0 + 60000, t0 + 3600000], series: [{ name: "cpu", data: [1, 2, 3] }] });
+    const xs = $$("#timed .chart-point").map(c => Number(c.getAttribute("cx")));
+    assert(xs[2] - xs[1] > (xs[1] - xs[0]) * 20, "points follow the real time: " + xs.join());
+    assert($$("#timed .chart-tick").length > 6, "time ticks");
+    // table of values
+    const details = timed.dataTable;
+    assert(details && details.matches("details.chart-data"), "data table");
+    equal($$("tbody tr", details).length, 3);
+    equal($1("tbody tr td", details).textContent, "1");
+    // update redraws in place, destroy takes svg and table away
+    const before = $$("#charts svg").length;
+    timed.update({ series: [{ name: "cpu", data: [9, 8, 7] }] });
+    equal($$("#charts svg").length, before);
+    equal($1("#timed ~ details tbody td").textContent, "9");
+    document.getElementById("timed").element.destroy();
+    assert(!$1("#timed") && !$1("#charts details"), "destroy takes both away");
+    $1("#charts").remove();
+});
+
 test("modal: focus moves in, Esc closes and restores the focus", () => {
     document.body.insertAdjacentHTML("beforeend", '<div class="modal" id="myModal"><div class="modal-content"><span class="close">x</span><button>in</button></div></div>');
     const opener = A.generateButton({ parent: "wrapper", text: "open" }).element;

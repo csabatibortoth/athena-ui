@@ -1644,3 +1644,93 @@ textarea {
 .athena-table td.athena-table-actions .athena-button + .athena-button {
     margin-left: 4px;
 }
+
+/* Charts: series colours, tooltip, legend, table of values.
+   An application sets --series-1 ... --series-8 (on :root or per theme) to recolour every chart. */
+
+.athena-chart .s1 { color: var(--series-1, #4e79a7); }
+.athena-chart .s2 { color: var(--series-2, #f28e2b); }
+.athena-chart .s3 { color: var(--series-3, #e15759); }
+.athena-chart .s4 { color: var(--series-4, #76b7b2); }
+.athena-chart .s5 { color: var(--series-5, #59a14f); }
+.athena-chart .s6 { color: var(--series-6, #edc948); }
+.athena-chart .s7 { color: var(--series-7, #b07aa1); }
+.athena-chart .s8 { color: var(--series-8, #ff9da7); }
+
+.athena-chart .chart-bar,
+.athena-chart .chart-slice,
+.athena-chart .chart-swatch,
+.athena-chart .chart-point,
+.athena-chart .chart-area {
+    fill: currentColor;
+}
+
+.athena-chart .chart-area {
+    opacity: 0.18;
+}
+
+.athena-chart .chart-line {
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+
+.athena-chart-sparkline .chart-line {
+    stroke-width: 1.5;
+}
+
+.athena-chart .chart-ring {
+    stroke: currentColor;
+}
+
+.athena-chart .chart-point {
+    stroke: var(--athena-bg);
+    stroke-width: 1;
+}
+
+.athena-chart .chart-hidden {
+    display: none;
+}
+
+.athena-chart-sparkline {
+    vertical-align: middle;
+}
+
+.athena-chart .chart-legend-item {
+    cursor: pointer;
+}
+
+.athena-chart .chart-legend-item.is-off {
+    opacity: 0.45;
+}
+
+.athena-chart [tabindex]:focus-visible {
+    outline: 2px solid var(--athena-focus, currentColor);
+    outline-offset: 2px;
+}
+
+.athena-chart .chart-tooltip {
+    display: none;
+    pointer-events: none;
+}
+
+.athena-chart .chart-tooltip.is-visible {
+    display: block;
+}
+
+.athena-chart .chart-tooltip-box {
+    fill: var(--athena-fg);
+}
+
+.athena-chart .chart-tooltip-text {
+    fill: var(--athena-bg);
+    font-size: 12px;
+}
+
+.chart-data {
+    margin-top: 8px;
+}
+
+.chart-data summary {
+    cursor: pointer;
+}
