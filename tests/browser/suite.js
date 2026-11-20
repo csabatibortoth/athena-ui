@@ -2355,8 +2355,11 @@ test("menu: breakpoint of the responsive layout, colours through tokens", async 
     equal(getComputedStyle(header.element).color, "rgb(250, 250, 250)");
     header.select("a");
     assert(getComputedStyle($1(".menu-control.is-active", header.element)).boxShadow.includes("rgb(255, 0, 0)"), "the line under the active item: " + getComputedStyle($1(".menu-control.is-active", header.element)).boxShadow);
-    $$(".menu-control", header.element)[1].focus();
-    equal(getComputedStyle($$(".menu-control", header.element)[1]).backgroundColor, "rgb(40, 50, 60)", "hover / focus colour");
+    // hover and :focus-visible cannot be forced in a page (headless Chrome does not apply :focus-visible to a programmatic focus): read the rule
+    const rules = [...document.styleSheets].flatMap(sheet => { try { return [...sheet.cssRules]; } catch { return []; } })
+        .flatMap(rule => (rule.cssRules ? [...rule.cssRules] : [rule]));
+    const hoverRule = rules.find(rule => rule.selectorText?.includes(".athena-menu .menu-control:hover"));
+    assert(hoverRule && hoverRule.style.backgroundColor.includes("--athena-menu-hover"), "the hover / focus colour is read from --athena-menu-hover: " + hoverRule?.cssText);
     header.destroy();
     const plain = A.generateMenu({ parent: "wrapper", id: "m-plain", items });
     equal(getComputedStyle(plain.element).backgroundColor, "rgba(0, 0, 0, 0)", "without the tokens the bar is transparent as before");
