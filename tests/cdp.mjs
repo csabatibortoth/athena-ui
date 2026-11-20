@@ -1,7 +1,7 @@
 // A very small client of the Chrome DevTools Protocol, for the tests of the demo: one headless browser, a page per test, no dependency
 // (Node 22 and later have WebSocket built in).
 
-import { spawn } from "node:child_process";
+import { spawnSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -139,11 +139,20 @@ export async function launch() {
     return {
         newPage,
         async close() {
-            child.kill();
-            await wait(300);
-            try {
-                rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-            } catch { /* Windows keeps a file of the profile locked for a while: the temporary folder is cleaned up later */ }
+            // The helper processes of Chrome (GPU, renderers) keep the profile open after the main process is gone: on Windows the whole tree is stopped.
+            // A profile that is left behind is 10 to 270 MB of the temporary folder for every run: 60 of them filled a disk.
+            const exited = new Promise(resolve => child.once("exit", resolve));
+            if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+            else child.kill();
+            await Promise.race([exited, wait(3000)]);
+            for (let attempt = 0; attempt < 24; attempt++) {
+                try {
+                    rmSync(profile, { recursive: true, force: true });
+                    return;
+                } catch {
+                    await wait(250);                         // a file is still locked for a moment
+                }
+            }
         }
     };
 }
