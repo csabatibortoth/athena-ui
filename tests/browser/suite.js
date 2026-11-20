@@ -75,7 +75,7 @@ test("every entry point loads and exports what it says", async () => {
     const expected = {
         table: "generateTable", chart: "generateChart", dialog: "showFormDialog", menu: "generateMenu", navigation: "generateDropdown", forms: "generateSignInForm",
         widgets: "createWidgetGrid", code: "createCodeEditor", feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
-        i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
+        app: "createApp", i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
     };
     for (const [entry, name] of Object.entries(expected)) {
         const module = await import(`../../src/${entry}.js`);
@@ -83,6 +83,9 @@ test("every entry point loads and exports what it says", async () => {
         assert(module[name] === A[name], `${entry}.js and athena-ui.js export different ${name}`);
     }
     assert(typeof (await import("../../src/session.js")).Cookies?.get === "function", "session.js exports Cookies");
+    const app = await import("../../src/app.js");
+    equal(Object.keys(app).sort().join(), "config,createApp,init,loadScript,setTheme", "the app entry holds only the start of a page");
+    assert(app.init === A.init && app.setTheme === A.setTheme, "and the root file re-exports the same functions");
 });
 
 test("every public function is exported and global (classic build)", async () => {
@@ -2300,6 +2303,125 @@ test("code editor: tokenizing only the lines around a change gives exactly what 
     }
 });
 
+test("toasts: position and offset, and the stack does not cover the page", async () => {
+    const wide = window.innerWidth;
+    const top = A.showToast({ message: "top right", duration: 0 });
+    const bottom = A.showToast({ message: "bottom left", position: "bottom-left", duration: 0 });
+    const middle = A.showToast({ message: "bottom centre", position: "bottom-center", offset: { y: 40 }, duration: 0 });
+    const left = A.showToast({ message: "top left", position: "top-left", offset: { x: 30 }, duration: 0 });
+    const box = id => document.getElementById(id).getBoundingClientRect();
+    assert(box("athena-toasts").right > wide - 20 && box("athena-toasts").top < 20, "the default is the top right corner");
+    assert(box("athena-toasts-bottom-left").left < 20 && box("athena-toasts-bottom-left").bottom > window.innerHeight - 20, "bottom left");
+    const centre = box("athena-toasts-bottom-center");
+    assert(Math.abs((centre.left + centre.right) / 2 - wide / 2) < 2 && Math.abs(window.innerHeight - centre.bottom - 40) < 2, "bottom centre, 40 px from the edge: " + JSON.stringify(centre));
+    assert(Math.abs(box("athena-toasts-top-left").left - 30) < 2, "an offset in x");
+    equal(getComputedStyle(document.getElementById("athena-toasts")).pointerEvents, "none", "the stack lets clicks through");
+    equal(getComputedStyle(document.querySelector("#athena-toasts .toast")).pointerEvents, "auto", "the toast takes them");
+    // a click next to a toast reaches the page: the element under the point is not the container
+    const button = document.createElement("button");
+    button.textContent = "Add zone";
+    document.getElementById("wrapper").append(button);
+    button.style.position = "fixed";
+    button.style.top = "8px";
+    button.style.right = "8px";
+    button.style.zIndex = "1";
+    const point = button.getBoundingClientRect();
+    assert(document.elementFromPoint(point.left + 4, point.top + 4) === button, "a button under the empty part of the stack can be clicked");
+    button.remove();
+    // an unknown position is the default
+    const odd = A.showToast({ message: "odd", position: "middle", duration: 0 });
+    assert(document.querySelector("#athena-toasts").textContent.includes("odd"), "an unknown position falls back to the top right");
+    for (const toast of [top, bottom, middle, left, odd]) toast.close();
+});
+
+test("menu: breakpoint of the responsive layout, colours through tokens", async () => {
+    const items = [{ id: "a", label: "A", href: "#a" }, { id: "b", label: "B", href: "#b" }];
+    const wide = A.generateMenu({ parent: "wrapper", id: "m-default", layout: "responsive", items });
+    equal(wide.element.classList.contains("is-tabs"), false, "a window of 1200 px is wider than the default 700 px: a bar");
+    equal(getComputedStyle(wide.element).position, "static");
+    const tabs = A.generateMenu({ parent: "wrapper", id: "m-late", layout: "responsive", breakpoint: 5000, items });
+    equal(tabs.element.classList.contains("is-tabs"), true, "under the breakpoint: tabs");
+    equal(getComputedStyle(tabs.element).position, "fixed", "the style of the tabs applies");
+    equal(getComputedStyle($1(".menu-control", tabs.element)).flexDirection, "column");
+    tabs.destroy();
+    wide.destroy();
+    // the colours of a menu on a coloured header
+    const header = A.generateMenu({ parent: "wrapper", id: "m-colour", items });
+    header.element.style.setProperty("--athena-menu-bg", "rgb(10, 20, 30)");
+    header.element.style.setProperty("--athena-menu-fg", "rgb(250, 250, 250)");
+    header.element.style.setProperty("--athena-menu-hover", "rgb(40, 50, 60)");
+    header.element.style.setProperty("--athena-menu-active", "rgb(255, 0, 0)");
+    equal(getComputedStyle(header.element).backgroundColor, "rgb(10, 20, 30)");
+    equal(getComputedStyle(header.element).color, "rgb(250, 250, 250)");
+    header.select("a");
+    assert(getComputedStyle($1(".menu-control.is-active", header.element)).boxShadow.includes("rgb(255, 0, 0)"), "the line under the active item: " + getComputedStyle($1(".menu-control.is-active", header.element)).boxShadow);
+    // hover and :focus-visible cannot be forced in a page (headless Chrome does not apply :focus-visible to a programmatic focus): read the rule
+    const rules = [...document.styleSheets].flatMap(sheet => { try { return [...sheet.cssRules]; } catch { return []; } })
+        .flatMap(rule => (rule.cssRules ? [...rule.cssRules] : [rule]));
+    const hoverRule = rules.find(rule => rule.selectorText?.includes(".athena-menu .menu-control:hover"));
+    assert(hoverRule && hoverRule.style.backgroundColor.includes("--athena-menu-hover"), "the hover / focus colour is read from --athena-menu-hover: " + hoverRule?.cssText);
+    header.destroy();
+    const plain = A.generateMenu({ parent: "wrapper", id: "m-plain", items });
+    equal(getComputedStyle(plain.element).backgroundColor, "rgba(0, 0, 0, 0)", "without the tokens the bar is transparent as before");
+    plain.destroy();
+});
+
+test("charts: timeFormat, points: false, a lone point has a tooltip, the arrow keys read the values", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="cr"></div>');
+    const start = 1700000000000;
+    const times = [0, 1, 2, 3, 4, 5].map(i => start + i * 60000);
+    const handles = {};
+    const chart = (id, options) => (handles[id] = A.generateChart({ parent: "cr", id, type: "line", times, interactive: true, table: true, ...options }));
+    const tableCell = id => handles[id].dataTable.querySelector("tbody th");
+    // timeFormat: a function, or the options of Intl
+    chart("t-fn", { timeFormat: ms => "T" + (ms - start) / 60000, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    assert($1("#t-fn .chart-point").getAttribute("aria-label").includes("T0"), "the tooltip uses the function: " + $1("#t-fn .chart-point").getAttribute("aria-label"));
+    equal(tableCell("t-fn").textContent, "T0", "so does the table of values");
+    chart("t-intl", { timeFormat: { hour: "2-digit", minute: "2-digit", hour12: false }, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    assert(/\b\d\d:\d\d$/.test(tableCell("t-intl").textContent), "Intl options: " + tableCell("t-intl").textContent);
+    chart("t-default", { series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    assert(tableCell("t-default").textContent.length > 12, "the default is the long form");
+    // no dots
+    chart("p-on", { series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    chart("p-off", { points: false, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    equal($$("#p-on .chart-point").length, 6);
+    equal($$("#p-off .chart-point").length, 0, "points: false draws no dots");
+    assert($1("#p-off .chart-hit"), "the pointer layer is still there");
+    // a lone point after a gap: a tooltip of its own, also without dots
+    chart("l-1", { gaps: true, points: false, series: [{ name: "v", data: [1, 2, NaN, 4, NaN, 6] }] });
+    const lone = $$("#l-1 .chart-lone-point");
+    equal(lone.length, 2);
+    assert(lone[0].getAttribute("tabindex") === "0" && lone[0].getAttribute("aria-label").includes("4"), "the lone point is named: " + lone[0].getAttribute("aria-label"));
+    // the keyboard: arrows move the tooltip from point to point
+    chart("k-1", { series: [{ name: "v", data: [10, 20, 30, 40, 50, 60] }] });
+    const hit = $1("#k-1 .chart-hit");
+    equal(hit.getAttribute("tabindex"), "0", "the plot can be focused without zoom");
+    const shown = () => [...document.querySelectorAll("#k-1 text")].filter(t => t.closest(".is-visible")).map(t => t.textContent).join("|");
+    key(hit, "ArrowRight");
+    assert(shown().includes("10"), "the first point: " + shown());
+    key(hit, "ArrowRight");
+    assert(shown().includes("20"), "the next point: " + shown());
+    key(hit, "End");
+    assert(shown().includes("60"), "End: " + shown());
+    key(hit, "ArrowRight");
+    assert(shown().includes("60"), "stays at the last point: " + shown());
+    key(hit, "ArrowLeft");
+    assert(shown().includes("50"), "Left: " + shown());
+    key(hit, "Home");
+    assert(shown().includes("10"), "Home: " + shown());
+    key(hit, "Escape");
+    equal(shown(), "", "Escape hides it");
+    // with zoom the arrows still pan: Alt + arrow reads
+    const zooms = [];
+    chart("k-2", { zoom: true, onZoom: range => zooms.push(range), series: [{ name: "v", data: [10, 20, 30, 40, 50, 60] }] });
+    const hit2 = $1("#k-2 .chart-hit");
+    key(hit2, "ArrowRight");
+    assert([...document.querySelectorAll("#k-2 .is-visible")].length === 0, "a plain arrow pans, it does not read");
+    key($1("#k-2 .chart-hit"), "ArrowRight", { altKey: true });      // the pan drew the chart again: the plot is a new node
+    assert([...document.querySelectorAll("#k-2 .is-visible")].length === 1, "Alt + arrow reads");
+    equal(zooms.length, 1, "and did not pan again");
+});
+
 test("charts: gaps break the line, timeRange sets the axis, format writes the numbers, margin moves the plot, responsive follows the parent", async () => {
     document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="cg"></div>');
     const start = 1700000000000;
@@ -2427,6 +2549,74 @@ test("form: fields that depend on others, labels that follow, nested names, empt
     nestedDialog.form.element.requestSubmit();
     await tick(30);
     equal(JSON.stringify(seen[0]), JSON.stringify({ soa: { host: "ns1" } }), "showFormDialog passes nested on");
+});
+
+test("form: a label function that answers nothing first still gets its caption; setValues takes the nested shape", async () => {
+    const form = A.generateForm({
+        parent: "wrapper", nested: true,
+        fields: [
+            { name: "type", label: "Type", type: "select", options: ["A", "MX"], value: "A" },
+            { name: "data.value", label: values => (values.type === "MX" ? "Mail server" : values.type === "A" ? "Address" : undefined), required: true },
+            { name: "soa.host", label: "Host", show: values => values.type === "MX" }
+        ],
+        onSubmit: () => {}
+    });
+    const labelOf = name => $1(".field-label-text", form.fields[name].element);
+    assert(labelOf("data.value"), "the caption exists");
+    equal(labelOf("data.value").firstChild.nodeValue, "Address");
+    const later = A.generateForm({ parent: "wrapper", fields: [{ name: "x", label: values => (values.go ? "Now" : null), }, { name: "go", label: "Go" }] });
+    assert($1(".field-label-text", later.fields.x.element), "a function that first answers null still gets a caption");
+    equal($1(".field-label-text", later.fields.x.element).textContent, "");
+    $1("input", later.fields.go.element).value = "1";
+    $1("input", later.fields.go.element).dispatchEvent(new Event("input", { bubbles: true }));
+    equal($1(".field-label-text", later.fields.x.element).textContent, "Now", "and writes it when the values change");
+    form.setValues({ type: "MX", data: { value: "mail.example.test" }, soa: { host: "ns1" } });
+    equal($1("select", form.fields.type.element).value, "MX");
+    equal($1("input", form.fields["data.value"].element).value, "mail.example.test", "a nested object sets the field with the dotted name");
+    equal($1("input", form.fields["soa.host"].element).value, "ns1");
+    equal(labelOf("data.value").firstChild.nodeValue, "Mail server", "setValues arranges the labels and the fields that follow");
+    equal(form.fields["soa.host"].element.hidden, false);
+    form.setValues({ "data.value": "x" });
+    equal($1("input", form.fields["data.value"].element).value, "x", "the dotted name works too");
+    const flat = A.generateForm({ parent: "wrapper", fields: [{ name: "a", label: "A" }] });
+    flat.setValues({ a: "1", b: { c: 2 } });
+    equal($1("input", flat.fields.a.element).value, "1", "without nested an object is not unpacked and unknown names are ignored");
+});
+
+test("table: stack shows a narrow table as blocks with the label next to each value, and follows the width of the table", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="stack-box"></div>');
+    document.getElementById("stack-box").style.width = "900px";       // set from script: an inline style attribute is blocked by the CSP of the test page
+    const table = A.generateTable({
+        parent: "stack-box", id: "stacked", stack: true, caption: "Zones",
+        columns: [{ key: "name", label: "Name" }, { key: "type", label: "Type" }],
+        rows: [{ name: "example.test", type: "A" }, { name: "mail.example.test", type: "MX" }],
+        rowActions: [{ label: "Edit", onclick: () => {} }]
+    });
+    await tick(60);
+    const root = document.getElementById("stacked");
+    equal(root.classList.contains("is-stacked"), false, "wide: a normal table");
+    equal(getComputedStyle($1("thead", root)).display !== "none", true, "wide: the header is there");
+    document.getElementById("stack-box").style.width = "320px";
+    await tick(120);
+    equal(root.classList.contains("is-stacked"), true, "narrow: stacked");
+    equal(getComputedStyle($1("thead", root)).display, "none", "the header is hidden");
+    const cell = $1("tbody td[data-label]", root);
+    equal(getComputedStyle(cell).display, "flex", "a cell is a flex row");
+    equal(getComputedStyle(cell, "::before").content, '"Name"', "the label comes from data-label: " + getComputedStyle(cell, "::before").content);
+    assert(root.scrollWidth <= root.clientWidth + 1, "nothing to scroll sideways: " + root.scrollWidth + " > " + root.clientWidth);
+    document.getElementById("stack-box").style.width = "900px";
+    await tick(120);
+    equal(root.classList.contains("is-stacked"), false, "wide again");
+    // a number is the breakpoint; not set: never stacked; virtual tables are left alone
+    document.getElementById("stack-box").style.width = "700px";
+    A.generateTable({ parent: "stack-box", id: "stack-700", stack: 800, columns: [{ key: "a" }], rows: [{ a: 1 }] });
+    A.generateTable({ parent: "stack-box", id: "stack-off", columns: [{ key: "a" }], rows: [{ a: 1 }] });
+    A.generateTable({ parent: "stack-box", id: "stack-virtual", stack: true, virtual: { height: 200, rowHeight: 30 }, columns: [{ key: "a" }], rows: [{ a: 1 }] });
+    await tick(120);
+    equal(document.getElementById("stack-700").classList.contains("is-stacked"), true, "stack: 800 stacks a table of 700 px");
+    equal(document.getElementById("stack-off").classList.contains("athena-table-stackable"), false, "no option, no change");
+    equal(document.getElementById("stack-virtual").classList.contains("athena-table-stackable"), false, "virtual tables are not stacked");
+    table.destroy();
 });
 
 test("table: a column can render an element (a badge, a link, buttons) and every cell carries the label of its column", () => {
