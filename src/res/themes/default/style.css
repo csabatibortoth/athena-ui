@@ -1674,6 +1674,63 @@ dialog.dialog::backdrop {
     margin-left: 4px;
 }
 
+/* Tables: the stacked layout of the option `stack`: while the table is narrow every row is a block and the label of the column stands next to each value */
+
+.athena-table-stackable.is-stacked {
+    overflow-x: visible;
+}
+
+.athena-table-stackable.is-stacked .athena-table,
+.athena-table-stackable.is-stacked .athena-table tbody,
+.athena-table-stackable.is-stacked .athena-table tr {
+    display: block;
+    min-width: 0;
+}
+
+.athena-table-stackable.is-stacked .athena-table thead {
+    display: none;
+}
+
+.athena-table-stackable.is-stacked .athena-table tr {
+    padding: 8px 12px;
+    border-bottom: var(--athena-border-width) solid var(--athena-line);
+}
+
+.athena-table-stackable.is-stacked .athena-table tr:last-child {
+    border-bottom: 0;
+}
+
+.athena-table-stackable.is-stacked .athena-table td {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    width: auto;
+    max-width: none;
+    padding: 3px 0;
+    border: 0;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.athena-table-stackable.is-stacked .athena-table td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    max-width: 45%;
+    color: var(--athena-muted);
+    font-size: 0.8em;
+    text-align: left;
+}
+
+.athena-table-stackable.is-stacked .athena-table td.athena-table-actions {
+    justify-content: flex-end;
+    padding-top: 8px;
+}
+
+.athena-table-stackable.is-stacked .athena-table td:empty {
+    display: none;
+}
+
 /* Charts: series colours, tooltip, legend, table of values.
    An application sets --series-1 ... --series-8 (on :root or per theme) to recolour every chart. */
 

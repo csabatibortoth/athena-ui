@@ -2517,6 +2517,42 @@ test("form: a label function that answers nothing first still gets its caption; 
     equal($1("input", flat.fields.a.element).value, "1", "without nested an object is not unpacked and unknown names are ignored");
 });
 
+test("table: stack shows a narrow table as blocks with the label next to each value, and follows the width of the table", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="stack-box"></div>');
+    document.getElementById("stack-box").style.width = "900px";       // set from script: an inline style attribute is blocked by the CSP of the test page
+    const table = A.generateTable({
+        parent: "stack-box", id: "stacked", stack: true, caption: "Zones",
+        columns: [{ key: "name", label: "Name" }, { key: "type", label: "Type" }],
+        rows: [{ name: "example.test", type: "A" }, { name: "mail.example.test", type: "MX" }],
+        rowActions: [{ label: "Edit", onclick: () => {} }]
+    });
+    await tick(60);
+    const root = document.getElementById("stacked");
+    equal(root.classList.contains("is-stacked"), false, "wide: a normal table");
+    equal(getComputedStyle($1("thead", root)).display !== "none", true, "wide: the header is there");
+    document.getElementById("stack-box").style.width = "320px";
+    await tick(120);
+    equal(root.classList.contains("is-stacked"), true, "narrow: stacked");
+    equal(getComputedStyle($1("thead", root)).display, "none", "the header is hidden");
+    const cell = $1("tbody td[data-label]", root);
+    equal(getComputedStyle(cell).display, "flex", "a cell is a flex row");
+    equal(getComputedStyle(cell, "::before").content, '"Name"', "the label comes from data-label: " + getComputedStyle(cell, "::before").content);
+    assert(root.scrollWidth <= root.clientWidth + 1, "nothing to scroll sideways: " + root.scrollWidth + " > " + root.clientWidth);
+    document.getElementById("stack-box").style.width = "900px";
+    await tick(120);
+    equal(root.classList.contains("is-stacked"), false, "wide again");
+    // a number is the breakpoint; not set: never stacked; virtual tables are left alone
+    document.getElementById("stack-box").style.width = "700px";
+    A.generateTable({ parent: "stack-box", id: "stack-700", stack: 800, columns: [{ key: "a" }], rows: [{ a: 1 }] });
+    A.generateTable({ parent: "stack-box", id: "stack-off", columns: [{ key: "a" }], rows: [{ a: 1 }] });
+    A.generateTable({ parent: "stack-box", id: "stack-virtual", stack: true, virtual: { height: 200, rowHeight: 30 }, columns: [{ key: "a" }], rows: [{ a: 1 }] });
+    await tick(120);
+    equal(document.getElementById("stack-700").classList.contains("is-stacked"), true, "stack: 800 stacks a table of 700 px");
+    equal(document.getElementById("stack-off").classList.contains("athena-table-stackable"), false, "no option, no change");
+    equal(document.getElementById("stack-virtual").classList.contains("athena-table-stackable"), false, "virtual tables are not stacked");
+    table.destroy();
+});
+
 test("table: a column can render an element (a badge, a link, buttons) and every cell carries the label of its column", () => {
     const clicks = [];
     const table = A.generateTable({
