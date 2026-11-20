@@ -2300,6 +2300,37 @@ test("code editor: tokenizing only the lines around a change gives exactly what 
     }
 });
 
+test("toasts: position and offset, and the stack does not cover the page", async () => {
+    const wide = window.innerWidth;
+    const top = A.showToast({ message: "top right", duration: 0 });
+    const bottom = A.showToast({ message: "bottom left", position: "bottom-left", duration: 0 });
+    const middle = A.showToast({ message: "bottom centre", position: "bottom-center", offset: { y: 40 }, duration: 0 });
+    const left = A.showToast({ message: "top left", position: "top-left", offset: { x: 30 }, duration: 0 });
+    const box = id => document.getElementById(id).getBoundingClientRect();
+    assert(box("athena-toasts").right > wide - 20 && box("athena-toasts").top < 20, "the default is the top right corner");
+    assert(box("athena-toasts-bottom-left").left < 20 && box("athena-toasts-bottom-left").bottom > window.innerHeight - 20, "bottom left");
+    const centre = box("athena-toasts-bottom-center");
+    assert(Math.abs((centre.left + centre.right) / 2 - wide / 2) < 2 && Math.abs(window.innerHeight - centre.bottom - 40) < 2, "bottom centre, 40 px from the edge: " + JSON.stringify(centre));
+    assert(Math.abs(box("athena-toasts-top-left").left - 30) < 2, "an offset in x");
+    equal(getComputedStyle(document.getElementById("athena-toasts")).pointerEvents, "none", "the stack lets clicks through");
+    equal(getComputedStyle(document.querySelector("#athena-toasts .toast")).pointerEvents, "auto", "the toast takes them");
+    // a click next to a toast reaches the page: the element under the point is not the container
+    const button = document.createElement("button");
+    button.textContent = "Add zone";
+    document.getElementById("wrapper").append(button);
+    button.style.position = "fixed";
+    button.style.top = "8px";
+    button.style.right = "8px";
+    button.style.zIndex = "1";
+    const point = button.getBoundingClientRect();
+    assert(document.elementFromPoint(point.left + 4, point.top + 4) === button, "a button under the empty part of the stack can be clicked");
+    button.remove();
+    // an unknown position is the default
+    const odd = A.showToast({ message: "odd", position: "middle", duration: 0 });
+    assert(document.querySelector("#athena-toasts").textContent.includes("odd"), "an unknown position falls back to the top right");
+    for (const toast of [top, bottom, middle, left, odd]) toast.close();
+});
+
 test("menu: breakpoint of the responsive layout, colours through tokens", async () => {
     const items = [{ id: "a", label: "A", href: "#a" }, { id: "b", label: "B", href: "#b" }];
     const wide = A.generateMenu({ parent: "wrapper", id: "m-default", layout: "responsive", items });

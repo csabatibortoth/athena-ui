@@ -371,17 +371,48 @@ textarea {
 
 .toast-container {
     position: fixed;
-    top: 16px;
-    right: 16px;
+    top: var(--athena-toast-y, 16px);
+    right: var(--athena-toast-x, 16px);
     z-index: 2000;
     display: flex;
     flex-direction: column;
     gap: var(--athena-space-2);
     width: min(360px, calc(100vw - 32px));
+    pointer-events: none;           /* the stack must not cover what is under it: only the toasts take clicks */
+}
+
+.toast-container-top-left {
+    right: auto;
+    left: var(--athena-toast-x, 16px);
+}
+
+.toast-container-top-center {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.toast-container-bottom-right,
+.toast-container-bottom-left,
+.toast-container-bottom-center {
+    top: auto;
+    bottom: var(--athena-toast-y, 16px);
+}
+
+.toast-container-bottom-left {
+    right: auto;
+    left: var(--athena-toast-x, 16px);
+}
+
+.toast-container-bottom-center {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .toast {
     box-shadow: var(--athena-shadow);
+    pointer-events: auto;
 }
 
 .progress-bar {
