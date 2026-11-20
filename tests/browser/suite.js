@@ -75,7 +75,7 @@ test("every entry point loads and exports what it says", async () => {
     const expected = {
         table: "generateTable", chart: "generateChart", dialog: "showFormDialog", menu: "generateMenu", navigation: "generateDropdown", forms: "generateSignInForm",
         widgets: "createWidgetGrid", code: "createCodeEditor", feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
-        i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
+        app: "createApp", i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
     };
     for (const [entry, name] of Object.entries(expected)) {
         const module = await import(`../../src/${entry}.js`);
@@ -83,6 +83,9 @@ test("every entry point loads and exports what it says", async () => {
         assert(module[name] === A[name], `${entry}.js and athena-ui.js export different ${name}`);
     }
     assert(typeof (await import("../../src/session.js")).Cookies?.get === "function", "session.js exports Cookies");
+    const app = await import("../../src/app.js");
+    equal(Object.keys(app).sort().join(), "config,createApp,init,loadScript,setTheme", "the app entry holds only the start of a page");
+    assert(app.init === A.init && app.setTheme === A.setTheme, "and the root file re-exports the same functions");
 });
 
 test("every public function is exported and global (classic build)", async () => {

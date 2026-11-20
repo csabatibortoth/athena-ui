@@ -20,6 +20,10 @@
       "types": "./types/athena-ui.d.ts",
       "default": "./src/athena-ui.js"
     },
+    "./app": {
+      "types": "./types/app.d.ts",
+      "default": "./src/app.js"
+    },
     "./classic": {
       "types": "./types/classic.d.ts",
       "default": "./src/classic.js"
