@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.6.0**
+Current version: **2.6.1**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -881,6 +881,10 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.6.1
+  #### Fixed:
+   1. **A form reported one keystroke in an autocomplete twice**: the combobox announces every change of its value itself (as a `change` event), and the form listened to `input` as well, so `onChange` of the field and of the form ran twice for each typed character. They run once now, and typing in a multiselect (a search, not a change of the value) reports nothing; choosing and removing a chip still report once. The page of an application that asked a server on every change asked it twice (found by the metrics page of Heimdall)
 
  ### 2.6.0
   (what moving Odin NS Manager onto Athena UI 2.x showed was missing)
