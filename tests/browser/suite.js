@@ -2300,6 +2300,62 @@ test("code editor: tokenizing only the lines around a change gives exactly what 
     }
 });
 
+test("charts: timeFormat, points: false, a lone point has a tooltip, the arrow keys read the values", async () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="cr"></div>');
+    const start = 1700000000000;
+    const times = [0, 1, 2, 3, 4, 5].map(i => start + i * 60000);
+    const handles = {};
+    const chart = (id, options) => (handles[id] = A.generateChart({ parent: "cr", id, type: "line", times, interactive: true, table: true, ...options }));
+    const tableCell = id => handles[id].dataTable.querySelector("tbody th");
+    // timeFormat: a function, or the options of Intl
+    chart("t-fn", { timeFormat: ms => "T" + (ms - start) / 60000, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    assert($1("#t-fn .chart-point").getAttribute("aria-label").includes("T0"), "the tooltip uses the function: " + $1("#t-fn .chart-point").getAttribute("aria-label"));
+    equal(tableCell("t-fn").textContent, "T0", "so does the table of values");
+    chart("t-intl", { timeFormat: { hour: "2-digit", minute: "2-digit", hour12: false }, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    assert(/\b\d\d:\d\d$/.test(tableCell("t-intl").textContent), "Intl options: " + tableCell("t-intl").textContent);
+    chart("t-default", { series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    assert(tableCell("t-default").textContent.length > 12, "the default is the long form");
+    // no dots
+    chart("p-on", { series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    chart("p-off", { points: false, series: [{ name: "v", data: [1, 2, 3, 4, 5, 6] }] });
+    equal($$("#p-on .chart-point").length, 6);
+    equal($$("#p-off .chart-point").length, 0, "points: false draws no dots");
+    assert($1("#p-off .chart-hit"), "the pointer layer is still there");
+    // a lone point after a gap: a tooltip of its own, also without dots
+    chart("l-1", { gaps: true, points: false, series: [{ name: "v", data: [1, 2, NaN, 4, NaN, 6] }] });
+    const lone = $$("#l-1 .chart-lone-point");
+    equal(lone.length, 2);
+    assert(lone[0].getAttribute("tabindex") === "0" && lone[0].getAttribute("aria-label").includes("4"), "the lone point is named: " + lone[0].getAttribute("aria-label"));
+    // the keyboard: arrows move the tooltip from point to point
+    chart("k-1", { series: [{ name: "v", data: [10, 20, 30, 40, 50, 60] }] });
+    const hit = $1("#k-1 .chart-hit");
+    equal(hit.getAttribute("tabindex"), "0", "the plot can be focused without zoom");
+    const shown = () => [...document.querySelectorAll("#k-1 text")].filter(t => t.closest(".is-visible")).map(t => t.textContent).join("|");
+    key(hit, "ArrowRight");
+    assert(shown().includes("10"), "the first point: " + shown());
+    key(hit, "ArrowRight");
+    assert(shown().includes("20"), "the next point: " + shown());
+    key(hit, "End");
+    assert(shown().includes("60"), "End: " + shown());
+    key(hit, "ArrowRight");
+    assert(shown().includes("60"), "stays at the last point: " + shown());
+    key(hit, "ArrowLeft");
+    assert(shown().includes("50"), "Left: " + shown());
+    key(hit, "Home");
+    assert(shown().includes("10"), "Home: " + shown());
+    key(hit, "Escape");
+    equal(shown(), "", "Escape hides it");
+    // with zoom the arrows still pan: Alt + arrow reads
+    const zooms = [];
+    chart("k-2", { zoom: true, onZoom: range => zooms.push(range), series: [{ name: "v", data: [10, 20, 30, 40, 50, 60] }] });
+    const hit2 = $1("#k-2 .chart-hit");
+    key(hit2, "ArrowRight");
+    assert([...document.querySelectorAll("#k-2 .is-visible")].length === 0, "a plain arrow pans, it does not read");
+    key($1("#k-2 .chart-hit"), "ArrowRight", { altKey: true });      // the pan drew the chart again: the plot is a new node
+    assert([...document.querySelectorAll("#k-2 .is-visible")].length === 1, "Alt + arrow reads");
+    equal(zooms.length, 1, "and did not pan again");
+});
+
 test("charts: gaps break the line, timeRange sets the axis, format writes the numbers, margin moves the plot, responsive follows the parent", async () => {
     document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="cg"></div>');
     const start = 1700000000000;
