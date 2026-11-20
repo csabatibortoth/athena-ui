@@ -133,7 +133,7 @@ export function generateField(options = {}) {
     let controlNodes;
     let getValue;
     let setValue;
-    const events = ["input", "change"];
+    let events = ["input", "change"];
     const container = grouped ? el("fieldset", { class: "field-group" }, el("legend", {}, caption ?? "")) : wrapper;
 
     if (type === "textarea") {
@@ -180,6 +180,9 @@ export function generateField(options = {}) {
         controlNodes = [combo.element];
         getValue = combo.getValue;
         setValue = combo.setValue;
+        // The combobox announces every change of its value itself, as a "change" event: typing (a free text), choosing, removing a chip. Listening to "input" as well would
+        // report one keystroke twice (and typing in a multiselect is not a change of the value at all).
+        events = ["change"];
     } else if (type === "daterange") {
         const range = createDateRange({ id, name, value: options.value, min: options.min, max: options.max, disabled: options.disabled });
         controls = range.inputs;

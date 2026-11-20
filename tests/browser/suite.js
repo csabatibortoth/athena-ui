@@ -2742,6 +2742,43 @@ test("router: params, query, redirect guard, not found", async () => {
 
 /* ------------------INPUTS------------------- */
 
+test("a form reports one change per action of an autocomplete or multiselect: a keystroke, a choice, a removed chip", async () => {
+    const changes = [];
+    const form = A.generateForm({
+        parent: "wrapper",
+        fields: [{ name: "city", type: "autocomplete", label: "City", options: ["Hungary", "Hungary2", "Italy"], onChange: value => changes.push(["city", value]) },
+            { name: "tags", type: "multiselect", label: "Tags", options: ["a", "b"], onChange: value => changes.push(["tags", [...value]]) }],
+        onChange: (values, field) => changes.push(["form", field.name])
+    });
+    const city = form.fields.city.element.querySelector("input");
+    type(city, "h");
+    equal(changes.filter(c => c[0] === "city").length, 1, "one keystroke, one report of the field: " + JSON.stringify(changes));
+    equal(changes.filter(c => c[0] === "form").length, 1, "and one of the form");
+    type(city, "hu");
+    equal(changes.filter(c => c[0] === "city").length, 2);
+    await tick();
+    key(city, "ArrowDown");
+    key(city, "Enter");
+    equal(changes.filter(c => c[0] === "city").length, 3, "choosing from the list is one more");
+    equal(changes.filter(c => c[0] === "city").at(-1)[1], "Hungary2");
+    // a multiselect: typing is a search, not a change of the value
+    const tags = form.fields.tags.element.querySelector("input");
+    const before = changes.length;
+    type(tags, "a");
+    await tick();
+    equal(changes.length, before, "typing in a multiselect changes nothing");
+    key(tags, "ArrowDown");
+    key(tags, "Enter");
+    equal(changes.filter(c => c[0] === "tags").length, 1, "choosing a tag is one report");
+    // the validation still follows the typing: a required autocomplete that is emptied shows its message once it was touched
+    const strict = A.generateForm({ parent: "wrapper", fields: [{ name: "x", type: "autocomplete", label: "X", options: ["One"], required: true }], onSubmit: () => {} });
+    const x = strict.fields.x.element.querySelector("input");
+    x.dispatchEvent(new Event("blur", { bubbles: true }));
+    equal(strict.fields.x.element.querySelector(".field-error").textContent.length > 0, true, "required, left empty: an error");
+    type(x, "One");
+    equal(strict.fields.x.element.querySelector(".field-error").textContent, "", "typing a value takes the error away");
+});
+
 test("autocomplete: filter, keyboard, async source ignores stale answers", async () => {
     const autocomplete = A.generateAutocomplete({ parent: "wrapper", options: ["Hungary", "Hungary2", "Italy"] });
     type(autocomplete.input, "hun");
