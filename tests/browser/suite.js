@@ -1628,6 +1628,182 @@ const widgetsCleanup = grid => {
     $1("#wg")?.remove();
 };
 
+// ---- 2.7.0: what the migration of Heimdall showed ----
+
+test("field: hideLabel keeps the label for screen readers and the browser, and hides it visually", () => {
+    const select = A.generateField({ parent: "wrapper", type: "select", name: "org-h", label: "Organization", hideLabel: true, options: ["a", "b"] });
+    const label = $1("label.field-label", select.element);
+    assert(label, "the label is still there");
+    assert(label.classList.contains("athena-visually-hidden"), "and hidden by the class of the library");
+    equal(label.control, $1("select", select.element), "it still names the select");
+    assert(label.getBoundingClientRect().width <= 1, "it takes no room");
+    const shown = A.generateField({ parent: "wrapper", type: "select", name: "org-s", label: "Organization", options: ["a"] });
+    assert(!$1("label.field-label", shown.element).classList.contains("athena-visually-hidden"), "without the option it is shown as before");
+    const toggle = A.generateField({ parent: "wrapper", type: "switch", name: "sw", label: "Refresh", hideLabel: true });
+    assert($1(".switch-track", toggle.element), "a switch keeps its track");
+    assert($1(".field-label-text", toggle.element).classList.contains("athena-visually-hidden"), "and loses only its words");
+    const group = A.generateField({ parent: "wrapper", type: "radio", name: "rg", label: "Mode", hideLabel: true, options: ["a", "b"] });
+    assert($1("legend", group.element).classList.contains("athena-visually-hidden"), "the legend of a group is hidden too");
+    equal($$("input[type=radio]", group.element).length, 2);
+    for (const field of [select, shown, toggle, group]) field.destroy();
+});
+
+test("charts: a legend gets room under the time labels, whatever margin was asked for", () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="lg"></div>');
+    const start = 1700000000000;
+    const times = [0, 1, 2, 3].map(i => start + i * 60000);
+    const make = options => A.generateChart({ parent: "lg", type: "line", times, height: 240, series: [{ name: "a", data: [1, 2, 3, 4] }, { name: "b", data: [2, 3, 4, 5] }], ...options });
+    const small = make({ margin: { bottom: 28 } });
+    const ticks = $$("text.chart-tick", small).filter(tick => tick.getAttribute("text-anchor") === "middle");
+    const legends = $$("text.chart-legend", small);
+    assert(ticks.length && legends.length, "time labels and a legend are drawn");
+    const tickBottom = Math.max(...ticks.map(tick => tick.getBoundingClientRect().bottom));
+    const legendTop = Math.min(...legends.map(legend => legend.getBoundingClientRect().top));
+    assert(tickBottom <= legendTop + 0.5, "the time labels end above the legend: " + tickBottom + " > " + legendTop);
+    equal(Number($1(".chart-hit", small).getAttribute("height")), 240 - 40 - 48, "the margin was raised to 48");
+    small.destroy();
+    const noLegend = make({ margin: { bottom: 24 }, legend: false });
+    equal(Number($1(".chart-hit", noLegend).getAttribute("height")), 240 - 40 - 24, "without a legend the small margin stays as it was asked for");
+    noLegend.destroy();
+    $1("#lg")?.remove();
+});
+
+test("page header: a long description does not push the actions to a row of their own, and a button stands on the line of a labelled field", () => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="ph"></div>');
+    $1("#ph").style.width = "1000px";
+    const action = document.createElement("button");
+    action.textContent = "Add";
+    const header = A.generatePageHeader({ parent: "ph", title: "Zones", description: "A long sentence about this page. ".repeat(20), actions: [action] });
+    const title = $1(".page-title", header.element).getBoundingClientRect();
+    const actions = header.actions.getBoundingClientRect();
+    assert(actions.top < title.bottom, "the actions are on the row of the title: " + actions.top + " / " + title.bottom);
+    assert(getComputedStyle($1(".page-description", header.element)).maxWidth !== "none", "the description has a line length");
+    assert(["flex-end", "flow-end", "end"].includes(getComputedStyle(header.actions).alignItems), "the actions stand on the bottom line of their row (" + getComputedStyle(header.actions).alignItems + ")");
+    header.destroy();
+    $1("#ph")?.remove();
+});
+
+test("theme picker: previewModes both shows the light and the dark picture of every theme, current shows one", () => {
+    const manager = A.createThemeManager({ themes: [{ id: "ocean", name: "Ocean" }, { id: "forest", name: "Forest" }], storageKey: "athena.test.picker-both" });
+    const both = A.generateThemePicker({ parent: "wrapper", manager, previewModes: "both" });
+    const previews = $$(".theme-preview-both", both.element);
+    equal(previews.length, 2, "one picture per theme");
+    for (const [index, preview] of previews.entries()) {
+        const halves = $$(".theme-preview-half", preview);
+        equal(halves.map(half => half.dataset.mode).join(), "light,dark", "a light and a dark half");
+        equal(halves[0].dataset.theme, ["ocean", "forest"][index], "each in the colours of its own theme");
+    }
+    manager.setMode("dark");
+    equal($$(".theme-preview-half", both.element).map(half => half.dataset.mode).join(), "light,dark,light,dark", "the halves do not follow the mode in use: they show both");
+    const current = A.generateThemePicker({ parent: "wrapper", manager });
+    equal($$(".theme-preview-both", current.element).length, 0, "by default there is one picture, as before");
+    equal($$(".theme-preview", current.element).every(preview => preview.dataset.mode === "dark"), true, "in the mode in use");
+    both.destroy();
+    current.destroy();
+    manager.destroy();
+    document.documentElement.removeAttribute("data-mode");           // the manager put them on the page: the next test starts clean
+    document.documentElement.removeAttribute("data-theme");
+    localStorage.removeItem("athena.test.picker-both");
+});
+
+A.registerWidget("t-measure", {
+    title: "Measure", defaultSize: { w: 4, h: 2 },
+    render(context) {
+        widgetLog.sizes.push({ ...context.size, content: { ...context.contentSize } });
+        return { destroy() {} };
+    },
+    resize(context, size) { widgetLog.resized.push({ size: { ...size }, content: { ...context.contentSize }, now: { ...context.size } }); }
+});
+widgetLog.sizes = [];
+widgetLog.resized = [];
+
+test("widgets: contentSize is the room inside the padding, and a resize is told the size the widget has now", async () => {
+    widgetLog.sizes.length = 0;
+    widgetLog.resized.length = 0;
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="wg"></div>');
+    $1("#wg").style.width = "900px";
+    const grid = A.createWidgetGrid({ element: "wg", rowHeight: 80, gap: 12, widgets: [{ type: "t-measure", id: "m", x: 0, y: 0 }] });
+    await waitUntil(() => widgetLog.sizes.length === 1, "the widget rendered");
+    const first = widgetLog.sizes[0];
+    const padding = Number.parseFloat(getComputedStyle($1('[data-widget-id="m"] .widget-body')).paddingLeft);
+    assert(padding > 0, "the body has a padding in the default theme");
+    equal(first.content.width, first.width - 2 * padding, "the content is the box less the padding on both sides");
+    assert(first.content.height > 0 && first.content.height < first.height, "and the height too");
+    $1("#wg").style.width = "500px";
+    await waitUntil(() => widgetLog.resized.length >= 1, "the resize callback");
+    const last = widgetLog.resized.at(-1);
+    assert(last.size.width < first.width, "the size it was told is the new, smaller one: " + last.size.width + " < " + first.width);
+    equal(last.content.width, last.size.width - 2 * padding, "and the content size follows it");
+    widgetsCleanup(grid);
+});
+
+test("widgets: addWidgetWithSettings is one step: saved, it is added once; dismissed, nothing happened", async () => {
+    const calls = [];
+    const grid = makeGrid({ widgets: [noteAt("a", 0, 0)], onChange: (layout, reason) => calls.push(reason) });
+    await tick();
+    equal(grid.getWidgets().length, 1);
+    // dismissed
+    let pending = grid.addWidgetWithSettings("t-note");
+    await waitUntil(() => $1("dialog.dialog[open]"), "the settings of the new widget");
+    equal(grid.getWidgets().length, 2, "the widget is in the grid while the person decides");
+    escape($1("dialog.dialog[open]"));
+    equal(await pending, null, "dismissed: no id");
+    equal(grid.getWidgets().length, 1, "and the widget is gone");
+    equal(calls.length, 0, "onChange was never called");
+    equal(grid.canUndo(), false, "and there is nothing to undo");
+    // saved
+    pending = grid.addWidgetWithSettings("t-note", { title: "New" });
+    await waitUntil(() => $1("dialog.dialog[open]"), "the settings again");
+    type($1("dialog.dialog[open] [name=text]"), "typed");
+    $1("dialog.dialog[open] form").requestSubmit();
+    const id = await pending;
+    assert(typeof id === "string" && grid.getWidgets().includes(id), "saved: the id of the new widget");
+    equal(grid.getWidget(id).config.text, "typed", "with what was typed");
+    equal(calls.join(), "add", "one call of onChange, with the reason add");
+    equal(grid.canUndo(), true, "one step to undo");
+    grid.undo();
+    equal(grid.getWidgets().length, 1, "and one undo takes the whole widget away");
+    widgetsCleanup(grid);
+});
+
+test("widgets: changeDelay turns the steps of a drag into one call of onChange, flush() and destroy() deliver it at once", async () => {
+    const calls = [];
+    const grid = makeGrid({ changeDelay: 60, widgets: [noteAt("a", 0, 0)], onChange: (layout, reason) => calls.push([reason, layout.widgets.length]) });
+    await tick();
+    grid.addWidget("t-note");
+    grid.addWidget("t-note");
+    grid.removeWidget(grid.getWidgets().at(-1));
+    equal(calls.length, 0, "nothing is reported while the changes come");
+    await tick(150);
+    equal(JSON.stringify(calls), '[["remove",2]]', "one call after the last, with its reason and the layout as it is then");
+    grid.addWidget("t-note");
+    grid.flush();
+    equal(calls.length, 2, "flush() reports a waiting change now");
+    grid.flush();
+    equal(calls.length, 2, "and only when there is one");
+    grid.addWidget("t-note");
+    grid.destroy();
+    equal(calls.length, 3, "destroy() does not lose a change that waits");
+    $1("#wg")?.remove();
+    const immediate = makeGrid({ widgets: [noteAt("a", 0, 0)], onChange: (layout, reason) => calls.push([reason]) });
+    const before = calls.length;
+    immediate.addWidget("t-note");
+    equal(calls.length, before + 1, "without the option every change is reported at once, as before");
+    widgetsCleanup(immediate);
+});
+
+test("widgets: getLayout({ breakpoint }) gives the place of every widget in that breakpoint as flat numbers", async () => {
+    const grid = makeGrid({ widgets: [noteAt("a", 2, 0, { w: 3, h: 2 })] });      // (a widget that is put lower than there is something above it falls upwards)
+    await tick();
+    const plain = grid.getLayout().widgets[0];
+    assert(!("x" in plain), "without the option the layout is as before");
+    const flat = grid.getLayout({ breakpoint: "default" }).widgets[0];
+    equal([flat.x, flat.y, flat.w, flat.h].join(), "2,0,3,2");
+    equal(JSON.stringify(flat.layouts.default), JSON.stringify({ x: 2, y: 0, w: 3, h: 2 }), "next to the layouts of every breakpoint");
+    equal("x" in grid.getLayout({ breakpoint: "nowhere" }).widgets[0], false, "a breakpoint that does not exist adds nothing");
+    widgetsCleanup(grid);
+});
+
 test("widgets: places are classes (no style attribute), widgets render when visible, the registry decides what can be added", async () => {
     widgetLog.rendered.length = 0;
     widgetLog.destroyed.length = 0;
