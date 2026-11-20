@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.5.0**
+Current version: **2.5.1**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -149,7 +149,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.5.0"` | Version shown in the footer |
+| `version` | `"2.5.1"` | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -862,6 +862,12 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.5.1
+  #### Changed:
+   1. The `files` list of package.json is `src` (with `example.js` and `index.html` left out) instead of a list of folders: a new folder under `src` can no longer be forgotten, which is what broke 2.3.0 and 2.4.0. The package holds exactly the same files as 2.5.0
+  #### Added:
+   1. `npm run smoke:package` (`scripts/smoke-package.mjs`): packs the library, installs the tarball in an empty folder and imports all 26 entry points of the `exports` map the way an application does; it runs in CI after `check:package`
 
  ### 2.5.0
   (what the user interface of Odin NS Manager asked for when it moved onto Athena UI 2.x)

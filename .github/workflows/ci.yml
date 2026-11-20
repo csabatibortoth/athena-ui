@@ -40,3 +40,6 @@ jobs:
 
       - name: The npm package holds everything the entry points need
         run: npm run check:package
+
+      - name: The packed package installs in an empty folder and every entry point imports
+        run: npm run smoke:package
