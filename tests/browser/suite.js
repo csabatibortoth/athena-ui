@@ -2300,6 +2300,35 @@ test("code editor: tokenizing only the lines around a change gives exactly what 
     }
 });
 
+test("menu: breakpoint of the responsive layout, colours through tokens", async () => {
+    const items = [{ id: "a", label: "A", href: "#a" }, { id: "b", label: "B", href: "#b" }];
+    const wide = A.generateMenu({ parent: "wrapper", id: "m-default", layout: "responsive", items });
+    equal(wide.element.classList.contains("is-tabs"), false, "a window of 1200 px is wider than the default 700 px: a bar");
+    equal(getComputedStyle(wide.element).position, "static");
+    const tabs = A.generateMenu({ parent: "wrapper", id: "m-late", layout: "responsive", breakpoint: 5000, items });
+    equal(tabs.element.classList.contains("is-tabs"), true, "under the breakpoint: tabs");
+    equal(getComputedStyle(tabs.element).position, "fixed", "the style of the tabs applies");
+    equal(getComputedStyle($1(".menu-control", tabs.element)).flexDirection, "column");
+    tabs.destroy();
+    wide.destroy();
+    // the colours of a menu on a coloured header
+    const header = A.generateMenu({ parent: "wrapper", id: "m-colour", items });
+    header.element.style.setProperty("--athena-menu-bg", "rgb(10, 20, 30)");
+    header.element.style.setProperty("--athena-menu-fg", "rgb(250, 250, 250)");
+    header.element.style.setProperty("--athena-menu-hover", "rgb(40, 50, 60)");
+    header.element.style.setProperty("--athena-menu-active", "rgb(255, 0, 0)");
+    equal(getComputedStyle(header.element).backgroundColor, "rgb(10, 20, 30)");
+    equal(getComputedStyle(header.element).color, "rgb(250, 250, 250)");
+    header.select("a");
+    assert(getComputedStyle($1(".menu-control.is-active", header.element)).boxShadow.includes("rgb(255, 0, 0)"), "the line under the active item: " + getComputedStyle($1(".menu-control.is-active", header.element)).boxShadow);
+    $$(".menu-control", header.element)[1].focus();
+    equal(getComputedStyle($$(".menu-control", header.element)[1]).backgroundColor, "rgb(40, 50, 60)", "hover / focus colour");
+    header.destroy();
+    const plain = A.generateMenu({ parent: "wrapper", id: "m-plain", items });
+    equal(getComputedStyle(plain.element).backgroundColor, "rgba(0, 0, 0, 0)", "without the tokens the bar is transparent as before");
+    plain.destroy();
+});
+
 test("charts: timeFormat, points: false, a lone point has a tooltip, the arrow keys read the values", async () => {
     document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="cr"></div>');
     const start = 1700000000000;
