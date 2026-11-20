@@ -2429,6 +2429,38 @@ test("form: fields that depend on others, labels that follow, nested names, empt
     equal(JSON.stringify(seen[0]), JSON.stringify({ soa: { host: "ns1" } }), "showFormDialog passes nested on");
 });
 
+test("form: a label function that answers nothing first still gets its caption; setValues takes the nested shape", async () => {
+    const form = A.generateForm({
+        parent: "wrapper", nested: true,
+        fields: [
+            { name: "type", label: "Type", type: "select", options: ["A", "MX"], value: "A" },
+            { name: "data.value", label: values => (values.type === "MX" ? "Mail server" : values.type === "A" ? "Address" : undefined), required: true },
+            { name: "soa.host", label: "Host", show: values => values.type === "MX" }
+        ],
+        onSubmit: () => {}
+    });
+    const labelOf = name => $1(".field-label-text", form.fields[name].element);
+    assert(labelOf("data.value"), "the caption exists");
+    equal(labelOf("data.value").firstChild.nodeValue, "Address");
+    const later = A.generateForm({ parent: "wrapper", fields: [{ name: "x", label: values => (values.go ? "Now" : null), }, { name: "go", label: "Go" }] });
+    assert($1(".field-label-text", later.fields.x.element), "a function that first answers null still gets a caption");
+    equal($1(".field-label-text", later.fields.x.element).textContent, "");
+    $1("input", later.fields.go.element).value = "1";
+    $1("input", later.fields.go.element).dispatchEvent(new Event("input", { bubbles: true }));
+    equal($1(".field-label-text", later.fields.x.element).textContent, "Now", "and writes it when the values change");
+    form.setValues({ type: "MX", data: { value: "mail.example.test" }, soa: { host: "ns1" } });
+    equal($1("select", form.fields.type.element).value, "MX");
+    equal($1("input", form.fields["data.value"].element).value, "mail.example.test", "a nested object sets the field with the dotted name");
+    equal($1("input", form.fields["soa.host"].element).value, "ns1");
+    equal(labelOf("data.value").firstChild.nodeValue, "Mail server", "setValues arranges the labels and the fields that follow");
+    equal(form.fields["soa.host"].element.hidden, false);
+    form.setValues({ "data.value": "x" });
+    equal($1("input", form.fields["data.value"].element).value, "x", "the dotted name works too");
+    const flat = A.generateForm({ parent: "wrapper", fields: [{ name: "a", label: "A" }] });
+    flat.setValues({ a: "1", b: { c: 2 } });
+    equal($1("input", flat.fields.a.element).value, "1", "without nested an object is not unpacked and unknown names are ignored");
+});
+
 test("table: a column can render an element (a badge, a link, buttons) and every cell carries the label of its column", () => {
     const clicks = [];
     const table = A.generateTable({
