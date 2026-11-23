@@ -228,6 +228,22 @@ describe("isSafeUrl", () => {
             assert.equal(isSafeUrl(url), false, String(url));
         }
     });
+
+    // Browsers read a backslash in an http(s) URL as a slash, so "/\\evil.com" is "//evil.com": another site, not a path of this one.
+    test("rejects links that a browser reads as protocol-relative, with a backslash or hidden characters", () => {
+        for (const url of ["/\\evil.com", "/\\evil.com/x", "/\\\\evil.com", "/\t/evil.com", "/\n/evil.com", "\\\\evil.com"]) {
+            assert.equal(isSafeUrl(url), false, JSON.stringify(url));
+            // and the standard URL parser agrees that these leave the origin (so this is not a guess about browsers)
+            if (url.startsWith("/") || url.startsWith("\\")) assert.notEqual(new URL(url, "https://app.example").origin, "https://app.example", JSON.stringify(url));
+        }
+    });
+
+    test("still accepts the plain paths that look similar", () => {
+        for (const url of ["/a/b", "/a\\b", "/path?x=/\\y", "/#/route", "./a/b", "../a/b", "a/b"]) {
+            // "a/b" has no scheme and no slash in front: it is not in the allow-list (an anchor target is "#...", a path "/...")
+            assert.equal(isSafeUrl(url), url !== "a/b", JSON.stringify(url));
+        }
+    });
 });
 
 describe("translate: plural forms and Intl formats", () => {

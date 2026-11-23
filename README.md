@@ -5,7 +5,7 @@ layout (header, menu, content wrapper, footer) from a single `init()` call, load
 and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
 feedback, navigation, a router and more.
 
-Current version: **2.7.0**
+Current version: **2.7.1**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -517,10 +517,26 @@ editor.getValue();   // safe HTML, "" when empty
 The date range uses the native date pickers; the end picker starts at the chosen start date and a reversed range typed by
 hand is reported. The rich text editor produces a restricted set of HTML (paragraphs, headings, bold / italic / underline /
 strike, lists, quotes, code, links). Everything else (scripts, styles, iframes, images, event attributes, `javascript:` and
-`data:` links) is removed when the content is set, pasted, dropped and read, so the value is safe to store and show with
-`innerHTML`; links get `rel="noopener noreferrer"`. Toolbar buttons: `bold`, `italic`, `underline`, `strike`, `h2`, `h3`,
+`data:` links) is removed when the content is set, pasted, dropped and read; links get `rel="noopener noreferrer"`. This
+is a layer of defense in the browser, not a guarantee for what you store: see [Sanitizing HTML](#sanitizing-html). Toolbar buttons: `bold`, `italic`, `underline`, `strike`, `h2`, `h3`,
 `quote`, `ul`, `ol`, `link`, `unlink`, `clear`, `undo`, `redo`. The editor is built on `contenteditable` and
 `document.execCommand`, which every browser still supports; sanitize on the server as well, as with any HTML you accept.
+
+##### Sanitizing HTML
+
+The sanitizer (`sanitizeHtml`, `isSafeUrl`) is an allow-list that rebuilds the markup: the input is parsed in an inert
+document, only the listed elements are copied (`p`, `br`, `strong`, `em`, `u`, `s`, lists, headings `h1` to `h4`,
+`blockquote`, `code`, `pre`, `a`, `hr`, `sub`, `sup`), every attribute is dropped except a checked `href`, and scripts,
+styles, frames, SVG, MathML, forms and the like are removed with their content. A link may point to `http(s):`, `mailto:`,
+`tel:`, `#...` or a path (`/path`, `./a`, `../a`); a path that a browser would read as another site (`//host`, and `/\host`,
+because browsers treat a backslash in an http(s) URL as a slash) is refused.
+
+**Treat it as defense in depth.** It runs in the page of the person who is typing, which an attacker controls: a request that
+bypasses the page, or a stored value from another source, was never sanitized. So **sanitize again on the server before you
+store or render content that came from users**, with a maintained server-side sanitizer, and keep a Content-Security-Policy
+without `'unsafe-inline'` (Athena UI needs none). The sanitizer relies on the parser of the browser it runs in.
+`htmlToText` returns text only. The regression tests (`tests/browser`) feed it malformed markup, SVG and MathML, DOM-clobbering
+names and dangerous URL schemes.
 
 ```js
 generateDropZone({ parent: "wrapper", accept: "image/*", maxSize: 2 * 1024 * 1024, maxFiles: 3,
@@ -887,6 +903,12 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.7.1
+
+  - **Security fix in `isSafeUrl` / the sanitizer:** a link such as `/\evil.com` was accepted as a path of the same site, but browsers read a backslash in an http(s) URL as a slash, so it led to `evil.com` (a phishing or redirect link; no script ran). It is refused now, like `//host`.
+  - README: the section *Sanitizing HTML* says what the sanitizer does and that it is defense in depth: sanitize again on the server.
+  - New sanitizer regression cases (hostile markup, SVG/MathML, DOM clobbering, URL schemes) in the browser suite.
 
  ### 2.7.0
   (what moving Heimdall onto Athena UI 2.x showed was missing; each item removed a workaround of that application)
