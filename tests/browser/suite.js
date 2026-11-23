@@ -32,7 +32,7 @@ const violations = [];
 // reads it in an inert document and none of it runs or reaches the page, but Chrome still reports the inline handler or style it meets while parsing.
 // Only those three kinds of report are let through, and only for these tests.
 const INERT_PARSE_REPORT = /^(script-src-attr|style-src-attr|style-src-elem)/;
-const HOSTILE_INPUT = new Set(["wysiwyg: source view round trips and sanitizes", "rich text: unsafe markup never survives", "rich text: paste is sanitized, empty content reads as empty"]);
+const HOSTILE_INPUT = new Set(["wysiwyg: source view round trips and sanitizes", "rich text: unsafe markup never survives", "rich text: paste is sanitized, empty content reads as empty", "sanitizer: malformed markup, namespaces, clobbering names, and URL schemes"]);
 document.addEventListener("securitypolicyviolation", event => violations.push(`${event.violatedDirective} blocked ${event.blockedURI || "inline"} ${event.sample ?? ""}`.trim()));
 
 window.addEventListener("error", event => results.push(`FAIL uncaught error: ${event.message}`));
@@ -3063,6 +3063,26 @@ test("rich text: unsafe markup never survives", () => {
     equal(A.sanitizeHtml('<div>a</div><b>b</b>'), "<p>a</p><strong>b</strong>");
     equal(A.sanitizeHtml('<a href="//evil.com">x</a>'), "<a>x</a>");
     equal(rich.editor.getAttribute("aria-labelledby"), $1(".field-label").id);
+});
+
+test("sanitizer: malformed markup, namespaces, clobbering names, and URL schemes", () => {
+    const hostile = [
+        '<p>safe</p></body><script>window.__sanitizerRan = true</script><p>still safe',
+        '<svg><a xlink:href="javascript:alert(1)">svg text</a><foreignObject><img src=x onerror=alert(1)></foreignObject></svg><math><mi>x</mi></math><p>math-safe</p>',
+        '<form id="document" name="forms"><input name="location"></form><div id="__proto__" name="constructor">kept text</div>',
+        '<p><a href="java&#x09;script:alert(1)" id="location" name="__proto__">bad scheme</a>' +
+            '<a href="data:text/html,unsafe">data</a><a href="vbscript:msgbox(1)">vbscript</a>' +
+            '<a href="//evil.example/path">protocol-relative</a><a href="/safe/path">relative</a></p>',
+    ];
+
+    delete window.__sanitizerRan;
+    const output = hostile.map(input => A.sanitizeHtml(input)).join("");
+    equal(window.__sanitizerRan, undefined, "malformed input executed script");
+    assert(!/<(?:script|svg|math|form|input|foreignObject)\b/i.test(output), `dangerous element survived: ${output}`);
+    assert(!/\s(?:on[a-z]+|id|name|xlink:href)=/i.test(output), `unsafe or clobbering attribute survived: ${output}`);
+    assert(!/(?:javascript|vbscript|data):|\/\/evil\.example/i.test(output), `unsafe URL survived: ${output}`);
+    assert(output.includes("still safe") && output.includes("math-safe") && output.includes("kept text"), `safe text was lost: ${output}`);
+    assert(output.includes('<a href="/safe/path"'), `safe relative URL was lost: ${output}`);
 });
 
 test("rich text: toolbar formats the selection and reports the state", () => {
