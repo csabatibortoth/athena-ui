@@ -239,9 +239,15 @@ describe("isSafeUrl", () => {
     });
 
     test("still accepts the plain paths that look similar", () => {
-        for (const url of ["/a/b", "/a\\b", "/path?x=/\\y", "/#/route", "./a/b", "../a/b", "a/b"]) {
+        for (const url of ["/a/b", "/a\\b", "/%5Cevil", "/path?x=/\\y", "/#/route", "./a/b", "../a/b", "https:evil", "https:/evil", "HtTpS://example.test", "a/b"]) {
             // "a/b" has no scheme and no slash in front: it is not in the allow-list (an anchor target is "#...", a path "/...")
             assert.equal(isSafeUrl(url), url !== "a/b", JSON.stringify(url));
+        }
+    });
+
+    test("rejects whitespace-obfuscated backslash paths and mixed-case script schemes", () => {
+        for (const url of ["/ \\evil.com", "/\\ evil.com", "JaVaScRiPt:alert(1)", " jAvAsCrIpT:alert(1)"]) {
+            assert.equal(isSafeUrl(url), false, JSON.stringify(url));
         }
     });
 });

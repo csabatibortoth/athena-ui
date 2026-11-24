@@ -3085,6 +3085,15 @@ test("sanitizer: malformed markup, namespaces, clobbering names, and URL schemes
     assert(output.includes('<a href="/safe/path"'), `safe relative URL was lost: ${output}`);
 });
 
+test("sanitizer: resource-bearing elements are removed", () => {
+    const resource = `${location.origin}/__sanitizer_resource_probe?from=strict-suite`;
+    const output = A.sanitizeHtml(
+        `<img src="${resource}"><iframe src="${resource}"></iframe><video poster="${resource}"></video>` +
+        `<object data="${resource}"></object><embed src="${resource}">`
+    );
+    assert(!/<(?:img|iframe|video|object|embed)\b/i.test(output), `resource-bearing element survived: ${output}`);
+});
+
 test("rich text: toolbar formats the selection and reports the state", () => {
     const changes = [];
     const rich = A.generateRichText({ parent: "wrapper", value: "<p>Hello world</p>", onChange: html => changes.push(html) });
