@@ -2,31 +2,52 @@ import { sanitizeHtml } from "../../src/libs/core/sanitize.js";
 
 const marker = `${Date.now()}-${Math.random()}`;
 const probe = kind => `${location.origin}/__sanitizer_resource_probe?kind=${encodeURIComponent(kind)}&run=${marker}`;
+const reference = (scope, kind) => probe(`${scope}-${kind}`);
 const cases = [
-    ["img-src", () => `<img src="${probe("img-src")}">`],
-    ["iframe-src", () => `<iframe src="${probe("iframe-src")}"></iframe>`],
-    ["link-stylesheet", () => `<link rel="stylesheet" href="${probe("link-stylesheet")}">`],
-    ["video-poster", () => `<video poster="${probe("video-poster")}"></video>`],
-    ["video-src", () => `<video src="${probe("video-src")}"></video>`],
-    ["source-src", () => `<video><source src="${probe("source-src")}"></video>`],
-    ["object-data", () => `<object data="${probe("object-data")}"></object>`],
-    ["embed-src", () => `<embed src="${probe("embed-src")}">`],
-    ["input-image-src", () => `<input type="image" src="${probe("input-image-src")}">`],
-    ["source-srcset", () => `<picture><source srcset="${probe("source-srcset")}"></picture>`],
-    ["svg-image-href", () => `<svg><image href="${probe("svg-image-href")}"></image></svg>`],
-    ["svg-image-xlink", () => `<svg><image xlink:href="${probe("svg-image-xlink")}"></image></svg>`],
-    ["style-attribute", () => `<div style="background-image:url('${probe("style-attribute")}')">text</div>`],
-    ["style-import", () => `<style>@import url('${probe("style-import")}');</style>`],
-    ["body-background", () => `<body background="${probe("body-background")}"></body>`],
+    ["image-src", scope => `<img src="${reference(scope, "image-src")}">`],
+    ["image-srcset", scope => `<img srcset="${reference(scope, "image-srcset")} 1x">`],
+    ["picture-source", scope => `<picture><source srcset="${reference(scope, "picture-source")} 1x"><img></picture>`],
+    ["iframe-src", scope => `<iframe src="${reference(scope, "iframe-src")}"></iframe>`],
+    ["link-stylesheet", scope => `<link rel="stylesheet" href="${reference(scope, "link-stylesheet")}">`],
+    ["link-preload", scope => `<link rel="preload" as="image" href="${reference(scope, "link-preload")}">`],
+    ["video-poster", scope => `<video poster="${reference(scope, "video-poster")}"></video>`],
+    ["video-source", scope => `<video><source src="${reference(scope, "video-source")}"></video>`],
+    ["audio-source", scope => `<audio><source src="${reference(scope, "audio-source")}"></audio>`],
+    ["object-data", scope => `<object data="${reference(scope, "object-data")}"></object>`],
+    ["embed-src", scope => `<embed src="${reference(scope, "embed-src")}">`],
+    ["input-image-src", scope => `<input type="image" src="${reference(scope, "input-image-src")}">`],
+    ["svg-image-href", scope => `<svg><image href="${reference(scope, "svg-image-href")}"></image></svg>`],
+    ["svg-image-xlink", scope => `<svg><image xlink:href="${reference(scope, "svg-image-xlink")}"></image></svg>`],
+    ["style-attribute", scope => `<div style="background-image:url('${reference(scope, "style-attribute")}')">text</div>`],
+    ["style-element", scope => `<style>body{background-image:url('${reference(scope, "style-element")}')}</style>`],
+    ["body-background", scope => `<body background="${reference(scope, "body-background")}"></body>`],
 ];
+
+function hasResourceMarkup(output) {
+    return output.includes(marker) ||
+        /<(?:img|iframe|link|video|audio|source|object|embed|input|picture|svg|image|style|body)\b/i.test(output) ||
+        /\s(?:src|srcset|poster|data|href|xlink:href|background|style)\s*=/i.test(output);
+}
 
 const failures = [];
 for (const [kind, hostileMarkup] of cases) {
-    const output = sanitizeHtml(hostileMarkup());
-    if (output.includes(marker)) failures.push(`${kind}: ${output}`);
+    const payload = hostileMarkup("single");
+    const output = sanitizeHtml(payload);
+    const liveResult = document.createElement("div");
+    document.body.append(liveResult);
+    liveResult.innerHTML = output;
+    liveResult.remove();
+    if (hasResourceMarkup(output)) failures.push(`${kind}: ${output}`);
 }
 
+const combinedOutput = sanitizeHtml(cases.map(([, hostileMarkup]) => hostileMarkup("combined")).join(""));
+const combinedResult = document.createElement("div");
+document.body.append(combinedResult);
+combinedResult.innerHTML = combinedOutput;
+combinedResult.remove();
+if (hasResourceMarkup(combinedOutput)) failures.push(`combined: ${combinedOutput}`);
+
 document.getElementById("results").textContent = failures.length
-    ? `FAIL sanitizer: resource references survived: ${failures.join(" | ")}`
-    : `PASS sanitizer removed resource references in ${cases.length} independent cases`;
+    ? `FAIL sanitizer: resource markup survived: ${failures.join(" | ")}`
+    : `PASS sanitizer removed resource markup in ${cases.length} independent cases and their combined payload`;
 document.title = "sanitizer-probe-finished";

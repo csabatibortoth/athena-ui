@@ -253,16 +253,16 @@ describe("what a person does", { skip }, () => {
         // nothing was animated: the clicks hit nothing, so it passed whatever the library did.)
         await page.waitFor(`!document.documentElement.getAnimations({ subtree: true }).some(animation => String(animation.effect?.pseudoElement ?? "").startsWith("::view-transition"))`, { timeout: 15000 });
         const press = async text => {
-            await page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent.includes(${JSON.stringify(text)}))?.scrollIntoView({ block: "center" })`);
+            await page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent.includes(${JSON.stringify(text)}))?.scrollIntoView({ block: "center", behavior: "instant" })`);
             await page.clickText(text);
         };
         calls = await animated();
         const rows = await items();
         await press("Add one");
+        await page.waitFor(`document.querySelectorAll(".motion-item").length === ${rows + 1}`, { timeout: 15000 });
         await press("Play");
         await press("Move");
-        // "nothing moved" can only be asserted once the clicks have had their effect: the new row is there; then one more turn of the event loop
-        await page.waitFor(`document.querySelectorAll(".motion-item").length === ${rows + 1}`, { timeout: 15000 });
+        // "nothing moved" can only be asserted once the click has had its effect: the new row is there; then one more turn of the event loop
         await page.eval(`new Promise(resolve => setTimeout(resolve, 0))`);
         assert.equal(await animated(), calls, "reduced: nothing is animated (no call of Element.animate)");
         const count = await page.eval("window.__transitions");

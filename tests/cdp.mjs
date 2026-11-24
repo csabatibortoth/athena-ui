@@ -122,7 +122,7 @@ export async function launch() {
             },
             /** A real click on the first button, link or tab whose text is exactly this (inside the selector, default: the whole page). */
             async clickText(text, scope = "body") {
-                const box = await page.eval(`(() => { const found = [...document.querySelector(${JSON.stringify(scope)}).querySelectorAll("button, a, [role=button], [role=tab], summary, label")].find(el => el.textContent.trim() === ${JSON.stringify(text)} && el.getClientRects().length); if (!found) return null; found.scrollIntoView({ block: "center" }); const r = found.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+                const box = await page.eval(`(() => { const found = [...document.querySelector(${JSON.stringify(scope)}).querySelectorAll("button, a, [role=button], [role=tab], summary, label")].find(el => el.textContent.trim() === ${JSON.stringify(text)} && el.getClientRects().length); if (!found) return null; found.scrollIntoView({ block: "center", behavior: "instant" }); const r = found.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
                 if (!box) throw new Error(`no button with the text "${text}"`);
                 for (const type of ["mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x: box.x, y: box.y, button: "left", clickCount: 1 });
             },

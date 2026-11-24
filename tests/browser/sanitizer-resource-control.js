@@ -1,5 +1,14 @@
-const image = new Image();
-image.onload = image.onerror = () => {
-    document.title = "sanitizer-control-finished";
+const live = document.createElement("div");
+document.body.append(live);
+let completed = 0;
+const resourceDone = () => {
+    completed++;
+    if (completed === 3) document.title = "sanitizer-control-finished";
 };
-image.src = `${location.origin}/__sanitizer_resource_probe?kind=control`;
+live.addEventListener("load", resourceDone, true);
+live.addEventListener("error", resourceDone, true);
+live.innerHTML = [
+    `<img src="${location.origin}/__sanitizer_resource_probe?kind=control-image">`,
+    `<iframe src="${location.origin}/__sanitizer_resource_probe?kind=control-frame"></iframe>`,
+    `<link rel="stylesheet" href="${location.origin}/__sanitizer_resource_probe?kind=control-stylesheet">`,
+].join("");

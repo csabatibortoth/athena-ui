@@ -34,9 +34,15 @@ const server = createServer((request, response) => {
         const kind = new URL(request.url, "http://localhost").searchParams.get("kind") ?? "unspecified";
         sanitizerResourceRequests.set(kind, (sanitizerResourceRequests.get(kind) ?? 0) + 1);
         response.setHeader("Cache-Control", "no-store");
-        if (kind === "control") {
+        if (kind === "control-image") {
             response.setHeader("Content-Type", "image/gif");
             response.end(Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"));
+        } else if (kind === "control-frame") {
+            response.setHeader("Content-Type", "text/html");
+            response.end("<!doctype html><title>probe control</title><p>same-origin frame control</p>");
+        } else if (kind === "control-stylesheet") {
+            response.setHeader("Content-Type", "text/css");
+            response.end("body { color: inherit; }");
         } else {
             response.statusCode = 204;
             response.end();
@@ -68,14 +74,15 @@ const timeout = Number(process.env.TEST_TIMEOUT ?? 240000);
 let text = null;
 let logged = [];
 let stuck = "";
-let sanitizerPositiveControlCount = null;
+let sanitizerPositiveControlCounts = null;
 const browser = await launch();
 try {
     const page = await browser.newPage({ front: true });
     try {
         await page.send("Page.navigate", { url: `http://127.0.0.1:${port}/tests/browser/sanitizer-resource-control.html` });
         await until(async () => (await page.eval(`document.title`).catch(() => "")) === "sanitizer-control-finished", { timeout: 10000, interval: 100, message: "the sanitizer request-counter control to finish" });
-        sanitizerPositiveControlCount = sanitizerResourceRequests.get("control") ?? 0;
+        sanitizerPositiveControlCounts = ["control-image", "control-frame", "control-stylesheet"]
+            .map(kind => sanitizerResourceRequests.get(kind) ?? 0);
         sanitizerResourceRequests.clear();
 
         await page.send("Page.navigate", { url: `http://127.0.0.1:${port}/tests/browser/sanitizer-resource-probe.html` });
@@ -87,8 +94,8 @@ try {
         await until(async () => (await page.eval(`document.title`).catch(() => "")) === "finished", { timeout, interval: 500, message: "the tests to finish" });
         text = await page.eval(`document.getElementById("results")?.textContent ?? ""`);
         if (probeResult.startsWith("FAIL")) text += `\n${probeResult}`;
-        if (sanitizerPositiveControlCount !== 1) {
-            text += `\nFAIL sanitizer: request-counter positive control observed ${sanitizerPositiveControlCount} requests; expected 1`;
+        if (sanitizerPositiveControlCounts?.some(count => count !== 1) ?? true) {
+            text += `\nFAIL sanitizer: request-counter positive control observed [${sanitizerPositiveControlCounts?.join(", ") ?? "no result"}]; expected one image, frame, and stylesheet request`;
         }
         const fetchedKinds = [...sanitizerResourceRequests.entries()]
             .filter(([, count]) => count > 0)
