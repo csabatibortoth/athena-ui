@@ -67,7 +67,7 @@ import { generateTable } from "athena-ui-js/table";        // or only what you u
 ```
 
 The entry points are `table`, `chart`, `dialog`, `menu`, `navigation`, `forms`, `feedback`, `components`, `inputs`, `router`, `session`, `theme`, `i18n`, `format`,
-`validation`, `motion`, `widgets`, `code`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
+`validation`, `motion`, `widgets`, `board`, `code`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
 The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, so a bundler drops everything you do not import.
 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
@@ -199,6 +199,7 @@ Everything is exported from `athena-ui.js`:
 | `el`, `setContent`, `resolveElement`, `asHandle`, `createSafeBuilder` | See [Safe DOM building](#safe-dom-building) |
 | `animate`, `flip`, `stagger`, `spring`, `tween`, `transition`, `viewTransition`, `setMotion`, `prefersReducedMotion`, `easings`, `generateSkeleton` | See [Motion](#motion-animations-and-transitions) |
 | `registerWidget`, `createWidgetGrid`, `getWidgetTypes`, `placeItem`, `compact`, `findFreeSpot`, `normalize` | See [Widgets](#widgets-a-dashboard-that-can-be-built) |
+| `createBoard`, `columnAt`, `indexAt`, `stepOf`, `focusStep`, `scrollSpeed` | See [Board](#board-columns-of-cards-that-are-moved) |
 | `highlightCode`, `generateCodeBlock`, `createCodeEditor`, `createDiffView`, `registerLanguage`, `tokenize`, `diffLines` | See [Code](#code-highlighting-an-editor-and-a-diff) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
 | `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateDropZone`, `generateStepper`, `generateDateRange`, `generateRichText`, `generateWysiwyg` | See [Inputs](#inputs) |
@@ -776,6 +777,38 @@ const id = await grid.addWidgetWithSettings("clock");           // adds a widget
 - **Saving**: `changeDelay: 600` turns the many steps of a drag into one call of `onChange` (with the reason of the last step); `grid.flush()` calls it now (a button "save", leaving the page) and `destroy()` does it for you.
   An application with ONE layout (no breakpoints) asks `getLayout({ breakpoint: "default" })` and gets `x`, `y`, `w`, `h` on every widget.
 - The grid maths (`placeItem`, `compact`, `findFreeSpot`, `normalize`, `collides`) is exported as well, for your own layouts.
+
+### Board: columns of cards that are moved
+
+`athena-ui-js/board`: a Kanban board. Columns of cards that a person moves with the mouse, with a finger or with the keyboard. No dependency, no drag library; the board owns its container, shows what it is given and tells the application what the person did. It is not a dashboard (that is [Widgets](#widgets-a-dashboard-that-can-be-built), on fixed cells): cards have the height of their content and a column can hold hundreds.
+
+```js
+import { createBoard } from "athena-ui-js/board";
+
+const board = createBoard({
+    element: "board",
+    label: "Work",
+    columns: [{ id: "todo", title: "To do" }, { id: "doing", title: "Doing" }, { id: "done", title: "Done" }],
+    cards: [{ id: "T-1", column: "todo", title: "Write the docs", owner: "anna" }],   // the order of the array is the order in a column; other fields are kept
+    renderCard: (card, container) => { container.append(el("strong", { text: card.title })); },   // optional: build the inside (text nodes: the board adds nothing else)
+    onMove: async ({ id, card, from, to }) => {                // after a card was moved; the board shows it in its new place at once
+        const ok = await save(id, to.column, to.index);       // return false, throw or reject: the card goes back and a message is announced
+        return ok;
+    },
+    onMoveError: (error, move) => showToast({ type: "error", message: String(error.message) }),
+    onOpen: card => openPage(card.id),                         // a click on the card (not on a link or a button in it) or Enter
+    onCollapse: (columnId, folded) => remember(columnId, folded),   // a person folded or showed a column
+});
+board.update({ cards: freshFromTheServer });                  // the cards that stay keep their element and the focus
+```
+
+- **Mouse**: press a card and move; a ghost follows, a dashed placeholder shows where it lands, the board scrolls near its edges, Escape cancels. A press that does not travel 5 pixels is a click. Links, buttons and other controls inside a card are theirs.
+- **Touch**: the little handle on the left of a card drags (a finger on the card itself scrolls the page).
+- **Keyboard**: arrows move the focus between cards (one tab stop for the board); Space picks a card up, the arrows move it (Home and End to the ends of a column), Space or Enter drops it, Escape cancels, Enter on a card that is not picked up opens it. Every step is announced to screen readers (`translate("board.*")`, English and Hungarian are built in).
+- **Columns** fold with their button (`collapsible: false` removes it) and still take cards when folded; `collapsed: ["done"]` starts folded.
+- The data stays with the application: `update({ columns, cards })`, `moveCard(id, column, index)` (no `onMove`), `collapse(id, state)`, `getCards()`, `getColumns()`, `focusCard(id)`, `destroy()`. Ids are short names of letters, digits and `. _ : -`; wrong data (an unknown column, a repeated id) is a `TypeError` and the board stays as it was.
+- Look: tokens only (`--athena-surface`, `--athena-accent`, ...), classes `athena-board`, `board-column`, `board-card`, ... in the [styling guide](docs/styling.md); no inline style attribute, no HTML parsing.
+- The maths (`columnAt`, `indexAt`, `stepOf`, `focusStep`, `scrollSpeed`) is exported for your own boards.
 
 ### Code: highlighting, an editor and a diff
 

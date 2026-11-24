@@ -101,6 +101,10 @@
       "types": "./types/widgets.d.ts",
       "default": "./src/widgets.js"
     },
+    "./board": {
+      "types": "./types/board.d.ts",
+      "default": "./src/board.js"
+    },
     "./code": {
       "types": "./types/code.d.ts",
       "default": "./src/code.js"

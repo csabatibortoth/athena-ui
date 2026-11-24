@@ -7,6 +7,7 @@ import { createThemeManager } from "athena-ui-js/theme";
 import { createAuthState } from "athena-ui-js/session";
 import { formatDuration } from "athena-ui-js/format";
 import { el } from "athena-ui-js/dom";
+import { createBoard } from "athena-ui-js/board";
 
 const table = generateTable({
     parent: "wrapper",
@@ -30,3 +31,17 @@ const text: string = formatDuration(1000);
 const node: HTMLElement = el("div", { class: "x", text: "y" });
 const app = createApp({ root: "#app" });
 void [saved, sure, signedIn, text, node, app];
+
+const board = createBoard({
+    element: "board",
+    columns: [{ id: "todo", title: "To do" }, { id: "done" }],
+    cards: [{ id: "a", column: "todo", title: "Alpha", owner: "anna" }],
+    onMove: async move => { console.log(move.id, move.from.column, move.to.index, move.card); return move.to.column !== "done"; },
+    onOpen: card => console.log(card),
+    onCollapse: (id, collapsed) => console.log(id, collapsed),
+    renderCard: (card, container) => { container.append(el("span", { text: String(card.title) })); },
+});
+board.update({ cards: [{ id: "a", column: "done" }] }).moveCard("a", "todo", 0).collapse("done", true);
+const placed: { id: string; column: string; index: number }[] = board.getCards();
+board.destroy();
+void placed;
