@@ -74,7 +74,7 @@ test("importing the ES module has no side effects: nothing on globalThis", () =>
 test("every entry point loads and exports what it says", async () => {
     const expected = {
         table: "generateTable", chart: "generateChart", dialog: "showFormDialog", menu: "generateMenu", navigation: "generateDropdown", forms: "generateSignInForm",
-        widgets: "createWidgetGrid", code: "createCodeEditor", feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
+        widgets: "createWidgetGrid", board: "createBoard", code: "createCodeEditor", feedback: "showToast", components: "generatePageHeader", inputs: "generateDateTimeRange", router: "createRouter", session: "createAuthState", theme: "createThemeManager",
         app: "createApp", i18n: "translate", format: "formatDuration", validation: "validateValue", sanitize: "sanitizeHtml", csv: "toCsv", dom: "createSafeBuilder", controls: "HTMLControlGenerator"
     };
     for (const [entry, name] of Object.entries(expected)) {
@@ -3085,6 +3085,15 @@ test("sanitizer: malformed markup, namespaces, clobbering names, and URL schemes
     assert(output.includes('<a href="/safe/path"'), `safe relative URL was lost: ${output}`);
 });
 
+test("sanitizer: resource-bearing elements are removed", () => {
+    const resource = `${location.origin}/__sanitizer_resource_probe?from=strict-suite`;
+    const output = A.sanitizeHtml(
+        `<img src="${resource}"><iframe src="${resource}"></iframe><video poster="${resource}"></video>` +
+        `<object data="${resource}"></object><embed src="${resource}">`
+    );
+    assert(!/<(?:img|iframe|video|object|embed)\b/i.test(output), `resource-bearing element survived: ${output}`);
+});
+
 test("rich text: toolbar formats the selection and reports the state", () => {
     const changes = [];
     const rich = A.generateRichText({ parent: "wrapper", value: "<p>Hello world</p>", onChange: html => changes.push(html) });
@@ -3260,6 +3269,242 @@ test("theme switch replaces the stylesheet", async () => {
     equal(getComputedStyle(document.documentElement).getPropertyValue("--athena-bg").trim(), "#16181d");
     await A.setTheme({ id: 0 });
     equal(getComputedStyle(document.documentElement).getPropertyValue("--athena-bg").trim(), "#fff");
+});
+
+/* ------------------BOARD------------------- */
+
+const boardColumns = [{ id: "todo", title: "To do" }, { id: "doing", title: "Doing" }, { id: "done", title: "Done" }];
+const boardCards = () => [
+    { id: "a", column: "todo", title: "Alpha" }, { id: "b", column: "todo", title: "Beta" }, { id: "c", column: "todo", title: "Gamma" },
+    { id: "d", column: "doing", title: "Delta" }, { id: "e", column: "doing", title: "Epsilon" },
+];
+const makeBoard = (options = {}) => {
+    document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="bd"></div>');
+    return A.createBoard({ element: "bd", columns: boardColumns, cards: boardCards(), ...options });
+};
+const lane = id => $$(`#bd .board-cards[data-column-id="${id}"] .board-card`).map(node => node.dataset.cardId).join("");
+const cardNode = id => $1(`#bd .board-card[data-card-id="${id}"]`);
+const said = () => $1("#bd").nextElementSibling.textContent;
+const boardCleanup = board => {
+    board.destroy();
+    $1("#bd")?.remove();
+};
+const mouse = (type, target, x, y, extra = {}) => target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y, pointerId: 3, isPrimary: true, pointerType: "mouse", ...extra }));
+const middleOf = node => { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, rect: r }; };
+
+test("board: columns, cards, counts and roles are there; titles are text, never HTML", () => {
+    const board = makeBoard({ cards: [...boardCards(), { id: "x", column: "done", title: '<img src=x onerror="window.__boardPwned=1">' }], label: "Work" });
+    equal($1("#bd").getAttribute("role"), "group"); equal($1("#bd").getAttribute("aria-label"), "Work");
+    equal($$("#bd .board-column").length, 3); equal($$("#bd .board-column-title").map(node => node.textContent).join(), "To do,Doing,Done");
+    equal($$("#bd .board-column-title")[0].tagName, "H3");
+    equal(lane("todo"), "abc"); equal(lane("doing"), "de"); equal(lane("done"), "x");
+    equal($$("#bd .board-count").map(node => node.textContent).join(), "3,2,1");
+    equal($1('#bd .board-cards[data-column-id="todo"]').getAttribute("role"), "list"); equal(cardNode("a").getAttribute("role"), "listitem");
+    equal($$("#bd [tabindex='0']").length, 1, "one card is in the tab order"); equal(cardNode("a").getAttribute("tabindex"), "0");
+    assert(!$1("#bd img") && window.__boardPwned === undefined, "a title is text");
+    assert(cardNode("x").textContent.includes("<img"), "and shown as it is");
+    assert($1("#bd .board-empty[hidden]", $1('#bd .board-column[data-column-id="todo"]')), "no empty note in a column with cards");
+    assert($1('#bd .board-column[data-column-id="done"] .board-empty').hidden, "the note of a column with one card is hidden");
+    boardCleanup(board);
+});
+
+test("board: the keyboard picks a card up, moves it within and between columns, and drops it (onMove tells the application)", () => {
+    const moves = [];
+    const board = makeBoard({ onMove: move => { moves.push(move); } });
+    const a = cardNode("a");
+    a.focus(); key(a, " ");
+    assert(said().includes("Alpha picked up from To do, position 1 of 3"), said());
+    key(a, "ArrowDown"); equal(lane("todo"), "bac"); assert(said().includes("To do, position 2 of 3"), said());
+    key(a, "ArrowDown"); key(a, "ArrowDown"); equal(lane("todo"), "bca");
+    key(a, "ArrowDown"); assert(said().includes("can not move that way"), "blocked at the end");
+    key(a, "ArrowRight"); equal(lane("todo"), "bc"); equal(lane("doing"), "dea", "the index is cut to the column");
+    key(a, "ArrowUp"); equal(lane("doing"), "dae"); key(a, "Home"); equal(lane("doing"), "ade"); key(a, "ArrowRight"); equal(lane("done"), "a");
+    equal(document.activeElement, a, "the focus stays on the card while it moves");
+    key(a, "ArrowRight"); assert(said().includes("can not move that way"), "no column to the right");
+    key(a, "ArrowLeft"); key(a, "End"); equal(lane("doing"), "dea");
+    equal(moves.length, 0, "nothing is reported before the drop");
+    key(a, "Enter");
+    equal(moves.length, 1); equal(moves[0].id, "a"); equal(moves[0].from.column, "todo"); equal(moves[0].from.index, 0); equal(moves[0].to.column, "doing"); equal(moves[0].to.index, 2);
+    equal(moves[0].card.title, "Alpha", "the application's own object comes back"); assert(said().includes("Alpha dropped in Doing, position 3 of 3"), said());
+    assert(!a.classList.contains("is-picked"));
+    key(a, "ArrowDown"); equal(lane("doing"), "dea", "a card that is not picked up does not move: the arrow only moves the focus");
+    boardCleanup(board);
+});
+
+test("board: Escape and leaving the board put a picked-up card back; dropping where it was is no move", () => {
+    const moves = [];
+    const board = makeBoard({ onMove: move => { moves.push(move); } });
+    const a = cardNode("a"); a.focus();
+    key(a, " "); key(a, "ArrowRight"); key(a, "ArrowRight"); equal(lane("done"), "a"); key(a, "Escape");
+    equal(lane("todo"), "abc"); equal(lane("done"), ""); assert(said().includes("cancelled")); equal(moves.length, 0);
+    key(a, " "); key(a, "ArrowDown"); key(a, "ArrowUp"); key(a, " ");
+    equal(moves.length, 0, "back where it was: no onMove"); equal(lane("todo"), "abc");
+    key(a, " "); key(a, "ArrowRight"); equal(lane("doing"), "ade");
+    document.body.focus(); a.blur(); a.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }));
+    equal(lane("todo"), "abc", "the focus left the board: the card is back"); equal(moves.length, 0);
+    boardCleanup(board);
+});
+
+test("board: the arrow keys move the focus between cards when nothing is picked up; Enter opens; one tab stop follows the focus", () => {
+    const opened = [];
+    const board = makeBoard({ onOpen: card => { opened.push(card.id); } });
+    const a = cardNode("a"); a.focus();
+    key(a, "ArrowDown"); equal(document.activeElement, cardNode("b")); equal(cardNode("b").getAttribute("tabindex"), "0"); equal(cardNode("a").getAttribute("tabindex"), "-1"); equal($$("#bd [tabindex='0']").length, 1);
+    key(cardNode("b"), "ArrowRight"); equal(document.activeElement, cardNode("e"), "the same height as far as there is one");
+    key(cardNode("e"), "ArrowRight"); equal(document.activeElement, cardNode("e"), "nothing to the right");
+    key(cardNode("e"), "ArrowLeft"); equal(document.activeElement, cardNode("b"));
+    key(cardNode("b"), "End"); equal(document.activeElement, cardNode("c")); key(cardNode("c"), "Home"); equal(document.activeElement, cardNode("a"));
+    key(a, "Enter"); equal(opened.join(), "a");
+    a.click(); equal(opened.join(), "a,a", "a click opens as well");
+    const link = document.createElement("a"); link.href = "#x"; link.textContent = "inside"; cardNode("b").querySelector(".board-card-body").append(link); link.addEventListener("click", event => event.preventDefault());
+    link.click(); equal(opened.join(), "a,a", "a click on a link inside a card is the link's own");
+    boardCleanup(board);
+});
+
+test("board: a move that onMove refuses (false, an error, a rejected promise) goes back, is announced and reported; a promise is waited for", async () => {
+    let behaviour = "false"; const errors = [];
+    const board = makeBoard({
+        onMove: () => { if (behaviour === "false") return false; if (behaviour === "throw") throw new Error("nope"); if (behaviour === "reject") return Promise.reject(new Error("later")); return new Promise(resolve => setTimeout(() => resolve(true), 60)); },
+        onMoveError: error => { errors.push(error.message); },
+    });
+    const a = cardNode("a"); a.focus();
+    const drive = () => { key(a, " "); key(a, "ArrowRight"); key(a, "Enter"); };
+    drive(); await tick(10); equal(lane("todo"), "abc", "false: back"); assert(said().includes("could not be moved and is back in To do"), said()); equal(errors.length, 0);
+    behaviour = "throw"; drive(); await tick(10); equal(lane("todo"), "abc"); equal(errors.join(), "nope");
+    behaviour = "reject"; drive(); await tick(10); equal(lane("todo"), "abc"); equal(errors.join(), "nope,later");
+    behaviour = "slow"; drive();
+    equal(lane("doing"), "ade", "shown in the new place at once"); assert(cardNode("a").classList.contains("is-pending"), "and marked as waiting");
+    await tick(120); assert(!cardNode("a").classList.contains("is-pending")); equal(lane("doing"), "ade", "the answer was good: it stays");
+    boardCleanup(board);
+});
+
+test("board: update() shows new data, keeps the elements and the focus of the cards that stay; wrong data is refused; moveCard moves from the application's side", () => {
+    const moves = [];
+    const board = makeBoard({ onMove: move => { moves.push(move); } });
+    const b = cardNode("b"); b.focus();
+    board.update({ cards: [{ id: "b", column: "doing", title: "Beta 2" }, { id: "a", column: "todo", title: "Alpha" }, { id: "n", column: "done", title: "New" }] });
+    equal(cardNode("b"), b, "the element of a card that stays is the same"); equal(document.activeElement, b, "and so is the focus"); equal(b.textContent.includes("Beta 2"), true, "its text is new");
+    equal(lane("todo"), "a"); equal(lane("doing"), "b"); equal(lane("done"), "n"); assert(!cardNode("c") && !cardNode("d"), "the cards that are gone are gone");
+    equal($$("#bd .board-count").map(node => node.textContent).join(), "1,1,1"); equal(moves.length, 0, "data from the application is no move");
+    board.moveCard("a", "done", 0); equal(lane("done"), "an"); equal(moves.length, 0, "moveCard does not call onMove");
+    equal(board.getCards().map(card => `${card.id}:${card.column}:${card.index}`).join(), "b:doing:0,a:done:0,n:done:1");
+    for (const [bad, name] of [[[{ id: "z", column: "nowhere" }], "unknown column"], [[{ id: "z", column: "todo" }, { id: "z", column: "todo" }], "duplicate id"], [[{ id: "bad id!", column: "todo" }], "unsafe id"], [{ not: "an array" }, "not an array"]]) {
+        let threw = false; try { board.update({ cards: bad }); } catch { threw = true; }
+        assert(threw, `${name} is refused`); equal(lane("done"), "an", `${name}: the board is as it was`);
+    }
+    let range = false; try { board.moveCard("nope", "todo"); } catch (error) { range = error instanceof RangeError; } assert(range, "an unknown card");
+    range = false; try { board.moveCard("a", "nope"); } catch (error) { range = error instanceof RangeError; } assert(range, "an unknown column");
+    let type = false; try { A.createBoard({ element: "bd", columns: [{ id: "x" }, { id: "x" }] }); } catch (error) { type = error instanceof TypeError; } assert(type, "duplicate columns");
+    type = false; try { A.createBoard({ element: "bd", columns: [] }); } catch (error) { type = error instanceof TypeError; } assert(type, "no columns");
+    type = false; try { A.createBoard({ element: "nobody-here", columns: boardColumns }); } catch (error) { type = error instanceof TypeError; } assert(type, "no element");
+    board.update({ columns: [{ id: "todo", title: "Open" }, { id: "done", title: "Closed" }], cards: [{ id: "a", column: "done", title: "Alpha" }] });
+    equal($$("#bd .board-column-title").map(node => node.textContent).join(), "Open,Closed"); equal(lane("done"), "a");
+    boardCleanup(board);
+});
+
+test("board: a column folds and shows again (button, API); the application hears only of what the person did; a fold survives new data; folded columns still take cards", () => {
+    const heard = [];
+    const board = makeBoard({ onCollapse: (id, state) => { heard.push(`${id}:${state}`); } });
+    const fold = $1('#bd .board-column[data-column-id="todo"] .board-fold');
+    equal(fold.getAttribute("aria-expanded"), "true"); assert(fold.getAttribute("aria-label").includes("To do"));
+    fold.click();
+    equal(fold.getAttribute("aria-expanded"), "false"); assert($1('#bd .board-cards[data-column-id="todo"]').hidden); assert($1('#bd .board-column[data-column-id="todo"]').classList.contains("is-collapsed"));
+    equal(heard.join(), "todo:true"); equal($$("#bd .board-count")[0].textContent, "3", "the count of what is hidden stays");
+    board.collapse("doing", true); equal(heard.join(), "todo:true", "the API is silent"); assert(board.isCollapsed("doing"));
+    board.update({ cards: boardCards() }); assert(board.isCollapsed("todo") && board.isCollapsed("doing"), "new data keeps the folds");
+    board.collapse("doing", false); assert(!$1('#bd .board-cards[data-column-id="doing"]').hidden);
+    equal(board.getColumns().map(column => `${column.id}:${column.collapsed}`).join(), "todo:true,doing:false,done:false");
+    fold.click(); equal(heard.join(), "todo:true,todo:false");
+    let range = false; try { board.collapse("nope"); } catch (error) { range = error instanceof RangeError; } assert(range);
+    const none = A.createBoard({ element: $1("#bd"), columns: boardColumns, cards: [], collapsible: false });
+    assert(!$1("#bd .board-fold"), "no fold button when it is switched off"); none.destroy();
+    boardCleanup(board);
+});
+
+test("board: dragging with the mouse: a ghost follows, a placeholder shows the place, the drop moves the card; a small movement is a click, not a drag; Escape cancels", async () => {
+    const moves = []; const opened = [];
+    const board = makeBoard({ onMove: move => { moves.push(move); }, onOpen: card => { opened.push(card.id); } });
+    const a = cardNode("a"); const from = middleOf(a);
+    const doing = middleOf($1('#bd .board-column[data-column-id="doing"]'));
+    const e = middleOf(cardNode("e"));
+    mouse("pointerdown", a, from.x, from.y); mouse("pointermove", a, from.x + 2, from.y + 1); await frame();
+    assert(!$1(".board-card.is-ghost"), "2 pixels are no drag");
+    mouse("pointerup", a, from.x + 2, from.y + 1); a.click(); equal(opened.join(), "a", "a press without a drag is a click"); equal(moves.length, 0);
+    // a real drag: into the Doing column, below the middle of its last card
+    mouse("pointerdown", a, from.x, from.y); mouse("pointermove", a, doing.x, e.rect.bottom - 4); await frame();
+    const ghost = $1(".board-card.is-ghost"); assert(ghost, "a ghost follows the pointer"); assert(ghost.getAttribute("aria-hidden") === "true" && !ghost.dataset.cardId, "and is not a second card");
+    assert(a.classList.contains("is-dragging") && getComputedStyle(a).display === "none", "the original is out of the way");
+    const placeholder = $1("#bd .board-placeholder"); assert(placeholder && placeholder.parentNode === $1('#bd .board-cards[data-column-id="doing"]'), "the placeholder is in the Doing column");
+    equal(Math.round(placeholder.getBoundingClientRect().height), Math.round(from.rect.height), "as high as the card");
+    assert($1('#bd .board-column[data-column-id="doing"]').classList.contains("is-drop-target"), "the target column is marked");
+    assert(said().includes("Alpha picked up"), "a screen reader is told");
+    mouse("pointerup", a, doing.x, e.rect.bottom - 4); await tick(5);
+    equal(lane("todo"), "bc"); equal(lane("doing"), "dea"); assert(!$1(".board-card.is-ghost") && !$1("#bd .board-placeholder"), "ghost and placeholder are gone");
+    equal(moves.length, 1); equal(moves[0].to.column, "doing"); equal(moves[0].to.index, 2); equal(opened.join(), "a", "the drop is no click");
+    // Escape in the middle of a drag
+    const b = cardNode("b"); const bm = middleOf(b);
+    mouse("pointerdown", b, bm.x, bm.y); mouse("pointermove", b, doing.x, doing.y); await frame(); assert($1(".board-card.is-ghost"));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); await tick(5);
+    equal(lane("todo"), "bc", "Escape: nothing moved"); assert(!$1(".board-card.is-ghost"), "no ghost"); equal(moves.length, 1);
+    mouse("pointerup", b, doing.x, doing.y); equal(lane("todo"), "bc", "the release after Escape moves nothing");
+    boardCleanup(board);
+});
+
+test("board: dragging reorders inside a column, goes to an empty and to a folded column, and a card dropped where it was is no move", async () => {
+    const moves = [];
+    const board = makeBoard({ onMove: move => { moves.push(move); }, cards: [...boardCards()] });
+    const c = cardNode("c"); const cm = middleOf(c); const a = middleOf(cardNode("a"));
+    mouse("pointerdown", c, cm.x, cm.y); mouse("pointermove", c, a.x, a.rect.top + 2); await frame(); mouse("pointerup", c, a.x, a.rect.top + 2);
+    equal(lane("todo"), "cab", "dragged above the first card"); equal(moves[0].to.index, 0);
+    const b = cardNode("b"); const bm = middleOf(b);
+    mouse("pointerdown", b, bm.x, bm.y); mouse("pointermove", b, bm.x + 1, bm.y + 8); await frame(); mouse("pointerup", b, bm.x + 1, bm.y + 8);
+    equal(lane("todo"), "cab"); equal(moves.length, 1, "released near where it was: no move");
+    const done = middleOf($1('#bd .board-column[data-column-id="done"]'));
+    const a2 = cardNode("a"); const am = middleOf(a2);
+    mouse("pointerdown", a2, am.x, am.y); mouse("pointermove", a2, done.x, done.y); await frame(); mouse("pointerup", a2, done.x, done.y);
+    equal(lane("done"), "a"); equal(moves[1].to.column, "done"); equal(moves[1].to.index, 0);
+    board.collapse("doing", true);
+    const c2 = cardNode("c"); const c2m = middleOf(c2); const folded = middleOf($1('#bd .board-column[data-column-id="doing"]'));
+    mouse("pointerdown", c2, c2m.x, c2m.y); mouse("pointermove", c2, folded.x, folded.y); await frame(); mouse("pointerup", c2, folded.x, folded.y);
+    equal(lane("doing"), "dec", "a folded column takes the card at its end"); equal(moves[2].to.column, "doing"); equal(moves[2].to.index, 2);
+    boardCleanup(board);
+});
+
+test("board: on a touch screen only the handle drags; a finger on the card, on a button or on a link inside it does not; a mouse can drag a card by its body but not by a control inside it", async () => {
+    const moves = [];
+    const board = makeBoard({ onMove: move => { moves.push(move); } });
+    const doing = middleOf($1('#bd .board-column[data-column-id="doing"]'));
+    const a = cardNode("a"); const body = middleOf($1(".board-card-body", a)); const handle = middleOf($1(".board-card-handle", a));
+    mouse("pointerdown", $1(".board-card-body", a), body.x, body.y, { pointerType: "touch" }); mouse("pointermove", a, doing.x, doing.y, { pointerType: "touch" }); await frame();
+    assert(!$1(".board-card.is-ghost"), "a finger on the card body scrolls the page: no drag"); mouse("pointerup", a, doing.x, doing.y, { pointerType: "touch" });
+    mouse("pointerdown", $1(".board-card-handle", a), handle.x, handle.y, { pointerType: "touch" }); mouse("pointermove", a, doing.x, doing.y, { pointerType: "touch" }); await frame();
+    assert($1(".board-card.is-ghost"), "the handle drags with a finger"); mouse("pointerup", a, doing.x, doing.y, { pointerType: "touch" });
+    assert(moves.length === 1 && moves[0].to.column === "doing", "and the drop moves the card");
+    equal(getComputedStyle($1(".board-card-handle", cardNode("b"))).touchAction, "none", "the handle takes the touch, so the page does not scroll under the finger");
+    const b = cardNode("b"); const button = document.createElement("button"); button.type = "button"; button.textContent = "x"; $1(".board-card-body", b).append(button);
+    const bm = middleOf(button);
+    mouse("pointerdown", button, bm.x, bm.y); mouse("pointermove", button, doing.x, doing.y); await frame();
+    assert(!$1(".board-card.is-ghost"), "a button inside the card is the button's own"); mouse("pointerup", button, doing.x, doing.y);
+    const c = cardNode("c"); const cb = middleOf($1(".board-card-body", c));
+    mouse("pointerdown", $1(".board-card-body", c), cb.x, cb.y, { button: 2 }); mouse("pointermove", c, doing.x, doing.y); await frame(); assert(!$1(".board-card.is-ghost"), "the right button does not drag"); mouse("pointerup", c, doing.x, doing.y, { button: 2 });
+    boardCleanup(board);
+    const fixed = makeBoard({ movable: false }); equal($$("#bd .board-card-handle").length, 0, "no handle when the cards can not move");
+    const a2 = cardNode("a"); a2.focus(); key(a2, " "); equal(lane("todo"), "abc"); assert(!said().includes("picked up"), "and no pick up");
+    boardCleanup(fixed);
+});
+
+test("board: a custom renderCard builds the inside (and runs again only for a card that changed); destroy removes the board, its listeners and its live regions", () => {
+    let renders = 0;
+    const board = makeBoard({ renderCard: (card, container) => { renders += 1; const p = document.createElement("p"); p.className = "mine"; p.textContent = `${card.id}: ${card.title}`; container.append(p); } });
+    equal(renders, 5); equal($$("#bd .mine").map(node => node.textContent).join(), "a: Alpha,b: Beta,c: Gamma,d: Delta,e: Epsilon");
+    board.update({ cards: boardCards() }); equal(renders, 5, "nothing changed: nothing is built again");
+    board.update({ cards: boardCards().map(card => (card.id === "a" ? { ...card, title: "Alpha 2" } : card)) }); equal(renders, 6, "only the card that changed");
+    assert($1("#bd .mine").textContent.includes("Alpha 2"));
+    const live = $1("#bd").nextElementSibling; assert(live && live.getAttribute("role") === "status");
+    const a = cardNode("a"); board.destroy();
+    equal($1("#bd").children.length, 0, "the container is empty"); assert(!$1("#bd").classList.contains("athena-board")); assert(!live.isConnected, "the live region is gone");
+    key(a, " "); equal(lane("todo"), "", "nothing listens any more");
+    board.destroy(); $1("#bd")?.remove();
 });
 
 /* ------------------RUN------------------- */

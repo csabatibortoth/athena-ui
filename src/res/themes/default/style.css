@@ -2488,6 +2488,177 @@ dialog.dialog[open]::backdrop {
     display: none;
 }
 
+/* ---- board: columns of cards that are moved with the mouse, a finger or the keyboard ---- */
+.athena-board {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--athena-space-4);
+    overflow-x: auto;
+    padding-bottom: var(--athena-space-2);
+}
+
+.board-column {
+    flex: 1 0 15rem;
+    max-width: 24rem;
+    min-width: 0;
+    padding: var(--athena-space-2);
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface-alt);
+    border: var(--athena-border-width) solid var(--athena-line);
+}
+
+.board-column.is-collapsed {
+    flex: 0 0 11rem;
+}
+
+.board-column.is-drop-target {
+    border-color: var(--athena-accent);
+}
+
+.board-column-header {
+    display: flex;
+    align-items: center;
+    gap: var(--athena-space-1);
+    margin-bottom: var(--athena-space-2);
+}
+
+.board-column.is-collapsed .board-column-header {
+    margin-bottom: 0;
+}
+
+.board-column-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--athena-muted);
+    overflow-wrap: anywhere;
+}
+
+.board-count {
+    color: var(--athena-muted);
+    font-size: 0.8rem;
+}
+
+.board-fold {
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--athena-radius);
+    background: transparent;
+    color: var(--athena-muted);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.board-fold:hover {
+    background: var(--athena-hover);
+    color: var(--athena-fg);
+}
+
+.board-fold:focus-visible {
+    outline: var(--athena-focus-width) solid var(--athena-focus, var(--athena-accent));
+}
+
+.board-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--athena-space-2);
+    min-height: 2.5rem;
+}
+
+.board-empty {
+    padding: var(--athena-space-2);
+    color: var(--athena-muted);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.board-card {
+    position: relative;
+    display: flex;
+    gap: var(--athena-space-2);
+    padding: var(--athena-space-2) var(--athena-space-3);
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface);
+    color: var(--athena-fg);
+    overflow-wrap: anywhere;
+    cursor: grab;
+    transition: box-shadow var(--athena-duration-fast) var(--athena-ease-standard), border-color var(--athena-duration-fast) var(--athena-ease-standard);
+}
+
+.board-card:hover {
+    box-shadow: var(--athena-shadow);
+}
+
+.board-card:focus-visible {
+    outline: var(--athena-focus-width) solid var(--athena-focus, var(--athena-accent));
+    outline-offset: 1px;
+}
+
+.board-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.board-card-title {
+    font-weight: 600;
+}
+
+.board-card-handle {
+    flex: none;
+    align-self: stretch;
+    width: 0.9rem;
+    border-radius: var(--athena-radius);
+    background: radial-gradient(circle, var(--athena-line) 1.4px, transparent 1.6px) 0 0 / 6px 6px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.board-card.is-picked {
+    border-color: var(--athena-accent);
+    box-shadow: var(--athena-shadow);
+}
+
+.board-card.is-pending {
+    opacity: 0.7;
+}
+
+.board-card.is-dragging {
+    display: none;
+}
+
+.board-card.is-ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    margin: 0;
+    pointer-events: none;
+    box-shadow: var(--athena-shadow);
+    border-color: var(--athena-accent);
+    cursor: grabbing;
+}
+
+.board-placeholder {
+    box-sizing: border-box;
+    border: var(--athena-border-width) dashed var(--athena-accent);
+    border-radius: var(--athena-radius);
+    background: var(--athena-hover);
+}
+
+.athena-board.is-dragging-card,
+.athena-board.is-dragging-card * {
+    cursor: grabbing;
+    user-select: none;
+}
+
 .athena-widget-grid {
     display: grid;
     position: relative;

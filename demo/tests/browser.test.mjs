@@ -205,6 +205,10 @@ describe("what a person does", { skip }, () => {
         // An animation of 200 ms can be over between two looks: count the calls of Element.animate instead
         await page.eval(`(() => { window.__animated = 0; const real = Element.prototype.animate; Element.prototype.animate = function (...args) { window.__animated++; return real.apply(this, args); }; })()`);
         const animated = () => page.eval("window.__animated");
+        // Wait for the effect of a click, never read the counter right after it: under load (this test came right after the browser suite) the handler can
+        // run a moment after the click was reported, and the old reads of the counter failed there although the page was right.
+        const waitAnimated = (calls, more, what) => page.waitFor(`window.__animated - ${calls} >= ${more}`, { timeout: 15000 }).catch(() => assert.fail(what));
+        const items = () => page.eval(`document.querySelectorAll(".motion-item").length`);
         // full motion: the choice is on <html>, the tokens follow
         await page.eval(`(() => { const select = document.querySelector("select[name=motion]"); select.value = "full"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`);
         await page.waitFor(`document.documentElement.dataset.motion === "full"`);
@@ -213,15 +217,15 @@ describe("what a person does", { skip }, () => {
         // a list: shuffled, the rows slide
         let calls = await animated();
         await page.clickText("Add one");                      // a new row fades in, the others slide down
-        assert.ok((await animated()) > calls, "the list animates");
+        await waitAnimated(calls, 1, "the list animates");
         calls = await animated();
         // stagger: every chip has its own animation, one after the other
         await page.clickText("Play");
-        assert.ok((await animated()) - calls >= 8, "eight chips, eight animations");
+        await waitAnimated(calls, 8, "eight chips, eight animations");
         calls = await animated();
         // a spring, and a tween that counts
         await page.clickText("Move");
-        assert.ok((await animated()) > calls, "the spring animates");
+        await waitAnimated(calls, 1, "the spring animates");
         const before = await page.eval(`document.querySelector(".stat-value").textContent`);
         await page.clickText("Count");
         await page.waitFor(`document.querySelector(".stat-value").textContent.trim() !== "0" && document.querySelector(".stat-value").textContent !== ${JSON.stringify(before)}`, { timeout: 15000 });
@@ -244,10 +248,22 @@ describe("what a person does", { skip }, () => {
         await page.waitFor(`document.documentElement.dataset.motion === "reduce"`);
         assert.match(await page.eval(`document.getElementById("motion-status").textContent`), /ON: nothing below moves/);
         assert.equal(await page.eval(`getComputedStyle(document.documentElement).getPropertyValue("--athena-duration-base").trim()`), "0ms");
+        // The page change above ran as a view transition (motion was still on): until it has ended its overlay takes the clicks. And the page can be scrolled
+        // so that the buttons are above the screen: scroll each one into view. (The first version of this test clicked at that moment and asserted that
+        // nothing was animated: the clicks hit nothing, so it passed whatever the library did.)
+        await page.waitFor(`!document.documentElement.getAnimations({ subtree: true }).some(animation => String(animation.effect?.pseudoElement ?? "").startsWith("::view-transition"))`, { timeout: 15000 });
+        const press = async text => {
+            await page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent.includes(${JSON.stringify(text)}))?.scrollIntoView({ block: "center", behavior: "instant" })`);
+            await page.clickText(text);
+        };
         calls = await animated();
-        await page.clickText("Add one");
-        await page.clickText("Play");
-        await page.clickText("Move");
+        const rows = await items();
+        await press("Add one");
+        await page.waitFor(`document.querySelectorAll(".motion-item").length === ${rows + 1}`, { timeout: 15000 });
+        await press("Play");
+        await press("Move");
+        // "nothing moved" can only be asserted once the click has had its effect: the new row is there; then one more turn of the event loop
+        await page.eval(`new Promise(resolve => setTimeout(resolve, 0))`);
         assert.equal(await animated(), calls, "reduced: nothing is animated (no call of Element.animate)");
         const count = await page.eval("window.__transitions");
         await page.eval(`location.hash = "#/about"`);
