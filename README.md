@@ -937,6 +937,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Releases
 
+ ### 2.8.0
+
+  - **New: the board** (`athena-ui-js/board`, `createBoard`): a Kanban board of columns and cards that are moved with the mouse, a finger (the handle) or the keyboard (Space, arrows, Enter, Escape). The board shows a move at once and tells the application (`onMove`); false, an error or a rejected promise puts the card back. Folding columns, `update()` that keeps the elements and the focus, announcements for screen readers in English and Hungarian, text only (no HTML parsing), tokens only (no colours of its own). The maths (`columnAt`, `indexAt`, `stepOf`, `focusStep`, `scrollSpeed`) is exported.
+
  ### 2.7.1
 
   - **Security fix in `isSafeUrl` / the sanitizer:** a link such as `/\evil.com` was accepted as a path of the same site, but browsers read a backslash in an http(s) URL as a slash, so it led to `evil.com` (a phishing or redirect link; no script ran). It is refused now, like `//host`.
