@@ -665,6 +665,17 @@ The complete list is in [docs/styling.md](docs/styling.md) and in [the 2.x migra
 
 If your own `.chip` (or another name) is styled by Athena, its colours come from Athena's tokens and can be unreadable in a dark theme. Prefix your own classes, or override the class with an unlayered rule of your application (unlayered CSS beats the `athena` layer). An `athena-` prefix on Athena's classes is an idea for a future major version: it is a breaking change for every consumer and needs its own decision and migration note.
 
+##### Migration path to prefixed classes (planned, not released)
+
+Nothing changes in 2.x: the plain names stay. No date is set for a prefix; if it is decided, the transition would be:
+
+1. Give your own classes an application prefix now, so Athena's rules cannot pick them up. Check the list above and `docs/styling.md` for the names that are taken.
+2. Restyle with the `--athena-*` tokens instead of hard-coded colours, so a selector change does not change the look. Keep your overrides unlayered: they then win before and after the rename.
+3. A transition release would carry both the plain and the `athena-`-prefixed class on Athena's own elements; applications that build markup with an Athena class can add the prefixed class next to it and run both selectors for one release.
+4. The next major version drops the plain names. Run your browser tests against the new package before and after that step, and update the selectors in your own stylesheet and markup.
+
+New Athena components already use prefixed classes (for example `athena-jt-*` of the JSON tree), so they add no new collisions while this is being decided.
+
 ### Themes and modes (light / dark / like the system)
 
 A second system lets people choose a theme **and** a mode. It is just two attributes on `<html>` that `src/res/themes/appearance.css` reads:
