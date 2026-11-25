@@ -6,7 +6,7 @@ import { formatBytes, matchesAccept } from "../src/libs/core/format.js";
 import { addMessages, setLocale, translate } from "../src/libs/core/i18n.js";
 import { pageRange } from "../src/libs/core/pagination.js";
 import { isSafeUrl } from "../src/libs/core/sanitize.js";
-import { clampWidth, virtualWindow } from "../src/libs/core/tableMath.js";
+import { clampWidth, expandedWindow, virtualWindow } from "../src/libs/core/tableMath.js";
 import { validateAll, validateDateRange, validateValue } from "../src/libs/core/validation.js";
 import { matchRoute, normalizePath, parseQuery } from "../src/libs/hephaestus/router/matchRoute.js";
 
@@ -188,6 +188,18 @@ describe("virtualWindow", () => {
 
     test("negative scroll (elastic scrolling) is treated as the top", () => {
         assert.equal(virtualWindow({ ...base, scrollTop: -50, total: 100 }).start, 0);
+    });
+
+    test("expandedWindow: open detail rows move the window with the scroll position", () => {
+        const extras = { 0: 200, 1: 200, 2: 200, 3: 200, 4: 200, 5: 200 };
+        const options = { scrollTop: 4200, viewportHeight: 120, rowHeight: 30, total: 1000, overscan: 5 };
+        assert.deepEqual(expandedWindow(options), virtualWindow(options), "without details it is the plain window");
+        assert.deepEqual(expandedWindow({ ...options, extras }), { start: 95, end: 109, offsetTop: 4050, offsetBottom: 26730 });
+        // The plain window at that scroll offset would show rows 135..149; the details above it move the view to 100..
+        assert.equal(virtualWindow(options).start + 40, 175, "the old maths does not know about the details");
+        const deep = expandedWindow({ ...options, scrollTop: 6000, extras });
+        assert.equal(deep.start, 155, "scrolling past the details still follows the real content");
+        assert.equal(expandedWindow({ ...options, extras: {} }).start, virtualWindow(options).start, "without details it is the plain window");
     });
 
     test("clampWidth", () => {

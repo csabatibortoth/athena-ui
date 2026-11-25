@@ -270,7 +270,11 @@ test("table: rows expand in place and columns change without replacing the table
     const tbody = () => $1("tbody", table.element);
     equal($$("tr:not(.athena-table-detail)", tbody()).length, 2, "two rows");
     equal($1(".athena-table-expand-btn", tbody()).getAttribute("aria-expanded"), "false", "closed first");
-    $1(".athena-table-expand-btn", tbody()).click();
+    const toggle = $1(".athena-table-expand-btn", tbody());
+    toggle.focus();
+    equal(document.activeElement, toggle, "the toggle has focus");
+    toggle.click();
+    assert(document.activeElement?.classList.contains("athena-table-expand-btn"), "focus stays on the toggle after the redraw");
     const detail = $1(".athena-table-detail", tbody());
     assert(detail, "a detail row is there");
     assert(detail.previousElementSibling.textContent.includes("Alpha"), "directly below its own row");

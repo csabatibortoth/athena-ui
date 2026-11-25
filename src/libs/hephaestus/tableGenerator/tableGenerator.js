@@ -7,7 +7,7 @@ import { downloadFile, toCsv } from "../../core/csv.js";
 import { asHandle, resolveElement } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { animate, fadeIn, prefersReducedMotion } from "../../core/motion.js";
-import { clampWidth, virtualWindow } from "../../core/tableMath.js";
+import { clampWidth, expandedWindow } from "../../core/tableMath.js";
 
 const el = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -416,9 +416,11 @@ export function generateTable(options = {}) {
             button.setAttribute("aria-label", translate(open ? "collapseRow" : "expandRow"));
             button.addEventListener("click", event => {
                 event.stopPropagation();
+                const keepFocus = document.activeElement === button;
                 if (open) expanded.delete(row);
                 else expanded.add(row);
                 render();
+                if (keepFocus) focusToggle(row);
             });
             td.append(button);
             tr.append(td);
@@ -526,15 +528,25 @@ export function generateTable(options = {}) {
         return tr;
     }
 
-    // The detail rows add height to the scroll area: the spacers before and after the window carry it.
-    function extraHeight(start, end) {
-        if (!virtual || !expanded.size) return 0;
-        let extra = 0;
+    // Open details add pixels to the rows above the window and to the spacers around it.
+    function extras() {
+        const map = {};
         for (const row of expanded) {
             const index = current.indexOf(row);
-            if (index >= 0 && (index < start || index >= end)) extra += detailHeights.get(row) ?? virtual.rowHeight;
+            if (index >= 0) map[index] = detailHeights.get(row) ?? virtual.rowHeight;
         }
-        return extra;
+        return map;
+    }
+    function windowOf() {
+        return expandedWindow({
+            scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
+            rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan,
+            extras: extras()
+        });
+    }
+    function focusToggle(row) {
+        const tr = [...table.querySelectorAll("tbody tr")].find(node => rowOf.get(node) === row);
+        tr?.querySelector(".athena-table-expand-btn")?.focus({ preventScroll: true });
     }
 
     function renderBody() {
@@ -554,13 +566,10 @@ export function generateTable(options = {}) {
             return tbody;
         }
         if (virtual) {
-            const win = virtualWindow({
-                scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
-                rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
-            });
-            windowKey = `${win.start}:${win.end}:${[...expanded].map(row => detailHeights.get(row) ?? 0).join(",")}`;
+            const win = windowOf();
+            windowKey = `${win.start}:${win.end}:${JSON.stringify(extras())}`;
             if (remoteVirtual) ensureChunks();
-            if (win.offsetTop) tbody.append(spacer(win.offsetTop + extraHeight(0, win.start)));
+            if (win.offsetTop) tbody.append(spacer(win.offsetTop));
             for (let i = win.start; i < win.end; i++) {
                 const row = current[i];
                 tbody.append(renderRow(row, i));
@@ -570,7 +579,7 @@ export function generateTable(options = {}) {
                     detailHeights.set(row, Math.max(virtual.rowHeight, detail.getBoundingClientRect().height || virtual.rowHeight));
                 }
             }
-            if (win.offsetBottom) tbody.append(spacer(win.offsetBottom + extraHeight(win.end, current.length)));
+            if (win.offsetBottom) tbody.append(spacer(win.offsetBottom));
             return tbody;
         }
         const pageRows = remote ? current : pageSize > 0 ? current.slice(state.page * pageSize, (state.page + 1) * pageSize) : current;
@@ -682,11 +691,8 @@ export function generateTable(options = {}) {
 
     function refreshWindow(force = false) {
         if (remoteVirtual) ensureChunks();
-        const win = virtualWindow({
-            scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
-            rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
-        });
-        if (!force && `${win.start}:${win.end}` === windowKey) return;
+        const win = windowOf();
+        if (!force && `${win.start}:${win.end}:${JSON.stringify(extras())}` === windowKey) return;
         const focused = document.activeElement;
         const keepFocus = focused && table.tBodies[0]?.contains(focused);
         table.tBodies[0].replaceWith(renderBody());
@@ -847,10 +853,7 @@ export function generateTable(options = {}) {
         const generation = server.request;
         flushTimer = setTimeout(() => {
             if (generation !== server.request || !rows.length) return;
-            const win = virtualWindow({
-                scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
-                rowHeight: virtual.rowHeight, total: rows.length, overscan: virtual.overscan
-            });
+            const win = windowOf();
             const first = Math.floor(win.start / chunkSize);
             const last = Math.floor((win.end - 1) / chunkSize);
             for (let chunk = first; chunk <= last; chunk++) if (!chunks.has(chunk)) loadChunk(chunk, generation);
