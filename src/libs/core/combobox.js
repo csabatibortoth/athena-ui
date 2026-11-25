@@ -138,6 +138,8 @@ export function createCombobox(options = {}) {
         if (!multiple && strict && !allowFreeText && !selected.length) input.value = "";
     });
     input.addEventListener("keydown", event => {
+        // During IME composition Enter commits the characters, it does not choose or submit.
+        if (event.isComposing || event.keyCode === 229) return;
         if (event.key === "ArrowDown") {
             event.preventDefault();
             if (!isOpen()) search();

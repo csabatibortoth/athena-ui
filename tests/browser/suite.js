@@ -3099,6 +3099,9 @@ test("autocomplete: allowFreeText keeps Enter for the typed text and never shift
     assert($1("[role=option]", auto.element), "the list is open");
     equal(auto.input.getAttribute("aria-activedescendant"), null, "no option is pre-highlighted with free text");
     equal(button.getBoundingClientRect().top, before, "the overlay does not move the content below");
+    key(auto.input, "Enter", { isComposing: true });
+    equal(entered.length, 0, "Enter during IME composition is ignored");
+    assert(!$1(".combobox-list", auto.element).hidden, "the list stays open during composition");
     key(auto.input, "Enter");
     equal(entered.join(","), "hun", "Enter reports the typed text");
     equal(auto.getValue(), "hun", "the typed text is the value");
