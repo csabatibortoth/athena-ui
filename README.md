@@ -798,8 +798,8 @@ const id = await grid.addWidgetWithSettings("clock");           // adds a widget
 - **Saving**: `changeDelay: 600` turns the many steps of a drag into one call of `onChange` (with the reason of the last step); `grid.flush()` calls it now (a button "save", leaving the page) and `destroy()` does it for you.
   An application with ONE layout (no breakpoints) asks `getLayout({ breakpoint: "default" })` and gets `x`, `y`, `w`, `h` on every widget.
 - The grid maths (`placeItem`, `compact`, `findFreeSpot`, `normalize`, `collides`) is exported as well, for your own layouts.
-  `findFreeSpot` searches columns first: a new widget takes the leftmost place that fits (then the highest row there),
-  so a wide widget does not land flush against the right edge where it cannot be moved right.
+  `findFreeSpot` searches row-first: the first row where the widget fits, leftmost in that row. Only a widget wider than half
+  the grid is fixed to column 0, so it keeps room to move right instead of landing flush against the edge.
 
 ### Board: columns of cards that are moved
 

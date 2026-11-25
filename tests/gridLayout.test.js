@@ -54,15 +54,25 @@ describe("grid layout maths", () => {
         assert.equal(placeItem(items, "a", { y: 6 }, 4, { compactItems: false }).at(0).y, 6, "not compacted");
     });
 
-    test("findFreeSpot: the leftmost place wins, rows grow without end", () => {
+    test("findFreeSpot: the first row that fits, leftmost in that row", () => {
         const items = [item("a", 0, 0, 2, 2), item("b", 2, 0, 1, 1)];
-        assert.deepEqual(findFreeSpot(items, 1, 1, 4), { x: 0, y: 2 });
-        assert.deepEqual(findFreeSpot(items, 2, 1, 4), { x: 0, y: 2 });
+        assert.deepEqual(findFreeSpot(items, 1, 1, 4), { x: 3, y: 0 });
+        assert.deepEqual(findFreeSpot(items, 2, 1, 4), { x: 2, y: 1 });
         assert.deepEqual(findFreeSpot(items, 4, 1, 4), { x: 0, y: 2 });
         assert.deepEqual(findFreeSpot([], 9, 1, 4), { x: 0, y: 0 }, "wider than the grid: as wide as the grid");
-        // A wide widget stays left, where it can still be moved right
+        // Ordinary widgets fill a row before the next one
+        const placed = [];
+        for (let i = 0; i < 6; i++) {
+            const spot = findFreeSpot(placed, 3, 1, 12);
+            placed.push(item(`w${i}`, spot.x, spot.y, 3, 1));
+        }
+        assert.deepEqual(placed.map(entry => [entry.x, entry.y]),
+            [[0, 0], [3, 0], [6, 0], [9, 0], [0, 1], [3, 1]], "six 3x1 widgets fill two rows");
+        const two = [item("a", 0, 0, 4, 1), item("b", 4, 0, 4, 1)];
+        assert.deepEqual(findFreeSpot(two, 4, 1, 12), { x: 8, y: 0 }, "a 4-wide widget sits beside the others");
+        // A widget wider than half the grid starts at column 0, even if that means the next row
         const wide = [item("a", 0, 0, 4, 1)];
-        assert.deepEqual(findFreeSpot(wide, 8, 1, 12), { x: 0, y: 1 }, "not x:4 on the first row");
+        assert.deepEqual(findFreeSpot(wide, 8, 1, 12), { x: 0, y: 1 }, "8-wide: not x:4 on the first row");
     });
 
     test("normalize: any list becomes a valid layout (inside, without overlap, compact) in the same order", () => {
