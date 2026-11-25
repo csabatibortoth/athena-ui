@@ -275,7 +275,11 @@ test("table: a wrapped virtual cell has its own line height and keeps the fixed 
     assert($1("table", table.element).classList.contains("athena-table-wrap"), "wrap class");
     equal(style.whiteSpace, "normal", "wrapped text");
     assert(parseFloat(style.lineHeight) < 30, "line box must be smaller than the row: " + style.lineHeight);
+    equal(style.overflow, "hidden", "clipping is kept");
     equal(Math.round(row.getBoundingClientRect().height), 30, "fixed row height kept");
+    table.element.style.setProperty("--athena-table-wrap-line-height", "1.2");
+    assert(parseFloat(style.lineHeight) < 30 * 0.8, "wrap line height is a knob: " + style.lineHeight);
+    table.element.style.removeProperty("--athena-table-wrap-line-height");
 });
 
 test("handles: parent as element, id or selector; update and destroy", () => {
