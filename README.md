@@ -937,6 +937,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Releases
 
+ ### 2.8.1
+
+  - **Demo:** a Board page (`#/board`) for `createBoard`: a pretend server that takes half a second and refuses a card that needs a review (the board puts it back), custom cards, folding, adding a card and reloading without losing the focus; with a real-input end-to-end test (mouse drag, keyboard move, refused move, fold, focus kept). The library itself is unchanged.
+
  ### 2.8.0
 
   - **New: the board** (`athena-ui-js/board`, `createBoard`): a Kanban board of columns and cards that are moved with the mouse, a finger (the handle) or the keyboard (Space, arrows, Enter, Escape). The board shows a move at once and tells the application (`onMove`); false, an error or a rejected promise puts the card back. Folding columns, `update()` that keeps the elements and the focus, announcements for screen readers in English and Hungarian, text only (no HTML parsing), tokens only (no colours of its own). The maths (`columnAt`, `indexAt`, `stepOf`, `focusStep`, `scrollSpeed`) is exported.
