@@ -501,6 +501,16 @@ generateSection({ parent: "wrapper", title: "Section", level: 2, content: "..." 
 generateAutocomplete({ parent: "wrapper", label: "Country", options: ["Hungary", "Italy"] });
 generateAutocomplete({ parent: "wrapper", options: async query => fetchSuggestions(query), minChars: 2 });   // remote data
 generateMultiSelect({ parent: "wrapper", options: [{ value: "h", text: "Hungary" }], value: ["h"] });         // getValue(): array
+```
+
+`generateAutocomplete` / `generateMultiSelect` take `minChars`, `strict`, `onSelect` and `onChange`.
+With `allowFreeText: true`, Enter accepts the typed text instead of a suggestion (no suggestion is
+pre-highlighted, so typing a name that matches one no longer traps Enter); `onEnter(text)` is called
+with that text, and `getValue()` returns it. Arrow keys still choose a highlighted suggestion, and
+the suggestion list is an absolutely positioned overlay, so opening or closing it never moves the
+content below the field.
+
+```js
 generateFileUpload({ parent: "wrapper", accept: ".png,.pdf", maxSize: 2 * 1024 * 1024, url: "/upload",
     onProgress: (file, percent) => {}, onComplete: (file, response) => {}, onError: (file, error) => {} });
 generateStepper({ parent: "wrapper", onFinish: () => {}, steps: [

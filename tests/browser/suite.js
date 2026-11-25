@@ -2993,6 +2993,41 @@ test("autocomplete: filter, keyboard, async source ignores stale answers", async
     equal($1("[role=option]", remote.element).textContent, "abc!");
 });
 
+test("autocomplete: allowFreeText keeps Enter for the typed text and never shifts the layout", async () => {
+    const entered = [];
+    const auto = A.generateAutocomplete({
+        parent: "wrapper", options: ["Hungary", "Hungary2", "Italy"],
+        allowFreeText: true, onEnter: text => entered.push(text)
+    });
+    const button = document.createElement("button");
+    button.id = "below-combo";
+    button.textContent = "Below";
+    button.addEventListener("click", () => entered.push("clicked"));
+    auto.element.after(button);
+    const before = button.getBoundingClientRect().top;
+    type(auto.input, "hun");
+    await tick();
+    assert($1("[role=option]", auto.element), "the list is open");
+    equal(auto.input.getAttribute("aria-activedescendant"), null, "no option is pre-highlighted with free text");
+    equal(button.getBoundingClientRect().top, before, "the overlay does not move the content below");
+    key(auto.input, "Enter");
+    equal(entered.join(","), "hun", "Enter reports the typed text");
+    equal(auto.getValue(), "hun", "the typed text is the value");
+    assert($1(".combobox-list", auto.element).hidden, "the list closes on Enter");
+    type(auto.input, "hun");
+    await tick();
+    key(auto.input, "ArrowDown");
+    key(auto.input, "Enter");
+    equal(auto.getValue(), "Hungary", "ArrowDown then Enter still chooses a suggestion");
+    type(auto.input, "ita");
+    await tick();
+    auto.input.dispatchEvent(new Event("blur"));
+    assert($1(".combobox-list", auto.element).hidden, "the list closes on blur");
+    button.click();
+    assert(entered.includes("clicked"), "a button below the field is still clickable");
+    button.remove();
+});
+
 test("multi select: choose, chips, backspace", async () => {
     const select = A.generateMultiSelect({ parent: "wrapper", options: [{ value: "h", text: "Hungary" }, { value: "i", text: "Italy" }] });
     select.input.focus();
