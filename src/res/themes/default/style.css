@@ -3357,5 +3357,6 @@ dialog.dialog[open]::backdrop {
 .athena-jt-more { color: var(--athena-muted); font-style: italic; padding: 2px 0; }
 .athena-jt-actions { margin-left: var(--athena-space-2); white-space: nowrap; }
 .athena-jt-actions .athena-jt-btn { padding: 0 4px; font-size: 0.8em; }
+.athena-jt-hit { background: var(--athena-accent); color: var(--athena-accent-fg); border-radius: 2px; }
 
 }

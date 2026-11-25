@@ -882,7 +882,7 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
 
 ### JSON tree
 
-`generateJsonTree(value, { parent, class, open = 2, maxDepth, maxChildren, maxText })` shows an object or an array as a
+`generateJsonTree(value, { parent, class, open = 2, term = "", maxDepth, maxChildren, maxText })` shows an object or an array as a
 collapsible tree of native `<details>` / `<summary>` (keyboard and screen readers work without script). Types are told apart
 by shape as well as colour: strings stand in quotes, `null` is italic, and the colours come from the editor tokens. Every key
 and value is inserted as text, never markup. Each value has "copy value" and "copy path" buttons (`req.id`, `items[2].name`,
@@ -895,7 +895,10 @@ const tree = generateJsonTree(parseJson('{"req":{"id":"7"}}'), { parent: "wrappe
 tree.expandAll();
 ```
 
-The limits are exported as `MAX_DEPTH` (12), `MAX_CHILDREN` (200), `MAX_TEXT` (1000) and `MAX_NODES` (5000). These are **hard caps**: `maxDepth` cannot exceed `MAX_DEPTH`, `open` cannot exceed `maxDepth`, `maxChildren` and `maxText` cannot exceed their `MAX_*` values, and the total number of value nodes cannot exceed `maxNodes` (itself capped at `MAX_NODES`). A larger option is silently clamped; beyond a limit a note takes the place of the entries or the rest of the text, so a hostile or huge message cannot make the page heavy. `update(value, options)` keeps the original limits; only options passed to it override them, and those overrides are clamped too. `parseJson(text)`
+The limits are exported as `MAX_DEPTH` (12), `MAX_CHILDREN` (200), `MAX_TEXT` (1000) and `MAX_NODES` (5000). These are **hard caps**: `maxDepth` cannot exceed `MAX_DEPTH`, `open` cannot exceed `maxDepth`, `maxChildren` and `maxText` cannot exceed their `MAX_*` values, and the total number of value nodes cannot exceed `maxNodes` (itself capped at `MAX_NODES`). A larger option is silently clamped; beyond a limit a note takes the place of the entries or the rest of the text, so a hostile or huge message cannot make the page heavy. `update(value, options)` keeps the original limits; only options passed to it override them, and those overrides are clamped too. With
+`term`, matching text inside string values is wrapped in `<mark class="athena-jt-hit">` (case-insensitive, at most 200 marks; a string
+kept the same text content, also when truncated by `maxText`). `findTerm(text, term)` and `markedText(text, term)` are exported for
+applications that build their own rows. `parseJson(text)`
 takes an object or an array, also with spaces around it, and returns `null` for anything else. `pathOf(parts)` and
 `valueText(value)` are exported too, for consumers that build their own rows.
 

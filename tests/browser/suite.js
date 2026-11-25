@@ -2160,6 +2160,26 @@ test("json tree: update keeps the defaults, depth is capped and the node budget 
     budget.destroy();
 });
 
+test("json tree: term marks text without changing it or parsing markup", async () => {
+    const { generateJsonTree, findTerm, markedText, MAX_TEXT } = await import("../../src/json-tree.js");
+    equal(JSON.stringify(findTerm("upstream Timeout here", "timeout")), JSON.stringify([[9, 16]]), "case-insensitive positions");
+    equal(JSON.stringify(findTerm("a.b a.b", "a.b")), JSON.stringify([[0, 3], [4, 7]]), "regex characters are literal");
+    equal(markedText("a.b a.b", "a.b").textContent, "a.b a.b", "marked text keeps its content");
+    const tree = generateJsonTree({ msg: "upstream Timeout here", bad: '<img src=x onerror="window.__pwned=1">' }, { term: "timeout" });
+    const marks = $$("mark.athena-jt-hit", tree.element);
+    equal(marks.length, 1, "one mark");
+    equal(marks[0].textContent, "Timeout", "the original case is kept");
+    assert(tree.element.textContent.includes("upstream Timeout here"), "text content is unchanged");
+    const hostile = $$(".athena-jt-val", tree.element).find(node => node.textContent.includes("<img"));
+    equal(hostile.querySelectorAll("*").length, 0, "hostile text stays text");
+    equal(window.__pwned, undefined, "no handler ran");
+    tree.destroy();
+    const long = generateJsonTree({ s: `timeout ${"x".repeat(MAX_TEXT)}` }, { term: "timeout", maxText: 100 });
+    assert($1("mark.athena-jt-hit", long.element), "a hit inside a truncated string is marked");
+    assert(long.element.textContent.includes("more characters"), "the rest is still counted");
+    long.destroy();
+});
+
 /* ------------------CODE------------------- */
 
 const codeHost = () => {
