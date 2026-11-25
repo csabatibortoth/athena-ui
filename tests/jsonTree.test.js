@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import { MAX_CHILDREN, MAX_DEPTH, MAX_TEXT, parseJson, pathOf, valueText } from "../src/libs/core/jsonTree.js";
+import { MAX_CHILDREN, MAX_DEPTH, MAX_NODES, MAX_TEXT, parseJson, pathOf, valueText } from "../src/libs/core/jsonTree.js";
 
 describe("json tree helpers", () => {
     test("parseJson takes an object or an array, also with spaces around it, and nothing else", () => {
@@ -28,6 +28,6 @@ describe("json tree helpers", () => {
     });
 
     test("the limits are the documented defaults", () => {
-        assert.deepEqual([MAX_DEPTH, MAX_CHILDREN, MAX_TEXT], [12, 200, 1000]);
+        assert.deepEqual([MAX_DEPTH, MAX_CHILDREN, MAX_TEXT, MAX_NODES], [12, 200, 1000, 5000]);
     });
 });

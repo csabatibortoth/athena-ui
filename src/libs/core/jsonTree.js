@@ -12,6 +12,27 @@ import { copyToClipboard } from "../hephaestus/feedbackGenerator/feedbackGenerat
 export const MAX_DEPTH = 12;
 export const MAX_CHILDREN = 200;
 export const MAX_TEXT = 1000;
+export const MAX_NODES = 5000;
+
+// One place for every default, used at creation AND by update(): update must not lose the limits.
+const DEFAULTS = Object.freeze({ open: 2, maxDepth: MAX_DEPTH, maxChildren: MAX_CHILDREN, maxText: MAX_TEXT, maxNodes: MAX_NODES });
+
+const whole = (value, fallback, max, min = 0) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.min(Math.max(Math.round(number), min), max) : fallback;
+};
+function optionsOf(options = {}) {
+    const maxDepth = whole(options.maxDepth, MAX_DEPTH, MAX_DEPTH, 1);
+    return {
+        ...DEFAULTS,
+        ...options,
+        maxDepth,
+        open: whole(options.open, DEFAULTS.open, maxDepth, 0),
+        maxChildren: whole(options.maxChildren, MAX_CHILDREN, MAX_CHILDREN, 1),
+        maxText: whole(options.maxText, MAX_TEXT, MAX_TEXT, 1),
+        maxNodes: whole(options.maxNodes, MAX_NODES, MAX_NODES, 1)
+    };
+}
 
 /** The text as an object or an array when it is JSON of that kind; otherwise null. */
 export function parseJson(text) {
@@ -54,7 +75,11 @@ function shortText(text, max) {
     return text.length > max ? `${text.slice(0, max)}… ${translate("json.moreChars", { count: text.length - max })}` : text;
 }
 
+const note = text => el("div", { class: "athena-jt-more", text });
+
 function build(key, value, parts, depth, ctx) {
+    if (ctx.count >= ctx.maxNodes) return null;
+    ctx.count++;
     const type = typeOf(value);
     const path = pathOf(parts);
     const label = key === null ? null : el("span", { class: "athena-jt-key", text: String(key) });
@@ -63,10 +88,23 @@ function build(key, value, parts, depth, ctx) {
     if (type === "object" || type === "array") {
         const entries = type === "array" ? value.map((entry, index) => [index, entry]) : Object.entries(value);
         const shown = entries.slice(0, ctx.maxChildren);
-        const children = depth >= ctx.maxDepth
-            ? [el("div", { class: "athena-jt-more", text: translate("json.tooDeep") })]
-            : [...shown.map(([childKey, childValue]) => build(childKey, childValue, [...parts, childKey], depth + 1, ctx)),
-                entries.length > shown.length ? el("div", { class: "athena-jt-more", text: translate("json.more", { count: entries.length - shown.length }) }) : null];
+        const children = [];
+        if (depth >= ctx.maxDepth) {
+            children.push(note(translate("json.tooDeep")));
+        } else {
+            for (const [childKey, childValue] of shown) {
+                if (ctx.count >= ctx.maxNodes) {
+                    if (!ctx.limited) {
+                        children.push(note(translate("json.nodeLimit", { count: ctx.maxNodes })));
+                        ctx.limited = true;
+                    }
+                    break;
+                }
+                const child = build(childKey, childValue, [...parts, childKey], depth + 1, ctx);
+                if (child) children.push(child);
+            }
+            if (!ctx.limited && entries.length > shown.length) children.push(note(translate("json.more", { count: entries.length - shown.length })));
+        }
         return el("details", { class: cx("athena-jt-node", `athena-jt-${type}`), prop: { open: depth < ctx.open } },
             el("summary", {},
                 label, colon,
@@ -88,9 +126,14 @@ function build(key, value, parts, depth, ctx) {
  */
 export function generateJsonTree(value, options = {}) {
     let current = value;
-    let ctx = { open: 2, maxDepth: MAX_DEPTH, maxChildren: MAX_CHILDREN, maxText: MAX_TEXT, ...options };
+    let base = { ...options };
+    let ctx = optionsOf(base);
     const tree = el("div", { class: "athena-jt-tree" });
-    const render = () => tree.replaceChildren(build(null, current, [], 0, ctx));
+    const render = () => {
+        ctx.count = 0;
+        ctx.limited = false;
+        tree.replaceChildren(build(null, current, [], 0, ctx) ?? note(translate("json.nodeLimit", { count: ctx.maxNodes })));
+    };
     const all = on => tree.querySelectorAll("details").forEach(node => { node.open = on; });
     const bar = el("div", { class: "athena-jt-bar" },
         el("button", { class: "athena-jt-btn", attrs: { type: "button" }, on: { click: () => all(true) } }, translate("json.expandAll")),
@@ -102,7 +145,8 @@ export function generateJsonTree(value, options = {}) {
         element: root,
         update(next, nextOptions) {
             if (arguments.length) current = next;
-            ctx = { ...options, ...(nextOptions ?? {}) };
+            if (nextOptions) base = { ...base, ...nextOptions };
+            ctx = optionsOf(base);
             render();
             return this;
         },

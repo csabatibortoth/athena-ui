@@ -10,4 +10,5 @@ export function generateJsonTree(value: any, options?: {}): any;
 export const MAX_DEPTH: 12;
 export const MAX_CHILDREN: 200;
 export const MAX_TEXT: 1000;
+export const MAX_NODES: 5000;
 export function valueText(value: any): string;

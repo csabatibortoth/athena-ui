@@ -2127,6 +2127,39 @@ test("json tree: details, types, copy value / path, expand all and the limits", 
     hostile.destroy();
 });
 
+test("json tree: update keeps the defaults, depth is capped and the node budget holds", async () => {
+    const { generateJsonTree, MAX_CHILDREN, MAX_DEPTH, MAX_NODES } = await import("../../src/json-tree.js");
+    const data = Array.from({ length: 1000 }, (_, index) => index);
+    const tree = generateJsonTree(data, { open: 0, maxChildren: 50, maxDepth: 4 });
+    const count = () => $$(".athena-jt-row, details", tree.element).length;
+    equal(count(), 51, "root plus 50 children");
+    assert($$("details", tree.element).every(node => !node.open), "open: 0");
+    tree.update(data);
+    equal(count(), 51, "update keeps maxChildren and does not grow to 6001 nodes");
+    assert($$("details", tree.element).every(node => !node.open), "update keeps open: 0");
+    tree.update(data, { maxChildren: 10 });
+    equal(count(), 11, "options passed to update override the original ones");
+    tree.destroy();
+
+    let deep = { end: true };
+    for (let i = 0; i < MAX_DEPTH + 5; i++) deep = { n: deep };
+    const capped = generateJsonTree(deep, { maxDepth: 1000, open: 1000 });
+    assert($$("details", capped.element).length <= MAX_DEPTH + 1, "maxDepth cannot exceed MAX_DEPTH");
+    assert(capped.element.textContent.includes("Too deep"), "the depth note");
+    capped.destroy();
+
+    const big = {};
+    for (let i = 0; i < 200; i++) {
+        big[`a${i}`] = {};
+        for (let j = 0; j < 200; j++) big[`a${i}`][`b${j}`] = { x: 1, y: 2, z: 3 };
+    }
+    const budget = generateJsonTree(big, { open: 1000, maxChildren: MAX_CHILDREN });
+    const nodes = $$(".athena-jt-row, details", budget.element).length;
+    assert(nodes <= MAX_NODES, `the global budget holds: ${nodes}`);
+    assert(budget.element.textContent.includes("node limit"), "the node-limit note");
+    budget.destroy();
+});
+
 /* ------------------CODE------------------- */
 
 const codeHost = () => {

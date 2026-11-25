@@ -884,8 +884,10 @@ const tree = generateJsonTree(parseJson('{"req":{"id":"7"}}'), { parent: "wrappe
 tree.expandAll();
 ```
 
-The limits are exported as `MAX_DEPTH` (12), `MAX_CHILDREN` (200) and `MAX_TEXT` (1000); beyond a limit a note takes the
-place of the entries or the rest of the text, so a hostile or huge message cannot make the page heavy. `parseJson(text)`
+The limits are exported as `MAX_DEPTH` (12), `MAX_CHILDREN` (200), `MAX_TEXT` (1000) and `MAX_NODES` (5000); beyond a
+limit a note takes the place of the entries or the rest of the text. `maxDepth` is capped at `MAX_DEPTH`, `open` at
+`maxDepth`, and the total number of value nodes at `maxNodes`, so a hostile or huge message cannot make the page heavy.
+`update(value, options)` keeps the original limits; only options passed to it override them. `parseJson(text)`
 takes an object or an array, also with spaces around it, and returns `null` for anything else. `pathOf(parts)` and
 `valueText(value)` are exported too, for consumers that build their own rows.
 
