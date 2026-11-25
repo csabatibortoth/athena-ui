@@ -19,11 +19,43 @@ describe("code tokenizer", () => {
     });
 
     test("the languages and their aliases are there", () => {
-        for (const name of ["javascript", "typescript", "json", "html", "css", "sql", "shell", "yaml", "csharp", "python"]) assert.ok(getLanguage(name), name);
+        for (const name of ["javascript", "typescript", "json", "html", "css", "sql", "shell", "yaml", "csharp", "python", "log"]) assert.ok(getLanguage(name), name);
         for (const [alias, name] of [["js", "javascript"], ["ts", "typescript"], ["sh", "shell"], ["bash", "shell"], ["yml", "yaml"], ["c#", "csharp"], ["cs", "csharp"], ["py", "python"], ["JS", "javascript"], ["xml", "html"]]) {
             assert.equal(getLanguage(alias)?.name, name, alias);
         }
         assert.equal(getLanguage("nonsense"), undefined);
+    });
+
+    test("log lines: times, addresses, ids, urls, sizes, levels, frames and quoted requests", () => {
+        assert.deepEqual(types("2026-11-23T08:06:05.405Z host sshd[12]: from 192.168.2.190:45451 port", "log"),
+            ["number:2026-11-23T08:06:05.405Z", "number:192.168.2.190:45451"]);
+        assert.deepEqual(types("Nov 18 14:39:23 myhost node: ok", "log"), ["number:Nov 18 14:39:23"]);
+        assert.deepEqual(types("peer 2001:db8::1 and fe80::1ff:fe23:4567:890a", "log"), ["number:2001:db8::1", "number:fe80::1ff:fe23:4567:890a"]);
+        assert.deepEqual(types("id 3f2b8c1e-9a4d-4e7f-b1c2-0d5e6f7a8b9c end", "log"), ["variable:3f2b8c1e-9a4d-4e7f-b1c2-0d5e6f7a8b9c"]);
+        assert.deepEqual(types("see https://example.com/a/b?x=1, then mail me@example.org.", "log"),
+            ["string:https://example.com/a/b?x=1", "string:me@example.org"]);
+        assert.deepEqual(types("took 120ms and 4kB, 12.5% used", "log"), ["number:120ms", "number:4kB", "number:12.5%"]);
+        assert.deepEqual(types("user=bob retries=3", "log"), ["property:user=", "property:retries="]);
+        assert.deepEqual(types('"GET /a/b HTTP/1.1" 502 17', "log"),
+            ["string:\"", "keyword:GET", "string: ", "property:/a/b", 'string: HTTP/1.1"', "number:502"]);
+        assert.deepEqual(types("[ERROR] disk WARN INFO debug", "log"), ["keyword:ERROR", "keyword:WARN", "keyword:INFO"]);
+        assert.deepEqual(types("at Foo.bar (/app/src/server.js:12:3)", "log"), ["property:/app/src/server.js:12:3"]);
+        assert.deepEqual(types("at 10:15:32 done", "log"), ["number:10:15:32"]);
+    });
+
+    test("log lines: what looks like a part but is not stays plain", () => {
+        for (const line of ["version 999.1.1.1 and 1.2.3", "ratio 1:2:3 and 12:34", "a 2026/11/23 date", "error warning info plain words"]) {
+            assert.deepEqual(tokenize(line, "log").filter(token => token.type).map(token => token.text), [], line);
+        }
+    });
+
+    test("log lines: random input gives every character back", () => {
+        const chars = "abcXYZ019:./@-_[]\"= µµ";
+        for (let i = 0; i < 200; i++) {
+            let line = "";
+            for (let j = 0; j < (i * 37) % 120; j++) line += chars[(i * j + j * j) % chars.length];
+            assert.equal(tokenize(line, "log").map(token => token.text).join(""), line, JSON.stringify(line));
+        }
     });
 
     test("an unknown language, or no text, is not an error", () => {
