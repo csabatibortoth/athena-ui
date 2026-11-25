@@ -937,7 +937,9 @@ dom.uninstall();
 ```
 
 `installDom` takes your own `JSDOM` class, so Athena UI has no dependency on jsdom. Athena creates its events from the element's own
-window, so they work in jsdom without a global `Event`.
+window, so they work in jsdom without a global `Event`. It also adds a no-op `Element.prototype.scrollIntoView` stand-in (jsdom has no
+layout) and returns focus to the body when a focused element is removed. `installScrollIntoView(window)`, `installFocusFixup(window)`
+(returns a function that restores the methods) and `fixActiveElement(document)` are exported for an application that sets up its own jsdom.
 
 ## Tests
 

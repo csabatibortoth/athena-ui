@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { installDom, tick, until } from "../src/testing.js";
+import { fixActiveElement, installDom, installScrollIntoView, tick, until } from "../src/testing.js";
 
 // jsdom is not a dependency of Athena UI: look for one next to the repositories, skip when there is none.
 async function findJsdom() {
@@ -20,6 +20,46 @@ test("until: returns the value, and fails with a reason on timeout", async () =>
     assert.equal(await until(() => (++n > 3 ? "ok" : null)), "ok");
     await assert.rejects(until(() => false, { timeout: 30, message: "never" }), /never/);
     await tick();
+});
+
+test("installScrollIntoView: adds the stand-in only when it is missing", () => {
+    const empty = { Element: { prototype: {} } };
+    installScrollIntoView(empty);
+    assert.equal(typeof empty.Element.prototype.scrollIntoView, "function");
+    const existing = () => {};
+    const full = { Element: { prototype: { scrollIntoView: existing } } };
+    installScrollIntoView(full);
+    assert.equal(full.Element.prototype.scrollIntoView, existing, "a real method is kept");
+});
+
+test("fixActiveElement: a detached active element gives the focus back", () => {
+    let focused = 0;
+    const fake = { activeElement: { isConnected: false }, body: { focus() { focused++; } } };
+    fixActiveElement(fake);
+    assert.equal(focused, 1, "detached element");
+    fake.activeElement = { isConnected: true };
+    fixActiveElement(fake);
+    assert.equal(focused, 1, "a connected element is left alone");
+    fixActiveElement({ activeElement: null, body: { focus() { focused++; } } });
+    assert.equal(focused, 1, "no active element");
+});
+
+test("installDom: scrollIntoView works and focus returns to the body when an element is removed", async t => {
+    const JSDOM = await findJsdom();
+    if (!JSDOM) return t.skip("no jsdom found");
+    const dom = installDom(JSDOM);
+    try {
+        assert.equal(typeof Element.prototype.scrollIntoView, "function", "stand-in installed");
+        const button = document.createElement("button");
+        document.getElementById("wrapper").append(button);
+        button.scrollIntoView({ block: "nearest" });   // must not throw in jsdom
+        button.focus();
+        assert.equal(document.activeElement, button, "the button has focus");
+        button.remove();
+        assert.equal(document.activeElement, document.body, "focus moved to the body on removal");
+    } finally {
+        dom.uninstall();
+    }
 });
 
 test("installDom: components run in jsdom without noise", async t => {
