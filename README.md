@@ -997,6 +997,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Releases
 
+ ### 2.10.0
+
+  - **New: `log` language in `athena-ui-js/code`** (`highlightCode(text, "log")`): times (including the nginx / Apache `[25/Nov/2026:10:11:12 +0000]` form), IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Patterns are bounded and invalid addresses stay plain; tokenizing always gives the input back.
+  - **Tables**: `expandRow(row)` puts a detail row directly below its own row, also in a virtual table — the virtual window and spacers follow the real measured height, and keyboard focus stays on the toggle. `getColumns()` / `setColumns(keysOrObjects)` hide, re-add and reorder columns without making a new table, keeping rows and selection.
+  - **JSON tree**: the `term` option marks matching text inside string values with `<mark>` (case-insensitive and literal; numbers, booleans and null keep their shape).
+  - **Testing**: `athena-ui-js/testing` adds a `scrollIntoView` stand-in and a focus fix-up after element removal; `installScrollIntoView`, `installFocusFixup` and `fixActiveElement` are exported for applications that set up their own jsdom.
+
  ### 2.9.0
 
   - **New: `athena-ui-js/json-tree`** (`generateJsonTree(value, options)`): a JSON value as native `<details>` / `<summary>`, types told apart by shape and colour, copy value / copy path, expand / collapse all, and the usual handle with `update()`. Keys and values are text nodes only. `parseJson`, `pathOf`, `valueText` and the `MAX_*` limits (`MAX_DEPTH` 12, `MAX_CHILDREN` 200, `MAX_TEXT` 1000, `MAX_NODES` 5000) are exported; all options are hard caps, including the global node budget. A search-text option is a separate task: applications that need it keep their own tree until then.
