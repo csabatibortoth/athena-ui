@@ -990,6 +990,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Releases
 
+ ### 2.9.0
+
+  - **New: `athena-ui-js/json-tree`** (`generateJsonTree(value, options)`): a JSON value as native `<details>` / `<summary>`, types told apart by shape and colour, copy value / copy path, expand / collapse all, and the usual handle with `update()`. Keys and values are text nodes only. `parseJson`, `pathOf`, `valueText` and the `MAX_*` limits (`MAX_DEPTH` 12, `MAX_CHILDREN` 200, `MAX_TEXT` 1000, `MAX_NODES` 5000) are exported; all options are hard caps, including the global node budget. A search-text option is a separate task: applications that need it keep their own tree until then.
+  - **Autocomplete / multi select**: `allowFreeText` and `onEnter(text)` let Enter accept the typed text instead of a suggestion (no option is pre-highlighted when free text is allowed; arrow keys still choose). Enter during IME composition is ignored.
+  - **Widget placement**: `findFreeSpot` fills the first row that fits, leftmost in that row; only a widget wider than half the grid starts at column 0, so it keeps room to move right.
+  - **Documentation**: the README lists the generic class names Athena styles, with a migration path to prefixed classes; no class names changed in 2.x.
+
  ### 2.8.2
 
   - **Fix: wrapped text in a virtual table** (`wrap: true`): a cell inherited the row height as its line box, so a long message in a 72 px row made three 72 px lines (216 px) while the scroll window still assumed a 72 px row. Wrapped cells now use their own line box, `--athena-table-wrap-line-height` (default `1.4`); set that variable on the table or an ancestor to tune it. The fixed row height, clipping and the window maths are unchanged. An application that already has its own `line-height` rule for wrapped cells should set the variable instead, because Athena's selector is more specific (Heimdall used `1.35`).
