@@ -54,12 +54,15 @@ describe("grid layout maths", () => {
         assert.equal(placeItem(items, "a", { y: 6 }, 4, { compactItems: false }).at(0).y, 6, "not compacted");
     });
 
-    test("findFreeSpot: the first place where it fits, rows grow without end", () => {
+    test("findFreeSpot: the leftmost place wins, rows grow without end", () => {
         const items = [item("a", 0, 0, 2, 2), item("b", 2, 0, 1, 1)];
-        assert.deepEqual(findFreeSpot(items, 1, 1, 4), { x: 3, y: 0 });
-        assert.deepEqual(findFreeSpot(items, 2, 1, 4), { x: 2, y: 1 });
+        assert.deepEqual(findFreeSpot(items, 1, 1, 4), { x: 0, y: 2 });
+        assert.deepEqual(findFreeSpot(items, 2, 1, 4), { x: 0, y: 2 });
         assert.deepEqual(findFreeSpot(items, 4, 1, 4), { x: 0, y: 2 });
         assert.deepEqual(findFreeSpot([], 9, 1, 4), { x: 0, y: 0 }, "wider than the grid: as wide as the grid");
+        // A wide widget stays left, where it can still be moved right
+        const wide = [item("a", 0, 0, 4, 1)];
+        assert.deepEqual(findFreeSpot(wide, 8, 1, 12), { x: 0, y: 1 }, "not x:4 on the first row");
     });
 
     test("normalize: any list becomes a valid layout (inside, without overlap, compact) in the same order", () => {

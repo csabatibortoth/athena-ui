@@ -72,11 +72,15 @@ export function placeItem(items, id, place, columns, { limits, compactItems = tr
     return compactItems ? compact(layout) : layout;
 }
 
-/** The first free place of the size w x h (rows grow without end). */
+/**
+ * The first free place of the size w x h (rows grow without end). Columns are searched
+ * first: the leftmost place wins, then the highest row in that column. A wide widget at the
+ * left keeps room to move right; a row-first search could put it flush against the edge.
+ */
 export function findFreeSpot(items, w, h, columns) {
     const width = Math.min(Math.max(1, w), columns);
-    for (let y = 0; ; y++) {
-        for (let x = 0; x + width <= columns; x++) {
+    for (let x = 0; x + width <= columns; x++) {
+        for (let y = 0; ; y++) {
             const probe = { id: "\0probe", x, y, w: width, h };
             if (!items.some(item => collides(probe, item))) return { x, y };
         }
