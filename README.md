@@ -655,6 +655,15 @@ restyle everything at once:
 The colours come in a light and a dark set. Without the attribute `data-mode` on `<html>` the page follows the system (`prefers-color-scheme`); `data-mode="dark"` or
 `"light"` chooses. [docs/styling.md](docs/styling.md) lists every token and, for every group of rules, the classes and variables it uses (it is generated from the CSS by `npm run docs`).
 
+#### Generic class names Athena styles
+
+Some components use plain class names that an application may also use: `.chip` / `.chip-remove`, `.facts` / `.fact`, `.widget` / `.widget-body` / `.widget-header` / `.widget-title`,
+`.stat`, `.toast`, `.dialog`, `.empty-state`, `.loading-state`, `.page-header` / `.page-title` / `.page-actions`, `.card`, `.badge`, `.alert`, `.tab`, `.field` / `.field-label`, `.menu`,
+`.dropdown`, `.sidebar`, `.stepper`, `.avatar`, `.spinner`, `.pagination`, `.choice`, `.switch`, `.combobox`, `.chart-legend`, `.theme-picker` / `.theme-preview`, `.form-actions` / `.form-message`.
+The complete list is in [docs/styling.md](docs/styling.md) and in [the 2.x migration guide](docs/migration-2.0.md#9-what-heimdall-needed-when-it-moved-a-second-real-application-26-to-27).
+
+If your own `.chip` (or another name) is styled by Athena, its colours come from Athena's tokens and can be unreadable in a dark theme. Prefix your own classes, or override the class with an unlayered rule of your application (unlayered CSS beats the `athena` layer). An `athena-` prefix on Athena's classes is an idea for a future major version: it is a breaking change for every consumer and needs its own decision and migration note.
+
 ### Themes and modes (light / dark / like the system)
 
 A second system lets people choose a theme **and** a mode. It is just two attributes on `<html>` that `src/res/themes/appearance.css` reads:
