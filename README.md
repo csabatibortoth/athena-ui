@@ -938,6 +938,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Releases
 
+ ### 2.8.2
+
+  - **Fix: wrapped text in a virtual table** (`wrap: true`): a cell inherited the row height as its line box, so a long message in a 72 px row made three 72 px lines (216 px) while the scroll window still assumed a 72 px row. Wrapped cells now use their own line box, `--athena-table-wrap-line-height` (default `1.4`); set that variable on the table or an ancestor to tune it. The fixed row height, clipping and the window maths are unchanged. An application that already has its own `line-height` rule for wrapped cells should set the variable instead, because Athena's selector is more specific (Heimdall used `1.35`).
+  - README and the generated styling reference document the variable and the clipping; a real-browser test covers the computed line box, the knob and the fixed row.
+
  ### 2.8.1
 
   - **Demo:** a Board page (`#/board`) for `createBoard`: a pretend server that takes half a second and refuses a card that needs a review (the board puts it back), custom cards, folding, adding a card and reloading without losing the focus; with a real-input end-to-end test (mouse drag, keyboard move, refused move, fold, focus kept). The library itself is unchanged.
