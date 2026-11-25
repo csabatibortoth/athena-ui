@@ -279,7 +279,7 @@ Click a header to sort (disable with `sortable: false`, or per column). Other op
 - `resizableColumns: true` puts a drag handle on every header edge. The handle is focusable too: Left / Right resize by 10 px, Shift by 50 px, double click resets the column to its configured `width`. Columns take `width`, `minWidth` and `maxWidth`; `onColumnResize(key, width)` and `getColumnWidths()` let you persist the layout.
 - `virtual: { height: 400, rowHeight: 36, overscan: 5 }` (or `virtual: true`) renders only the rows in view and keeps the scroll bar the size of the whole list, so 10 000+ rows stay fast. Rows have a fixed height (the theme enforces it), the table scrolls inside `height` and its header stays visible. It replaces pagination; filtering, sorting, selection, editing and CSV export work as usual.
 - With a virtual table, `wrap: true` wraps the text at its own line box, `--athena-table-wrap-line-height` (default `1.4`), instead of at the row height. Text beyond the fixed row is clipped. Set that variable on the table or an ancestor to tune it; an application that already has its own `line-height` rule for wrapped cells should set the variable instead, because Athena's selector is more specific. The row height never changes.
-- **Expanding rows**: `expandRow(row)` adds a toggle column; its result (text or a Node you build) becomes a detail row directly below the row, also in a virtual table. The toggle has `aria-expanded` and keeps focus across the redraw; the virtual window and its spacers follow the added height, so scrolling past open details still shows the expected rows.
+- **Expanding rows**: `expandRow(row)` adds a toggle column; its result (text or a Node you build) becomes a detail row directly below the row, also in a virtual table. The toggle has `aria-expanded` and keeps focus across the redraw; the virtual window and its spacers follow the added height, so scrolling past open details still shows the expected rows. Open details are measured once after insertion; a detail that changes size later is not re-measured.
 - **Columns at runtime**: `getColumns()` returns the visible keys in order; `setColumns(keysOrObjects)` hides, adds back or reorders columns without making a new table, so rows, selection and focus stay. `getColumnWidths()` and `getSelected()` keep working.
 - Hooks and looks: `cellClass(row, column)` and `rowClass(row)` return a class name (or a list) for a cell or a row. `focusableRows: true` makes rows reachable with Tab (`rowLabel(row)` is their aria-label); together with `onRowClick` they open with Enter and Space. `density: "compact"`, and `wrap: true | false` (long text wraps, or stays on one line with an ellipsis). The pager is hidden when there is only one page.
 - Column extras: `render(row, value)` returns text or a Node (built by you, so it is safe by construction), `align: "left" | "center" | "right"`. Text longer than 24 characters gets its full text as a tooltip (`title: false` switches it off).
@@ -869,7 +869,7 @@ const editor = createCodeEditor({
 createDiffView({ parent: "review", original: before, modified: after, language: "json", mode: "split", context: 3 });
 ```
 
-- **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`), `log`. The `log` language comes from Heimdall's log display: times, IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Its patterns are bounded so a hostile line stays cheap; tokenizing always gives the input text back.
+- **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`), `log`. The `log` language comes from Heimdall's log display: times, IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Its patterns are bounded so a hostile line stays cheap; tokenizing always gives the input text back. A three-digit number in 100..599 gets the status colour even without context (a pid, for example).
   A language is a plain object (`registerLanguage({ name, aliases, rules: [{ type, pattern }], lineComment, blockComment, pairs, indentAfter })`), so your own are one call.
   The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours) but it does not know nested `${}` of a template string or the `<script>` inside HTML.
 - **Colours** are the tokens `--athena-tok-comment`, `-string`, `-keyword` ... (light and dark); a test keeps every one at 4.5:1 contrast or more.
@@ -898,7 +898,7 @@ tree.expandAll();
 ```
 
 The limits are exported as `MAX_DEPTH` (12), `MAX_CHILDREN` (200), `MAX_TEXT` (1000) and `MAX_NODES` (5000). These are **hard caps**: `maxDepth` cannot exceed `MAX_DEPTH`, `open` cannot exceed `maxDepth`, `maxChildren` and `maxText` cannot exceed their `MAX_*` values, and the total number of value nodes cannot exceed `maxNodes` (itself capped at `MAX_NODES`). A larger option is silently clamped; beyond a limit a note takes the place of the entries or the rest of the text, so a hostile or huge message cannot make the page heavy. `update(value, options)` keeps the original limits; only options passed to it override them, and those overrides are clamped too. With
-`term`, matching text inside string values is wrapped in `<mark class="athena-jt-hit">` (case-insensitive, at most 200 marks; a string
+`term`, matching text inside string values is wrapped in `<mark class="athena-jt-hit">` (case-insensitive, at most 200 marks, a needle of at most 100 characters; numbers, booleans and null are never marked). A string
 kept the same text content, also when truncated by `maxText`). `findTerm(text, term)` and `markedText(text, term)` are exported for
 applications that build their own rows. `parseJson(text)`
 takes an object or an array, also with spaces around it, and returns `null` for anything else. `pathOf(parts)` and
@@ -940,7 +940,7 @@ dom.uninstall();
 
 `installDom` takes your own `JSDOM` class, so Athena UI has no dependency on jsdom. Athena creates its events from the element's own
 window, so they work in jsdom without a global `Event`. It also adds a no-op `Element.prototype.scrollIntoView` stand-in (jsdom has no
-layout) and returns focus to the body when a focused element is removed. `installScrollIntoView(window)`, `installFocusFixup(window)`
+layout) and returns focus to the body when a focused element is removed by `remove()`, `removeChild()` or `replaceChildren()` (not by `replaceWith`, `textContent` or `innerHTML`). `installScrollIntoView(window)`, `installFocusFixup(window)`
 (returns a function that restores the methods) and `fixActiveElement(document)` are exported for an application that sets up its own jsdom.
 
 ## Tests

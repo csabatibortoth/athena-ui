@@ -30,7 +30,10 @@ export function installScrollIntoView(window) {
 /** After a focused element is removed, focus goes back to the body (some jsdom versions keep the dead element). */
 export function fixActiveElement(document) {
     const active = document?.activeElement;
-    if (active && active !== document.body && active.isConnected === false) document.body?.focus?.();
+    if (active && active !== document.body && active.isConnected === false) {
+        active.blur?.();                              // a body without tabindex is not focusable
+        if (document.activeElement === active) document.body?.focus?.();   // older jsdom fallback
+    }
 }
 
 /** Wraps the removal methods so focus is fixed as soon as an element goes away, not on the next tick. */

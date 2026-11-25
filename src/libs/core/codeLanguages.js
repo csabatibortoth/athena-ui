@@ -160,7 +160,7 @@ const LOG_PATTERNS = {
     url: String.raw`https?:\/\/[^\s"'<>]{1,500}`,
     email: String.raw`[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,6}`,
     uuid: String.raw`(?<![\w-])[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}(?![\w-])`,
-    time: String.raw`\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:[.,]\d{1,9})?(?:Z|[+-]\d\d:?\d\d)?|[A-Z][a-z]{2}\s{1,2}\d{1,2} \d\d:\d\d:\d\d|(?<![\w:.])\d\d:\d\d:\d\d(?:[.,]\d{1,9})?(?![\w:])`,
+    time: String.raw`\d\d\/[A-Z][a-z]{2}\/\d{4}:\d\d:\d\d:\d\d(?: [+-]\d{4})?|\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:[.,]\d{1,9})?(?:Z|[+-]\d\d:?\d\d)?|[A-Z][a-z]{2}\s{1,2}\d{1,2} \d\d:\d\d:\d\d|(?<![\w:.])\d\d:\d\d:\d\d(?:[.,]\d{1,9})?(?![\w:])`,
     frame: String.raw`[\w./@\\-]{1,200}\.(?:js|mjs|cjs|jsx|ts|tsx|py|java|kt|go|rb|php|cs|cpp|cc|c|h|rs|swift):\d{1,6}(?::\d{1,6})?`,
     ipv6: String.raw`(?<![\w:])(?=[0-9A-Fa-f:]*:[0-9A-Fa-f:]*)[0-9A-Fa-f:]{2,39}(?![\w:])`,
     ipv4: String.raw`(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?(?![\w])`,

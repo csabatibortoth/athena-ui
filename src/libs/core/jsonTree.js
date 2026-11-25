@@ -155,10 +155,12 @@ function build(key, value, parts, depth, ctx) {
     }
 
     const shown = type === "string" ? `"${shortText(value, ctx.maxText)}"` : String(value);
+    const valueNode = el("span", { class: cx("athena-jt-val", `athena-jt-${type}`) });
+    // The search text marks string values only; numbers, booleans and null keep their shape.
+    if (type === "string") valueNode.append(markedText(shown, ctx.term));
+    else valueNode.textContent = shown;
     return el("div", { class: "athena-jt-row" },
-        label, colon,
-        el("span", { class: cx("athena-jt-val", `athena-jt-${type}`) }, markedText(shown, ctx.term)),
-        actions(value, path));
+        label, colon, valueNode, actions(value, path));
 }
 
 /**

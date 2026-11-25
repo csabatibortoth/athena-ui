@@ -41,6 +41,8 @@ describe("code tokenizer", () => {
         assert.deepEqual(types("[ERROR] disk WARN INFO debug", "log"), ["keyword:ERROR", "keyword:WARN", "keyword:INFO"]);
         assert.deepEqual(types("at Foo.bar (/app/src/server.js:12:3)", "log"), ["property:/app/src/server.js:12:3"]);
         assert.deepEqual(types("at 10:15:32 done", "log"), ["number:10:15:32"]);
+        assert.deepEqual(types("[25/Nov/2026:10:11:12 +0000] GET /a 200", "log"),
+            ["number:25/Nov/2026:10:11:12 +0000", "keyword:GET", "number:200"], "the nginx / Apache time form");
     });
 
     test("log lines: what looks like a part but is not stays plain", () => {

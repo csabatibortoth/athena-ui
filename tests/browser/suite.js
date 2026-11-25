@@ -299,13 +299,18 @@ test("table: rows expand in place and columns change without replacing the table
     table.destroy();
 });
 
-test("table: a virtual row expands in place", async () => {
-    const rows = Array.from({ length: 200 }, (_, i) => ({ id: i, name: `row ${i}` }));
+test("table: a virtual row expands in place at its real height", async () => {
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `row ${i}` }));
     const table = A.generateTable({
         parent: "wrapper", id: "virtual-expand",
         columns: [{ key: "id" }, { key: "name" }],
         virtual: { height: 120, rowHeight: 30 }, rows,
-        expandRow: row => `detail ${row.id}`
+        expandRow: row => {
+            const box = A.el("div");
+            box.append(document.createTextNode(`detail ${row.id}`));
+            for (let i = 0; i < 12; i++) box.append(A.el("br"));   // a real height, not one line
+            return box;
+        }
     });
     const first = () => $1("tbody tr:not(.athena-table-spacer):not(.athena-table-detail)", table.element);
     $1(".athena-table-expand-btn", first()).click();
@@ -316,6 +321,19 @@ test("table: a virtual row expands in place", async () => {
     assert($$(".athena-table-spacer", table.element).length > 0, "the rest of the list stays in the scroll height");
     $1(".athena-table-expand-btn", first()).click();
     assert(!$1(".athena-table-detail", table.element), "closed again");
+
+    for (let i = 0; i < 3; i++) $$(".athena-table-expand-btn", table.element)[i].click();
+    const height = Math.round($1(".athena-table-detail", table.element).getBoundingClientRect().height);
+    assert(height > 150, `the detail has a real height: ${height}`);
+    $1(".athena-table-scroll", table.element).scrollTop = 1500;
+    table.update();
+    const indices = $$("tbody tr[aria-rowindex]", table.element).map(tr => Number(tr.getAttribute("aria-rowindex")) - 2);
+    const expected = Math.max(0, Math.floor((1500 - 3 * height) / 30));
+    const start = Math.min(...indices);
+    assert(start <= expected && start >= expected - 6, `window start ${start} near the real position ${expected}`);
+    equal(indices.at(-1) - indices[0] + 1, indices.length, "no gap in the rendered window");
+    const spacer = parseFloat($1(".athena-table-spacer", table.element).style.height);
+    assert(Math.abs(spacer - (start * 30 + 3 * height)) <= 30, `top spacer follows the real heights: ${spacer}`);
     table.destroy();
 });
 
@@ -2233,6 +2251,9 @@ test("json tree: term marks text without changing it or parsing markup", async (
     equal(hostile.querySelectorAll("*").length, 0, "hostile text stays text");
     equal(window.__pwned, undefined, "no handler ran");
     tree.destroy();
+    const other = generateJsonTree({ n: 123, ok: true, none: null, msg: "123" }, { term: "123" });
+    equal($$("mark.athena-jt-hit", other.element).length, 1, "only the string value is marked");
+    other.destroy();
     const long = generateJsonTree({ s: `timeout ${"x".repeat(MAX_TEXT)}` }, { term: "timeout", maxText: 100 });
     assert($1("mark.athena-jt-hit", long.element), "a hit inside a truncated string is marked");
     assert(long.element.textContent.includes("more characters"), "the rest is still counted");

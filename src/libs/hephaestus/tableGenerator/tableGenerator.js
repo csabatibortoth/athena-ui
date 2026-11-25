@@ -548,6 +548,30 @@ export function generateTable(options = {}) {
         const tr = [...table.querySelectorAll("tbody tr")].find(node => rowOf.get(node) === row);
         tr?.querySelector(".athena-table-expand-btn")?.focus({ preventScroll: true });
     }
+    // A detached tbody has no layout: measure detail rows only after the table is in the document.
+    // Prefix sums would be faster for hundreds of open details; the common case is a handful.
+    let measuringDetails = false;
+    function measureDetails() {
+        if (!virtual || !expanded.size) return false;
+        let changed = false;
+        for (const detail of table.querySelectorAll(".athena-table-detail")) {
+            const row = rowOf.get(detail.previousElementSibling);
+            if (!row) continue;
+            const height = Math.round(detail.getBoundingClientRect().height);
+            if (height > 0 && Math.round(detailHeights.get(row) ?? 0) !== height) {
+                detailHeights.set(row, height);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+    function remeasure() {
+        if (measureDetails() && !measuringDetails) {
+            measuringDetails = true;
+            render();
+            measuringDetails = false;
+        }
+    }
 
     function renderBody() {
         const tbody = el("tbody");
@@ -573,11 +597,7 @@ export function generateTable(options = {}) {
             for (let i = win.start; i < win.end; i++) {
                 const row = current[i];
                 tbody.append(renderRow(row, i));
-                if (expanded.has(row)) {
-                    const detail = renderDetail(row);
-                    tbody.append(detail);
-                    detailHeights.set(row, Math.max(virtual.rowHeight, detail.getBoundingClientRect().height || virtual.rowHeight));
-                }
+                if (expanded.has(row)) tbody.append(renderDetail(row));
             }
             if (win.offsetBottom) tbody.append(spacer(win.offsetBottom));
             return tbody;
@@ -682,6 +702,7 @@ export function generateTable(options = {}) {
         rendered = true;
         if (Object.keys(widths).length) applyWidths();
         if (scroller) scroller.scrollTop = scrollTop;
+        remeasure();
     }
 
     // Scrolling only swaps the body, and only when the window of rows really changed.
@@ -697,6 +718,7 @@ export function generateTable(options = {}) {
         const keepFocus = focused && table.tBodies[0]?.contains(focused);
         table.tBodies[0].replaceWith(renderBody());
         if (keepFocus) scroller.focus({ preventScroll: true });
+        remeasure();
     }
 
     if (scroller) {
