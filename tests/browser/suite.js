@@ -260,6 +260,61 @@ test("table: virtual list that starts empty fills the window when it gets rows a
     assert(count() >= 10, "window too small: " + count());
 });
 
+test("table: rows expand in place and columns change without replacing the table", () => {
+    const rows = [{ id: 1, name: "Alpha", note: "first" }, { id: 2, name: "Beta", note: "second" }];
+    const table = A.generateTable({
+        parent: "wrapper", id: "expand-table",
+        columns: [{ key: "id" }, { key: "name" }, { key: "note" }],
+        rows, selectable: true, expandRow: row => `Detail of ${row.name}`
+    });
+    const tbody = () => $1("tbody", table.element);
+    equal($$("tr:not(.athena-table-detail)", tbody()).length, 2, "two rows");
+    equal($1(".athena-table-expand-btn", tbody()).getAttribute("aria-expanded"), "false", "closed first");
+    $1(".athena-table-expand-btn", tbody()).click();
+    const detail = $1(".athena-table-detail", tbody());
+    assert(detail, "a detail row is there");
+    assert(detail.previousElementSibling.textContent.includes("Alpha"), "directly below its own row");
+    equal($1("td", detail).textContent, "Detail of Alpha", "the content is text");
+    equal($1(".athena-table-expand-btn", tbody()).getAttribute("aria-expanded"), "true", "open now");
+    $1(".athena-table-expand-btn", tbody()).click();
+    assert(!$1(".athena-table-detail", tbody()), "closed again");
+
+    const box = $1('input[type=checkbox]', $1("tbody tr", tbody()));
+    box.checked = true;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    equal(table.getSelected().length, 1, "one row selected");
+    const before = table.element;
+    equal(JSON.stringify(table.getColumns()), JSON.stringify(["id", "name", "note"]), "initial columns");
+    table.setColumns(["name", "id"]);
+    assert(table.element === before, "the table itself was not replaced");
+    equal(JSON.stringify(table.getColumns()), JSON.stringify(["name", "id"]), "columns hidden and reordered");
+    equal($$("thead th:not(.athena-table-expand):not(.athena-table-select)", table.element).map(th => th.textContent).join(","), "name,id", "the head follows");
+    equal($$("tbody tr", table.element).length, 2, "rows kept");
+    assert(tbody().textContent.includes("Alpha") && tbody().textContent.includes("Beta"), "row data kept");
+    equal(table.getSelected().length, 1, "selection kept");
+    table.destroy();
+});
+
+test("table: a virtual row expands in place", async () => {
+    const rows = Array.from({ length: 200 }, (_, i) => ({ id: i, name: `row ${i}` }));
+    const table = A.generateTable({
+        parent: "wrapper", id: "virtual-expand",
+        columns: [{ key: "id" }, { key: "name" }],
+        virtual: { height: 120, rowHeight: 30 }, rows,
+        expandRow: row => `detail ${row.id}`
+    });
+    const first = () => $1("tbody tr:not(.athena-table-spacer):not(.athena-table-detail)", table.element);
+    $1(".athena-table-expand-btn", first()).click();
+    const detail = $1(".athena-table-detail", table.element);
+    assert(detail, "a detail row is rendered in the virtual window");
+    assert(detail.previousElementSibling.textContent.includes("row 0"), "directly below the row");
+    equal($1("td", detail).textContent, "detail 0", "the content is text");
+    assert($$(".athena-table-spacer", table.element).length > 0, "the rest of the list stays in the scroll height");
+    $1(".athena-table-expand-btn", first()).click();
+    assert(!$1(".athena-table-detail", table.element), "closed again");
+    table.destroy();
+});
+
 test("table: a wrapped virtual cell has its own line height and keeps the fixed row", async () => {
     const long = "A long message that has to wrap inside a row of a virtual table and must not inherit the row height as its line box";
     const table = A.generateTable({

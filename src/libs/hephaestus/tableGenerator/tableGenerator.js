@@ -53,6 +53,7 @@ const compare = (a, b) =>
  * @param {(row: object, key: string, value, oldValue) => (boolean|void)} [options.onEdit] called after an edit
  *        of an `editable` column (double click, or Enter / F2 on the focused cell). Return false to reject it.
  * @param {(row: object) => void} [options.onRowClick]
+ * @param {(row: object) => (Node|string)} [options.expandRow] adds a toggle column; its result is a detail row directly below the row (also in a virtual table)
  * @param {string} [options.emptyText]
  * @param {(row: object, column: object) => (string|string[]|null|undefined)} [options.cellClass] CSS class(es) for a cell
  * @param {(row: object) => (string|string[]|null|undefined)} [options.rowClass] CSS class(es) for a row
@@ -80,11 +81,11 @@ const compare = (a, b) =>
  * Column extras: `render(row, value)` returns text or a Node (built by the caller, so safe by construction), `align`
  * ("left" | "center" | "right"), `title` (false switches the tooltip with the full text off).
  * @returns {{element: HTMLElement, update: Function, destroy: Function, setRows: Function, getSelected: () => object[], clearSelection: Function,
- *            getColumnWidths: () => Object<string, number>, toCsv: () => string, exportCsv: (filename?: string) => void}}
+ *            setColumns: Function, getColumns: () => string[], getColumnWidths: () => Object<string, number>, toCsv: () => string, exportCsv: (filename?: string) => void}}
  */
 export function generateTable(options = {}) {
     const {
-        parent = "wrapper", id = "table", columns = [], sortable = true,
+        parent = "wrapper", id = "table", columns: initialColumns = [], sortable = true,
         filter = false, selectable = false, resizableColumns = false, onRowClick, onSelectionChange
     } = options;
     const remote = typeof options.dataSource === "function";
@@ -99,7 +100,12 @@ export function generateTable(options = {}) {
     const pageSize = virtual ? 0 : (options.pageSize ?? (remote ? 25 : 0));
     // What the data source told us: { loading, error, total, nextCursor, cursorMode }
     const server = { loading: false, error: null, total: null, nextCursor: undefined, cursorMode: false, request: 0 };
-    const colCount = () => columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0);
+    const allColumns = [...initialColumns];
+    const columnByKey = new Map(allColumns.map(col => [col.key, col]));
+    let columns = [...initialColumns];                 // the visible columns, in order; setColumns() changes this list
+    const expanded = new Set();                        // rows with an open detail row
+    const detailHeights = new Map();                   // row -> measured height of its detail (virtual tables)
+    const colCount = () => columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0) + (options.expandRow ? 1 : 0);
     const host = resolveElement(parent) ?? document.body;
     let rows = [...(options.rows ?? [])];
     let current = rows;                     // filtered and sorted rows
@@ -185,6 +191,11 @@ export function generateTable(options = {}) {
 
     function renderColgroup() {
         const group = el("colgroup");
+        if (options.expandRow) {
+            const col = el("col");
+            col.style.width = "36px";
+            group.append(col);
+        }
         if (selectable) {
             const col = el("col");
             col.style.width = "40px";
@@ -201,14 +212,14 @@ export function generateTable(options = {}) {
     // Freezes the current widths, so dragging one edge does not move the others.
     function freezeWidths() {
         if (Object.keys(widths).length === columns.length) return;
-        const heads = table.querySelectorAll("thead th:not(.athena-table-select)");
+        const heads = table.querySelectorAll("thead th:not(.athena-table-select):not(.athena-table-expand)");
         columns.forEach((col, i) => { widths[col.key] ??= clampWidth(heads[i]?.offsetWidth ?? 120); });
     }
 
     function applyWidths() {
         const group = table.querySelector("colgroup");
         if (!group) return;
-        const cols = [...group.children].slice(selectable ? 1 : 0);
+        const cols = [...group.children].slice((selectable ? 1 : 0) + (options.expandRow ? 1 : 0));
         columns.forEach((col, i) => { if (widths[col.key]) cols[i].style.width = `${widths[col.key]}px`; });
         // With every width known the table is laid out by them, so dragging one edge moves nothing else.
         const total = totalWidth();
@@ -278,6 +289,11 @@ export function generateTable(options = {}) {
 
     function renderHead(all) {
         const tr = el("tr");
+        if (options.expandRow) {
+            const th = el("th", "athena-table-expand");
+            th.scope = "col";
+            tr.append(th);
+        }
         if (selectable) {
             const th = el("th", "athena-table-select");
             const box = el("input");
@@ -390,6 +406,23 @@ export function generateTable(options = {}) {
             return tr;
         }
         addClasses(tr, options.rowClass?.(row));
+        if (options.expandRow) {
+            const open = expanded.has(row);
+            tr.classList.toggle("is-expanded", open);
+            const td = el("td", "athena-table-expand");
+            const button = el("button", "athena-table-expand-btn", open ? "▾" : "▸");
+            button.type = "button";
+            button.setAttribute("aria-expanded", String(open));
+            button.setAttribute("aria-label", translate(open ? "collapseRow" : "expandRow"));
+            button.addEventListener("click", event => {
+                event.stopPropagation();
+                if (open) expanded.delete(row);
+                else expanded.add(row);
+                render();
+            });
+            td.append(button);
+            tr.append(td);
+        }
         if (onRowClick) {
             tr.classList.add("clickable");
             tr.addEventListener("click", () => onRowClick(row));
@@ -480,6 +513,30 @@ export function generateTable(options = {}) {
         return tr;
     }
 
+    let detailSeq = 0;
+    function renderDetail(row) {
+        const tr = el("tr", "athena-table-detail");
+        tr.id = `${id}-detail-${detailSeq++}`;
+        const td = el("td");
+        td.colSpan = Math.max(colCount(), 1);
+        const content = options.expandRow(row);
+        if (content instanceof Node) td.append(content);
+        else td.textContent = content ?? "";
+        tr.append(td);
+        return tr;
+    }
+
+    // The detail rows add height to the scroll area: the spacers before and after the window carry it.
+    function extraHeight(start, end) {
+        if (!virtual || !expanded.size) return 0;
+        let extra = 0;
+        for (const row of expanded) {
+            const index = current.indexOf(row);
+            if (index >= 0 && (index < start || index >= end)) extra += detailHeights.get(row) ?? virtual.rowHeight;
+        }
+        return extra;
+    }
+
     function renderBody() {
         const tbody = el("tbody");
         if (remote && server.error && !current.length) {
@@ -501,15 +558,26 @@ export function generateTable(options = {}) {
                 scrollTop: scroller.scrollTop, viewportHeight: viewportHeight(),
                 rowHeight: virtual.rowHeight, total: current.length, overscan: virtual.overscan
             });
-            windowKey = `${win.start}:${win.end}`;
+            windowKey = `${win.start}:${win.end}:${[...expanded].map(row => detailHeights.get(row) ?? 0).join(",")}`;
             if (remoteVirtual) ensureChunks();
-            if (win.offsetTop) tbody.append(spacer(win.offsetTop));
-            for (let i = win.start; i < win.end; i++) tbody.append(renderRow(current[i], i));
-            if (win.offsetBottom) tbody.append(spacer(win.offsetBottom));
+            if (win.offsetTop) tbody.append(spacer(win.offsetTop + extraHeight(0, win.start)));
+            for (let i = win.start; i < win.end; i++) {
+                const row = current[i];
+                tbody.append(renderRow(row, i));
+                if (expanded.has(row)) {
+                    const detail = renderDetail(row);
+                    tbody.append(detail);
+                    detailHeights.set(row, Math.max(virtual.rowHeight, detail.getBoundingClientRect().height || virtual.rowHeight));
+                }
+            }
+            if (win.offsetBottom) tbody.append(spacer(win.offsetBottom + extraHeight(win.end, current.length)));
             return tbody;
         }
         const pageRows = remote ? current : pageSize > 0 ? current.slice(state.page * pageSize, (state.page + 1) * pageSize) : current;
-        for (const row of pageRows) tbody.append(renderRow(row));
+        for (const row of pageRows) {
+            tbody.append(renderRow(row));
+            if (expanded.has(row)) tbody.append(renderDetail(row));
+        }
         return tbody;
     }
 
@@ -816,6 +884,8 @@ export function generateTable(options = {}) {
         setRows(newRows) {
             rows = [...newRows];
             selected.clear();
+            expanded.clear();
+            detailHeights.clear();
             state.page = 0;
             if (scroller) scroller.scrollTop = 0;
             render();
@@ -828,6 +898,13 @@ export function generateTable(options = {}) {
             selectionChanged();
         },
         getColumnWidths: () => ({ ...widths }),
+        // The visible columns, in order. Accepts keys or column objects; the rows and selection stay as they are.
+        setColumns(next) {
+            columns = (Array.isArray(next) ? next : []).map(item => columnByKey.get(typeof item === "string" ? item : item?.key) ?? item).filter(col => col && allColumns.includes(col));
+            render();
+            return this;
+        },
+        getColumns: () => columns.map(col => col.key),
         // The filtered and sorted rows as CSV text
         toCsv: () => toCsv(columns, current.filter(row => row !== undefined)),
         exportCsv(filename = "table.csv") {
