@@ -31,7 +31,11 @@ export function placeItem(items: object[], id: string, place: {
     };
     compactItems?: boolean;
 }): object[] | null;
-/** The first free place of the size w x h (rows grow without end). */
+/**
+ * The first free place of the size w x h (rows grow without end). Columns are searched
+ * first: the leftmost place wins, then the highest row in that column. A wide widget at the
+ * left keeps room to move right; a row-first search could put it flush against the edge.
+ */
 export function findFreeSpot(items: any, w: any, h: any, columns: any): {
     x: number;
     y: number;
