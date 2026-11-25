@@ -1442,6 +1442,14 @@ dialog.dialog::backdrop {
     text-overflow: ellipsis;
 }
 
+/* A virtual row must keep its fixed height for the window maths, but a wrapped message must not
+   inherit the row height as its line box (a 72 px row would give a 3-line message 216 px). */
+.athena-table.athena-table-virtual.athena-table-wrap td {
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .athena-table-spacer td {
     padding: 0;
     border: 0;

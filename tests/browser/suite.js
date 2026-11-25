@@ -260,6 +260,24 @@ test("table: virtual list that starts empty fills the window when it gets rows a
     assert(count() >= 10, "window too small: " + count());
 });
 
+test("table: a wrapped virtual cell has its own line height and keeps the fixed row", async () => {
+    const long = "A long message that has to wrap inside a row of a virtual table and must not inherit the row height as its line box";
+    const table = A.generateTable({
+        parent: "wrapper", id: "wrap-virtual",
+        columns: [{ key: "msg", title: "Message" }],
+        virtual: { height: 120, rowHeight: 30 },
+        wrap: true,
+        rows: [{ msg: long }]
+    });
+    const cell = $1("tbody td", table.element);
+    const style = getComputedStyle(cell);
+    const row = $1("tbody tr:not(.athena-table-spacer)", table.element);
+    assert($1("table", table.element).classList.contains("athena-table-wrap"), "wrap class");
+    equal(style.whiteSpace, "normal", "wrapped text");
+    assert(parseFloat(style.lineHeight) < 30, "line box must be smaller than the row: " + style.lineHeight);
+    equal(Math.round(row.getBoundingClientRect().height), 30, "fixed row height kept");
+});
+
 test("handles: parent as element, id or selector; update and destroy", () => {
     document.getElementById("wrapper").insertAdjacentHTML("beforeend", '<div id="slot-a" class="slot"><span class="inner"></span></div><div id="slot-b"></div>');
     const byId = A.generateStat({ parent: "slot-b", label: "L", value: 1 });
