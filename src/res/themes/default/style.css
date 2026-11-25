@@ -3317,4 +3317,45 @@ dialog.dialog[open]::backdrop {
     color: var(--athena-muted);
 }
 
+/* JSON tree: a collapsible view of any JSON value (native details / summary) */
+.athena-json-tree {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.875rem;
+    color: var(--athena-fg);
+}
+
+.athena-jt-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--athena-space-2);
+    margin-bottom: var(--athena-space-2);
+}
+
+.athena-jt-btn {
+    padding: 2px 8px;
+    border: var(--athena-border-width) solid var(--athena-line);
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface);
+    color: var(--athena-fg);
+    font: inherit;
+    cursor: pointer;
+}
+
+.athena-jt-btn:hover { background: var(--athena-hover); }
+.athena-jt-btn:focus-visible { outline: var(--athena-focus-width) solid var(--athena-focus); outline-offset: 2px; }
+
+.athena-jt-tree details { margin: 2px 0; }
+.athena-jt-tree summary { cursor: pointer; padding: 2px 0; }
+.athena-jt-children { margin-left: 1rem; padding-left: 0.75rem; border-left: var(--athena-border-width) solid var(--athena-line); }
+.athena-jt-row { padding: 2px 0; overflow-wrap: anywhere; }
+.athena-jt-key { color: var(--athena-tok-property); }
+.athena-jt-string { color: var(--athena-tok-string); }
+.athena-jt-number { color: var(--athena-tok-number); }
+.athena-jt-boolean { color: var(--athena-tok-literal); }
+.athena-jt-null { color: var(--athena-tok-keyword); font-style: italic; }
+.athena-jt-brace { color: var(--athena-muted); }
+.athena-jt-more { color: var(--athena-muted); font-style: italic; padding: 2px 0; }
+.athena-jt-actions { margin-left: var(--athena-space-2); white-space: nowrap; }
+.athena-jt-actions .athena-jt-btn { padding: 0 4px; font-size: 0.8em; }
+
 }

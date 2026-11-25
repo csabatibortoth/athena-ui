@@ -2071,6 +2071,62 @@ test("widgets: the grid maths is exported with the grid", () => {
     equal(JSON.stringify(A.findFreeSpot(items, 2, 2, 4)), JSON.stringify({ x: 0, y: 2 }));
 });
 
+test("json tree: details, types, copy value / path, expand all and the limits", async () => {
+    const { generateJsonTree, MAX_CHILDREN, MAX_DEPTH, MAX_TEXT } = await import("../../src/json-tree.js");
+    const written = [];
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async text => written.push(text) }, configurable: true });
+    const tree = generateJsonTree({ level: 50, msg: "upstream timeout", ok: false, none: null, req: { id: "abc", deep: { x: 1 } }, list: [1, "two"] }, { parent: "wrapper" });
+    assert(tree.element.classList.contains("athena-json-tree"), "the root has a prefixed class");
+    equal($$("details", tree.element).length, 4, "root, req, deep and list are expandable");
+    equal($$(".athena-jt-val", tree.element).map(node => `${node.className.replace("athena-jt-val athena-jt-", "")}=${node.textContent}`).join("\n"),
+        ["number=50", 'string="upstream timeout"', "boolean=false", "null=null", 'string="abc"', "number=1", "number=1", 'string="two"'].join("\n"), "types by shape and class");
+    equal(JSON.stringify($$("details", tree.element).map(node => node.open)), JSON.stringify([true, true, false, true]), "two levels open");
+    assert(tree.element.textContent.includes("{6}") && tree.element.textContent.includes("[2]"), "entry counts");
+    const [expand, collapse] = $$(".athena-jt-bar button", tree.element);
+    expand.click();
+    assert($$("details", tree.element).every(node => node.open), "expand all");
+    collapse.click();
+    assert($$("details", tree.element).every(node => !node.open), "collapse all");
+    const row = $$(".athena-jt-row", tree.element).find(node => node.textContent.includes('"abc"'));
+    $1('[aria-label="Copy the value"]', row).click();
+    $1('[aria-label^="Copy the path"]', row).click();
+    const nested = $$(".athena-jt-row", tree.element).find(node => node.querySelector(".athena-jt-key")?.textContent === "0");
+    $1('[aria-label^="Copy the path"]', nested).click();
+    await tick(10);
+    equal(JSON.stringify(written), JSON.stringify(["abc", "req.id", "list[0]"]), "copy value and copy path");
+    equal(tree.element.querySelectorAll("[style]").length, 0, "no inline styles under the strict CSP");
+    tree.destroy();
+    assert(!$1(".athena-json-tree", document.getElementById("wrapper")), "destroy removes the tree");
+
+    let deepValue = { end: true };
+    for (let i = 0; i < MAX_DEPTH + 5; i++) deepValue = { n: deepValue };
+    const deep = generateJsonTree(deepValue, { open: 100 });
+    assert(deep.element.textContent.includes("Too deep to show here"), "depth limit");
+    deep.destroy();
+
+    const many = generateJsonTree(Object.fromEntries(Array.from({ length: MAX_CHILDREN + 50 }, (_, i) => [`k${i}`, i])));
+    equal($$(".athena-jt-row", many.element).length, MAX_CHILDREN, "children limit");
+    assert(many.element.textContent.includes("50 more"), "the rest is counted");
+    many.destroy();
+
+    const longValue = { s: "x".repeat(MAX_TEXT + 500) };
+    const long = generateJsonTree(longValue);
+    assert(long.element.textContent.includes("500 more characters"), "text limit");
+    const copyLong = $1('[aria-label="Copy the value"]', $1(".athena-jt-row", long.element));
+    copyLong.click();
+    await tick(10);
+    equal(written.at(-1), "x".repeat(MAX_TEXT + 500), "copy gets the whole string");
+    long.destroy();
+
+    const bad = '<img src=x onerror="window.__pwned=1">';
+    const hostile = generateJsonTree({ [bad]: bad, __proto__: { polluted: 1 } }, { open: 9 });
+    equal(hostile.element.querySelectorAll("img, script, iframe, a").length, 0, "no elements from the data");
+    assert(hostile.element.textContent.includes(bad), "hostile text stays text");
+    equal(window.__pwned, undefined, "no handler ran");
+    equal({}.polluted, undefined, "no prototype pollution");
+    hostile.destroy();
+});
+
 /* ------------------CODE------------------- */
 
 const codeHost = () => {

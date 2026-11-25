@@ -201,6 +201,7 @@ Everything is exported from `athena-ui.js`:
 | `registerWidget`, `createWidgetGrid`, `getWidgetTypes`, `placeItem`, `compact`, `findFreeSpot`, `normalize` | See [Widgets](#widgets-a-dashboard-that-can-be-built) |
 | `createBoard`, `columnAt`, `indexAt`, `stepOf`, `focusStep`, `scrollSpeed` | See [Board](#board-columns-of-cards-that-are-moved) |
 | `highlightCode`, `generateCodeBlock`, `createCodeEditor`, `createDiffView`, `registerLanguage`, `tokenize`, `diffLines` | See [Code](#code-highlighting-an-editor-and-a-diff) |
+| `generateJsonTree`, `parseJson`, `pathOf`, `valueText` | See [JSON tree](#json-tree) |
 | `generateCard`, `generateSection`, `generateGrid`, `generateBadge`, `generateAvatar`, `generateStat`, `generateLink`, `generateTooltip` | See [Components](#components) |
 | `generateAutocomplete`, `generateMultiSelect`, `generateFileUpload`, `generateDropZone`, `generateStepper`, `generateDateRange`, `generateRichText`, `generateWysiwyg` | See [Inputs](#inputs) |
 | `sanitizeHtml(html)`, `htmlToText(html)`, `isSafeUrl(url)` | The allow-list sanitizer behind the rich text editor |
@@ -867,6 +868,26 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
 - **Size**: only the lines around a change are tokenized again, and a test checks that this gives exactly what tokenizing everything gives. On the (slow) development machine the work of the editor per key press is
   about 13 ms in a 5,000 line file; the browser's own layout of two large text blocks is the larger part (about 90 ms per key at 5,000 lines; smaller files were not measured separately). Texts longer than 300,000 characters
   (`maxHighlightLength`) are shown without highlighting. Not there yet: multiple cursors, minimap, folding.
+
+### JSON tree
+
+`generateJsonTree(value, { parent, class, open = 2, maxDepth, maxChildren, maxText })` shows an object or an array as a
+collapsible tree of native `<details>` / `<summary>` (keyboard and screen readers work without script). Types are told apart
+by shape as well as colour: strings stand in quotes, `null` is italic, and the colours come from the editor tokens. Every key
+and value is inserted as text, never markup. Each value has "copy value" and "copy path" buttons (`req.id`, `items[2].name`,
+`headers["x-request-id"]`); a truncated string is copied in full. The handle has `expandAll()`, `collapseAll()` and
+`update(value, options)`.
+
+```js
+import { generateJsonTree, parseJson } from "athena-ui-js/json-tree";
+const tree = generateJsonTree(parseJson('{"req":{"id":"7"}}'), { parent: "wrapper" });
+tree.expandAll();
+```
+
+The limits are exported as `MAX_DEPTH` (12), `MAX_CHILDREN` (200) and `MAX_TEXT` (1000); beyond a limit a note takes the
+place of the entries or the rest of the text, so a hostile or huge message cannot make the page heavy. `parseJson(text)`
+takes an object or an array, also with spaces around it, and returns `null` for anything else. `pathOf(parts)` and
+`valueText(value)` are exported too, for consumers that build their own rows.
 
 ### Safe DOM building
 

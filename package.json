@@ -105,6 +105,10 @@
       "types": "./types/board.d.ts",
       "default": "./src/board.js"
     },
+    "./json-tree": {
+      "types": "./types/json-tree.d.ts",
+      "default": "./src/json-tree.js"
+    },
     "./code": {
       "types": "./types/code.d.ts",
       "default": "./src/code.js"
