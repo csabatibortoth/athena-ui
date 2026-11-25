@@ -44,7 +44,7 @@ const title = page => page.eval(`document.querySelector(".page-title")?.textCont
 
 describe("every page draws, without a single error, under the strict policy", { skip }, () => {
     const pages = [
-        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/widgets", "Widgets"], ["/code", "Code"], ["/motion", "Motion"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
+        ["/", "Athena UI"], ["/tables", "Tables"], ["/charts", "Charts"], ["/widgets", "Widgets"], ["/board", "Board"], ["/code", "Code"], ["/motion", "Motion"], ["/forms", "Forms"], ["/dialogs", "Dialogs and feedback"], ["/navigation", "Navigation"],
         ["/themes", "Themes, modes and tokens"], ["/about", "About this demo"], ["/account", "Account"],
         ["/admin", "Account"],                  // not signed in: the router sends the visitor to the sign in page
         ["/nowhere", "Page not found"]
@@ -269,6 +269,47 @@ describe("what a person does", { skip }, () => {
         await page.eval(`location.hash = "#/about"`);
         await page.waitFor(`document.querySelector(".page-title")?.textContent === "About this demo"`);
         assert.equal(await page.eval("window.__transitions"), count, "reduced: no view transition");
+    }));
+
+    test("board: a real drag moves a card, the keyboard moves one, a refused move goes back, a column folds, and the other cards keep the focus when one is added", { timeout: 240000 }, () => withPage("/board", async page => {
+        await page.waitFor(`document.querySelector(".page-title")?.textContent === "Board"`, { timeout: 90000 });
+        await page.waitFor(`document.querySelectorAll("#board .board-card").length === 6`);
+        const lane = id => page.eval(`[...document.querySelectorAll('#board .board-cards[data-column-id="${id}"] .board-card')].map(card => card.dataset.cardId).join()`);
+        assert.equal(await lane("todo"), "T-1,T-2,T-3");
+        // a real mouse drag of T-1 by its body into the Doing column (about two columns to the right)
+        const columnWidth = await page.eval(`document.querySelector('#board .board-column').getBoundingClientRect().width + 16`);
+        await page.drag('#board [data-card-id="T-1"]', columnWidth, 10);
+        await page.waitFor(`document.querySelectorAll("#board .board-card.is-pending").length === 0`, { timeout: 10000 });
+        assert.ok((await lane("doing")).includes("T-1"), `T-1 is in Doing: ${await lane("doing")}`);
+        assert.equal(await page.eval(`document.querySelectorAll(".board-card.is-ghost, .board-placeholder").length`), 0, "no ghost and no placeholder are left");
+        assert.ok((await page.eval(`document.getElementById("board-log").textContent`)).includes("T-1: todo 1 to doing"), "the application was told");
+        // the keyboard: focus T-2, Space picks it up, ArrowRight moves it to Doing, Enter drops it
+        await page.eval(`document.querySelector('#board [data-card-id="T-2"]').focus()`);
+        await page.press(" ", "Space", 32);
+        await page.waitFor(`document.querySelector('#board [data-card-id="T-2"]').classList.contains("is-picked")`);
+        await page.press("ArrowRight", "ArrowRight", 39);
+        await page.press("Enter", "Enter", 13);
+        await page.waitFor(`!document.querySelector('#board [data-card-id="T-2"]').classList.contains("is-picked")`);
+        await page.waitFor(`document.querySelectorAll("#board .board-card.is-pending").length === 0`, { timeout: 10000 });
+        assert.ok((await lane("doing")).includes("T-2"), `T-2 moved by the keyboard: ${await lane("doing")}`);
+        assert.equal(await page.eval(`document.activeElement.dataset.cardId`), "T-2", "the focus stays on the card that moved");
+        // a refused move: T-3 (needs a review) to Done: three columns to the right with the keyboard; the server says no after half a second
+        await page.eval(`document.querySelector('#board [data-card-id="T-3"]').focus()`);
+        await page.press(" ", "Space", 32);
+        for (let i = 0; i < 3; i++) await page.press("ArrowRight", "ArrowRight", 39);
+        await page.press("Enter", "Enter", 13);
+        await page.waitFor(`document.getElementById("board-log").textContent.includes("T-3: the server refused")`, { timeout: 10000 });
+        await page.waitFor(`document.querySelectorAll("#board .board-card.is-pending").length === 0`, { timeout: 10000 });
+        assert.equal(await lane("todo"), "T-3", "the refused card is back in To do");
+        assert.ok((await page.eval(`document.querySelector("#board").nextElementSibling.textContent`)).includes("could not be moved"), "and a screen reader is told");
+        // folding a column
+        await page.eval(`document.querySelector('#board .board-column[data-column-id="done"] .board-fold').click()`);
+        assert.equal(await page.eval(`document.querySelector('#board .board-cards[data-column-id="done"]').hidden`), true);
+        // adding a card keeps the elements and the focus of the others
+        // (the button is pressed from the script: a real click would move the focus to the button itself)
+        await page.eval(`document.querySelector('#board [data-card-id="T-3"]').focus(); window.__kept = document.querySelector('#board [data-card-id="T-3"]'); [...document.querySelectorAll("button")].find(button => button.textContent.trim() === "Add card").click()`);
+        await page.waitFor(`document.querySelectorAll("#board .board-card").length === 7`);
+        assert.equal(await page.eval(`window.__kept === document.querySelector('#board [data-card-id="T-3"]') && document.activeElement === window.__kept`), true, "the same element, still focused");
     }));
 
     test("widgets: a real drag moves a widget, a real resize changes its size, the layout is saved and survives a reload", { timeout: 240000 }, () => withPage("/widgets", async page => {

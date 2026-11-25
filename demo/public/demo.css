@@ -224,3 +224,27 @@ body {
     border-radius: 50%;
     background: var(--athena-accent);
 }
+
+/* ---- the board page ---- */
+.demo-card-key {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    color: var(--athena-muted);
+}
+
+.demo-card-owner {
+    font-size: 0.8rem;
+    color: var(--athena-muted);
+}
+
+.demo-log {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    font-size: 0.85rem;
+    color: var(--athena-muted);
+}
+
+.demo-log li {
+    padding: 2px 0;
+}
