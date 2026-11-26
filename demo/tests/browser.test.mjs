@@ -79,6 +79,22 @@ describe("no page scrolls sideways", { skip }, () => {
 });
 
 describe("what a person does", { skip }, () => {
+    test("widgets on a touch screen: every control is at least 44 px, and the corner resizes", { timeout: 240000 }, () => withPage("/widgets", async page => {
+        await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
+        await page.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+        await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 5`, { timeout: 90000 });
+        assert.equal(await page.eval(`matchMedia("(pointer: coarse)").matches`), true, "the emulation is a touch screen");
+        await page.clickText("Edit mode: off");
+        await page.waitFor(`document.getElementById("dashboard").classList.contains("is-editable")`);
+        const small = await page.eval(`[...document.querySelectorAll("#dashboard .widget-handle, #dashboard .widget-action, #dashboard .widget-resize")]
+            .map(node => ({ name: node.className, box: node.getBoundingClientRect() })).filter(({ box }) => box.width && (box.width < 44 || box.height < 44)).map(({ name, box }) => name + " " + box.width + "x" + box.height)`);
+        assert.deepEqual(small, []);
+        const shown = await page.eval(`[...document.querySelector('#dashboard [data-widget-id="hosts"]').querySelectorAll(".widget-resize")].filter(node => node.getBoundingClientRect().width).map(node => node.dataset.dir)`);
+        assert.deepEqual(shown, ["se"]);
+        const outside = await page.eval(`[...document.querySelectorAll("#dashboard .widget")].filter(widget => [...widget.querySelectorAll(".widget-action, .widget-handle")].some(node => node.getBoundingClientRect().right > widget.getBoundingClientRect().right + 1)).map(widget => widget.dataset.widgetId)`);
+        assert.deepEqual(outside, [], "no button is cut off");
+    }));
+
     test("sign in: a wrong password is told in the form, a right one opens the page that was asked for, and the cookie is out of reach of scripts", { timeout: 240000 }, () => withPage("/admin", async page => {
         await page.waitFor(`document.querySelector(".page-title")?.textContent === "Account"`, { timeout: 90000 });
         assert.match(await page.eval("location.hash"), /^#\/account\?next=%2Fadmin/, "sent to sign in, with the place to come back to");

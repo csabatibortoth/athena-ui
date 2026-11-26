@@ -808,6 +808,7 @@ const id = await grid.addWidgetWithSettings("clock");           // adds a widget
   in a live region ("Column 2, row 1, 3 wide, 2 high"). Pointer Events: mouse, pen and touch work the same.
 - **Moving**: the widget follows the pointer and a placeholder shows where it will land. `collision: "swap"` makes a widget moved onto another exchange places with it
   (under a pointer once half of it is covered, with the keyboard at once; when that is a clean exchange; otherwise, and for a resize, widgets are pushed as by default).
+- **Touch**: on a coarse pointer the handle and the buttons are 44 x 44 px (the header wraps in a narrow widget) and the bottom right corner is the one resize grip.
 - **Gallery**: `createWidgetGallery({ element, grid, types, withSettings, onAdd })` lists the registered types (`title`, `description`). A click, Enter or Space adds one; a mouse or
   pen drags it onto the grid, a finger drags it by the grip. It adds whether or not edit mode is on: show it when your application wants it.
 - **Drag from your own toolbox**: `const drop = grid.beginDrop(type)`, then `drop.move(clientX, clientY)`, `drop.drop()` or `drop.cancel()`.

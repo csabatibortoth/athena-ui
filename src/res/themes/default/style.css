@@ -2866,6 +2866,51 @@ dialog.dialog[open]::backdrop {
     border-bottom: 2px solid var(--athena-muted);
 }
 
+/* A finger needs 44 x 44. The header wraps in a narrow widget, and one large corner replaces the eight thin resize strips (which would
+   cover the content and stop the page from scrolling): with moving, it reaches every size and place. */
+@media (pointer: coarse) {
+    .is-editable .widget-header {
+        flex-wrap: wrap;
+        gap: 0 4px;
+        padding: 2px 4px;
+    }
+
+    .is-editable .widget-title {
+        flex-basis: 4em;
+    }
+
+    .is-editable .widget-handle,
+    .is-editable .widget-action {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .is-editable .widget-actions {
+        margin-left: auto;
+    }
+
+    .is-editable .widget.is-locked .widget-handle {
+        display: none;
+    }
+
+    .is-editable .widget-resize {
+        display: none;
+    }
+
+    .is-editable .widget:not(.is-locked) .widget-resize-se {
+        display: block;
+        width: 44px;
+        height: 44px;
+    }
+
+    .widget-resize-se::after {
+        right: 6px;
+        bottom: 6px;
+        width: 14px;
+        height: 14px;
+    }
+}
+
 /* where the widget that is being dragged will land */
 .widget-placeholder {
     min-width: 0;
