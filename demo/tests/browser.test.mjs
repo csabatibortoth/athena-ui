@@ -173,6 +173,33 @@ describe("what a person does", { skip }, () => {
                 }
             });
         }
+        // picked by a person who has chosen no mode: dark, also on a light system; a chosen mode stays; and on a reload the same
+        await withPage("/themes", async page => {
+            await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }, { name: "prefers-reduced-motion", value: "reduce" }] });
+            await page.waitFor(`document.documentElement.dataset.mode === "light" && [...document.querySelectorAll(".theme-picker-option")].some(option => option.textContent.includes("Bridge"))`, { timeout: 90000 });
+            const choose = value => page.eval(`[...document.querySelectorAll(".theme-picker input")].find(input => input.value === "${value}").click()`);
+            await choose("bridge");
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.documentElement.dataset.mode === "dark"`);
+            await page.eval(`location.reload()`);
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.documentElement.dataset.mode === "dark" && document.querySelector(".theme-picker")`, { timeout: 90000 });
+            await choose("athena");
+            await page.waitFor(`document.documentElement.dataset.mode === "light"`);
+            await choose("light");
+            await choose("bridge");
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.documentElement.dataset.mode === "light"`);
+        });
+        // wide screens: the content starts at the rail; the animations are there with motion on and take no time without
+        await withPage("/charts", async page => {
+            await page.send("Emulation.setDeviceMetricsOverride", { width: 2560, height: 1200, deviceScaleFactor: 1, mobile: false });
+            await page.eval(`localStorage.setItem("athena.demo.appearance", JSON.stringify({ theme: "bridge" })); location.reload()`);
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.querySelector("#header .athena-menu-vertical") && document.querySelector(".page-title")`, { timeout: 90000 });
+            const [gap, rest] = await page.eval(`(() => { const rail = document.getElementById("header").getBoundingClientRect(); const content = document.getElementById("wrapper").getBoundingClientRect(); return [content.left - rail.right, innerWidth - content.right]; })()`);
+            assert.ok(gap <= 12 && rest <= 40, `gap ${gap}px, left over ${rest}px`);
+            const durations = () => page.eval(`getComputedStyle(document.querySelector("#header .athena-menu-vertical .menu-item")).animationName + " " + getComputedStyle(document.querySelector("#header .athena-menu-vertical .menu-item")).animationDuration`);
+            assert.equal(await durations(), "bridge-slide 0s", "reduced motion");
+            await page.eval(`document.documentElement.dataset.motion = "full"`);
+            assert.match(await durations(), /^bridge-slide 0\.[1-9]/);
+        });
         await withPage("/themes", async page => {
             await page.waitFor(`[...document.querySelectorAll(".theme-picker-option")].some(option => option.textContent.includes("Bridge"))`, { timeout: 90000 });
             const pick = name => page.eval(`[...document.querySelectorAll(".theme-picker-option")].find(option => option.textContent.includes("${name}")).querySelector("input").click()`);

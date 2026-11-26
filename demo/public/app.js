@@ -17,7 +17,7 @@ const manager = createThemeManager({
         { id: "athena", name: "Athena", description: "The plain blue and grey of Athena UI" },
         { id: "contrast", name: "High contrast", description: "Black and white with strong borders" },
         { id: "ocean", name: "Ocean", description: "A theme of this demo: two blocks of tokens" },
-        { id: "bridge", name: "Bridge", description: "Inspired by LCARS: swept frames, a rail of pill buttons" }
+        { id: "bridge", name: "Bridge", description: "Inspired by LCARS: swept frames, a rail of pill buttons", defaultMode: "dark" }
     ],
     storageKey: "athena.demo.appearance",
     themeColorVariable: "--athena-surface"
