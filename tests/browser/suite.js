@@ -1818,6 +1818,204 @@ test("date time range: fits a narrow place, whatever the font", () => {
     box.remove();
 });
 
+// ---- ATH-37: folding, minimap, multiple cursors ----
+
+const FOLDABLE = "function a() {\n    one();\n    two();\n}\nconst x = 1;";
+const featureEditor = options => {
+    const host = document.createElement("div");
+    host.style.width = "700px";
+    document.getElementById("wrapper").append(host);
+    const changes = [];
+    const editor = A.createCodeEditor({ element: host, language: "js", value: FOLDABLE, onChange: value => changes.push(value), ...options });
+    return { host, editor, changes, done: () => { editor.destroy(); host.remove(); } };
+};
+const chord = (editor, name, extra = {}) => key(editor.textarea, name, { ctrlKey: true, ...extra });
+// what the browser does when a person types or deletes: beforeinput, and only if that is let through, the change and input
+const personEdit = (editor, from, to, text, inputType = "insertText") => {
+    const area = editor.textarea;
+    area.setSelectionRange(from, to);
+    if (!area.dispatchEvent(new InputEvent("beforeinput", { inputType, data: text || null, bubbles: true, cancelable: true }))) return false;
+    area.setRangeText(text, from === to && inputType === "deleteContentBackward" ? from - 1 : from, to, "end");
+    area.dispatchEvent(new InputEvent("input", { inputType, bubbles: true }));
+    return true;
+};
+
+test("code folding: the lines leave the view, never the value; numbers go on; the gutter folds", async () => {
+    const { host, editor, done } = featureEditor({ folding: true });
+    assert($1(".code-line.is-foldable", host));
+    assert(editor.fold(1));
+    equal(editor.textarea.value, "function a() {\n}\nconst x = 1;");
+    equal(editor.getValue(), FOLDABLE);
+    const header = $1(".code-line.is-folded", host);
+    equal(header.style.getPropertyValue("--code-hidden"), "2");
+    assert(Math.abs(header.getBoundingClientRect().height - $$(".code-line", host)[1].getBoundingClientRect().height) < 1, "one line");
+    editor.textarea.setSelectionRange(editor.textarea.value.length, editor.textarea.value.length);
+    equal(editor.getSelection().line, 5, "the line of the whole text");
+    equal(editor.getSelection().end, FOLDABLE.length);
+    editor.unfold(1);
+    equal(editor.textarea.value, FOLDABLE);
+    const box = editor.textarea.getBoundingClientRect();
+    const first = $$(".code-line", host)[0].getBoundingClientRect();
+    const click = () => editor.textarea.dispatchEvent(new PointerEvent("pointerdown", { button: 0, clientX: box.left + 8, clientY: first.top + 5, bubbles: true, cancelable: true }));
+    click();
+    equal(editor.textarea.value.split("\n").length, 3, "folded by the arrow");
+    click();
+    equal(editor.textarea.value, FOLDABLE);
+    done();
+});
+
+test("code folding: typing around a fold keeps it; what would touch hidden text opens it instead", () => {
+    const { editor, changes, done } = featureEditor({ folding: true });
+    editor.fold(1);
+    const area = editor.textarea;
+    assert(personEdit(editor, 0, 0, "\n", "insertText"));
+    assert(personEdit(editor, 0, 0, "//"));
+    equal(area.value.split("\n").length, 4, "still folded, one line further down");
+    equal(editor.getValue(), `//\n${FOLDABLE}`);
+    equal(changes.at(-1), editor.getValue(), "onChange gets the whole text");
+    const end = area.value.indexOf("{") + 1;
+    assert(personEdit(editor, end, end, " "), "typing at the end of the folded line");
+    equal(editor.getValue().split("\n")[1], "function a() { ");
+    const before = editor.getValue();
+    equal(personEdit(editor, end + 2, end + 2, "", "deleteContentBackward"), false, "Backspace over the fold is stopped");
+    equal(editor.getValue(), before);
+    equal(area.value, before, "and opens it");
+    editor.fold(2);
+    equal(personEdit(editor, 0, area.value.length, "x"), false, "replacing everything only opens");
+    equal(editor.getValue(), before);
+    editor.fold(2);
+    editor.undo();
+    equal(editor.textarea.value, editor.getValue(), "undo shows the whole text");
+    editor.fold(2);
+    editor.openFind();
+    equal(editor.textarea.value, editor.getValue(), "find looks at everything");
+    editor.closeFind();
+    editor.fold(2);
+    editor.setReadOnlyRanges([{ from: 1, to: 1 }]);
+    equal(editor.textarea.value, editor.getValue(), "no folding with locked ranges");
+    equal(editor.fold(2), false);
+    done();
+});
+
+test("code folding: a copy of the folded line typed or inserted above it does not take the fold", () => {
+    const { editor, done } = featureEditor({ folding: true });
+    for (const typed of [true, false]) {
+        editor.setValue(FOLDABLE);
+        editor.fold(1);
+        const line = "function a() {\n";
+        if (typed) personEdit(editor, 0, 0, line);
+        else {
+            editor.textarea.setSelectionRange(0, 0);
+            editor.insertText(line);
+        }
+        equal(editor.getValue(), line + FOLDABLE, typed ? "typed" : "inserted");
+    }
+    done();
+});
+
+test("code folding with several cursors: Alt+click opens the folds, and nothing is ever reordered", async () => {
+    const source = "a:\n  a1\n  a2\nmid\nb:\n  b1\n  b2\nend";
+    const { editor, done } = featureEditor({ language: "yaml", folding: true, multipleCursors: true, value: source });
+    editor.fold(1);
+    editor.fold(5);
+    const area = editor.textarea;
+    equal(area.value, "a:\nmid\nb:\nend");
+    // a click, then an Alt+click: the browser moves the caret between the two events
+    area.focus();
+    area.setSelectionRange(2, 2);
+    area.dispatchEvent(new PointerEvent("pointerdown", { button: 0, altKey: true, clientX: 500, clientY: 5, bubbles: true, cancelable: true }));
+    area.setSelectionRange(6, 6);
+    area.dispatchEvent(new PointerEvent("pointerup", { button: 0, altKey: true, bubbles: true }));
+    await frame();
+    equal(editor.getCursorCount(), 2);
+    equal(area.value, source, "opened");
+    key(area, "Delete");
+    equal(editor.getValue(), "a:  a1\n  a2\nmidb:\n  b1\n  b2\nend");
+    // an edit nobody can cancel (composition): the line break after a folded line goes, with another fold below
+    editor.setValue(source);
+    editor.fold(1);
+    editor.fold(5);
+    area.setSelectionRange(3, 3);
+    area.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: false }));
+    equal(area.value, "a:\nmid\nb:\nend", "not opened under the browser's feet");
+    area.setRangeText("", 2, 3, "end");
+    area.dispatchEvent(new InputEvent("input", { inputType: "deleteContentBackward", bubbles: true }));
+    equal(editor.getValue(), "a:  a1\n  a2\nmid\nb:\n  b1\n  b2\nend".replace("a:  a1\n  a2\nmid", "a:mid\n  a1\n  a2"));
+    done();
+});
+
+test("multiple cursors: Ctrl+D, typing, Backspace, paste and one undo", () => {
+    const { host, editor, done } = featureEditor({ multipleCursors: true, value: "aa = aa + b\naa" });
+    editor.focus();
+    editor.setSelection(0, 0);
+    chord(editor, "d");
+    equal(editor.textarea.selectionEnd, 2, "the first press selects the word");
+    chord(editor, "d");
+    chord(editor, "d");
+    equal(editor.getCursorCount(), 3);
+    equal($$(".code-editor-cursor", host).length, 2);
+    personEdit(editor, editor.textarea.selectionStart, editor.textarea.selectionEnd, "z");
+    equal(editor.getValue(), "z = z + b\nz");
+    personEdit(editor, editor.textarea.selectionStart, editor.textarea.selectionEnd, "w");
+    equal(editor.getValue(), "zw = zw + b\nzw");
+    key(editor.textarea, "Backspace");
+    equal(editor.getValue(), "z = z + b\nz");
+    const data = new DataTransfer();
+    data.setData("text/plain", "1\n2\n3");
+    editor.textarea.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+    equal(editor.getValue().replace(/[^123]/g, "").length, 3, "one line for each cursor");
+    editor.undo();
+    equal(editor.getValue(), "z = z + b\nz", "one step");
+    equal(editor.getCursorCount(), 1);
+    editor.setSelection(0, 0);        // a line below is needed (undo left the caret on the last one)
+    chord(editor, "ArrowDown", { altKey: true });
+    equal(editor.getCursorCount(), 2);
+    key(editor.textarea, "Escape");
+    equal(editor.getCursorCount(), 1);
+    done();
+});
+
+test("multiple cursors: a cursor in something locked stops the whole edit", () => {
+    const { editor, done } = featureEditor({ multipleCursors: true, value: "aa aa", readOnlyRanges: [{ text: " aa" }] });
+    editor.setSelection(0, 2);
+    chord(editor, "d");
+    personEdit(editor, editor.textarea.selectionStart, editor.textarea.selectionEnd, "z");
+    equal(editor.getValue(), "aa aa");
+    done();
+});
+
+test("minimap: a picture beside the text, not for screen readers; without the options nothing changes", async () => {
+    const { host, editor, done } = featureEditor({ minimap: true });
+    await frame();
+    const map = $1(".code-minimap", host);
+    equal(map.getAttribute("aria-hidden"), "true");
+    const canvas = $1("canvas", map);
+    assert(canvas.getContext("2d").getImageData(0, 0, canvas.width, 20).data.some(value => value > 0), "something is drawn");
+    done();
+    const plain = featureEditor({});
+    equal($1(".code-minimap", plain.host), null);
+    equal($1(".code-editor-cursors", plain.host), null);
+    equal($1(".code-line.is-foldable", plain.host), null);
+    equal(plain.editor.fold(1), false);
+    plain.done();
+});
+
+test("code editor: the textarea text starts where the highlighted text does, with any number of lines (it was off from 100 lines)", async () => {
+    for (const options of [{}, { folding: true }, { wrap: true }]) {
+        for (const lines of [50, 150, 1500]) {
+            const { host, editor, done } = featureEditor({ value: Array(lines).fill("abc").join("\n"), ...options });
+            await frame();
+            const area = editor.textarea;
+            const typed = area.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(area).paddingLeft);
+            const range = new Range();
+            range.selectNodeContents($1(".code-line", host));
+            const shown = range.getClientRects()[0].left;
+            assert(Math.abs(typed - shown) < 1, `${JSON.stringify(options)} ${lines} lines: ${(typed - shown).toFixed(1)} px apart`);
+            done();
+        }
+    }
+});
+
 // ---- ATH-42: a redrawn line knows what stands around it ----
 
 test("code editor: a line that is redrawn is coloured as in a fresh editor, whatever depends on the lines around it", () => {
@@ -1829,7 +2027,8 @@ test("code editor: a line that is redrawn is coloured as in a fresh editor, what
         ["js", "a\n\n/x/.test(s)", ";", "end", "over an empty line"],
         ["js", "a\n/x/", "=", 1, "the line before changes: now a regular expression"],
         ["js", "foo\nx", "(", 4, "the line after changes: now a function name"],
-        ["ts", "b = 1;\n/(\n\nlet a;", "/*", 4, "a comment opened above an empty line runs on"]
+        ["ts", "b = 1;\n/(\n\nlet a;", "/*", 4, "a comment opened above an empty line runs on"],
+        ["js", "x\na\n\n(", "b", 3, "a function name whose ( is further down"]
     ];
     for (const [language, value, text, at, what] of cases) {
         const typed = A.createCodeEditor({ element: hosts[0], language, value });

@@ -65,6 +65,19 @@ export default async function codePage(context, { app }) {
     editing.append(result);
     editing.append(el("p", { class: "demo-note", text: "The first two lines are locked (a read-only range) and line 4 has a lint marker (the status line shows its message when the caret is on it)." }));
 
+    // ------------------------------------------------------------ folding, minimap, multiple cursors
+    const large = block(root, "Folding, a minimap, several cursors", "Click the arrow beside a line number to fold a block (Ctrl+Shift+[ and ] with the keyboard). Ctrl+D selects the next occurrence, Ctrl+Alt+arrows or Alt+click add a cursor, Escape goes back to one. The value always holds every line.");
+    const largeHost = el("div", { attrs: { id: "code-large" } });
+    large.append(largeHost);
+    const long = createCodeEditor({
+        element: largeHost, language: "javascript", label: "Folding editor", folding: true, minimap: true, multipleCursors: true,
+        value: Array.from({ length: 12 }, (_, index) => `function step${index + 1}(items) {\n    // keep what is ready\n    for (const item of items) {\n        if (item.ready) {\n            items.push(item.name);\n        }\n    }\n    return items;\n}`).join("\n\n")
+    });
+    const folding = el("div", { class: "demo-row" });
+    large.append(folding);
+    generateButton({ parent: folding, text: "Fold all", variant: "secondary", onclick: () => long.foldAll() });
+    generateButton({ parent: folding, text: "Unfold all", variant: "secondary", onclick: () => long.unfoldAll() });
+
     // ------------------------------------------------------------ diff
     const diffing = block(root, "Difference", "A line diff (Myers) with highlighted code on both sides. Long unchanged parts are folded.");
     const diffBar = el("div", { class: "demo-row" });
@@ -83,6 +96,7 @@ export default async function codePage(context, { app }) {
 
     return () => {
         editor.destroy();
+        long.destroy();
         current?.destroy();
     };
 }

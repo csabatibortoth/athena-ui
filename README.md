@@ -4,7 +4,7 @@ A small, dependency-free UI framework written as ES modules. It ships the buildi
 charts, dialogs, menus, a router and themes, a dashboard of widgets, a Kanban board, a code editor and more. Use single components from their own
 entry points, or let one `init()` call generate the page layout (header, menu, content wrapper, footer) with its theme.
 
-Current version: **2.11.2**
+Current version: **2.12.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -36,7 +36,7 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Autocomplete, multi select, file upload, drag-and-drop area, stepper, date and time ranges, rich text and WYSIWYG editor
 
 **Code**
-- Syntax highlighting (including `<script>` and `<style>` in HTML and nested template strings), a code editor on a real `<textarea>`, a diff view
+- Syntax highlighting (including `<script>` and `<style>` in HTML and nested template strings), a code editor on a real `<textarea>` (with optional folding, a minimap and multiple cursors), a diff view
 
 **Navigation and feedback**
 - Menu with groups, badges and a user menu, bottom tabs on a phone; tabs, accordion, dropdown, sidebar, breadcrumbs, pagination, hash / history router
@@ -77,7 +77,7 @@ Without npm, serve the `src` folder with any static web server and open `index.h
 
 **Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
-`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor, the JSON tree, motion, every field type, native dialogs, a menu with groups inside groups, themes
+`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor (also with folding, a minimap and several cursors), the JSON tree, motion, every field type, native dialogs, a menu with groups inside groups, themes
 and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy. The footer shows the version and, on a deployed site, the commit it was built from.
 
 ```sh
@@ -880,6 +880,11 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
 - **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`), `log`. The `log` language comes from Heimdall's log display: times, IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Its patterns are bounded so a hostile line stays cheap; tokenizing always gives the input text back. A three-digit number in 100..599 gets the status colour even without context (a pid, for example).
   A language is a plain object (`registerLanguage({ name, aliases, rules: [{ type, pattern }], lineComment, blockComment, pairs, indentAfter })`), so your own are one call.
   The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours). It knows nested `${}` of a template string and the `<script>` and `<style>` inside HTML, but not, for example, CSS inside a template string. Bracket matching ignores brackets in strings and comments.
+- **Folding, minimap, several cursors** (all off unless asked for): `folding: true` folds blocks by indentation (the arrow beside the line number, Ctrl+Shift+[ and ], `fold(line)`, `unfold(line)`,
+  `foldAll()`, `unfoldAll()`). `getValue()` and `onChange` always give the whole text; an edit that would delete or split folded lines only opens them; find, `setSelection` and `insertText` open
+  everything first; there is no folding while there are `readOnlyRanges`, or without line numbers. `minimap: true` draws the text small beside the editor (hidden under 480 px of editor width).
+  `multipleCursors: true`: Ctrl+D selects the next occurrence, Ctrl+Alt+Up / Down or Alt+click adds a cursor; typing, Enter, Backspace, Delete, paste and Left / Right act at all of them, one undo
+  step; Escape, a click or another command goes back to one. Not with IME composition (predictive typing on a phone goes back to one cursor).
 - **Colours** are the tokens `--athena-tok-comment`, `-string`, `-keyword` ... (light and dark); a test keeps every one at 4.5:1 contrast or more.
 - **The editor is a real `<textarea>`** with the highlighted text behind it, so native input, selection, spell-check off, mobile keyboards, IME and screen readers all work.
   Tab and Shift+Tab indent and outdent (also several lines), Enter keeps the indentation (and goes one level deeper after `{`, `(`, `:`), brackets and quotes are closed, stepped over, wrapped around a selection and
@@ -888,7 +893,7 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
   **Escape, then Tab, leaves the editor** (so the keyboard is never trapped); the way out is read to screen readers.
 - **Size**: only the lines around a change are tokenized again (with the neighbouring lines, because a `/` or a function name depends on them), and tests check that this gives what tokenizing everything gives. In rare, tangled text a redrawn line can still be coloured differently until it is changed again. On the (slow) development machine the work of the editor per key press is
   about 13 ms in a 5,000 line file; the browser's own layout of two large text blocks is the larger part (about 90 ms per key at 5,000 lines; smaller files were not measured separately). Texts longer than 300,000 characters
-  (`maxHighlightLength`) are shown without highlighting. Not there yet: multiple cursors, minimap, folding.
+  (`maxHighlightLength`) are shown without highlighting.
 
 ### JSON tree
 
@@ -962,7 +967,7 @@ npm run check:package # the npm package holds everything the entry points import
 npm run smoke:package # the packed package installs in an empty folder and every entry point imports
 ```
 
-The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges, the URL check, the grid and board maths, the code tokenizer and diff, the JSON tree and the contents of the package.
+The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges, the URL check, the grid and board maths, the code tokenizer, diff, folding and cursor maths, the JSON tree and the contents of the package.
 The browser tests start a small static server, open `tests/browser/index.html` in headless Chrome, Chromium or Edge and run every
 component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, toolbar, paste), tables (resizing, virtual scrolling), router,
 session, themes, charts, widgets, board, code editor, JSON tree and motion. Set `CHROME_PATH` if the browser is not found. `DEBUG=1` prints the browser log when the page does not report results.
@@ -988,7 +993,7 @@ src/
   libs/
     config/                 default configuration, application hooks
     core/                   DOM / focus helpers, el, validation, translations, CSV, formatting, sanitizer, cookies, theme manager,
-                            HTMLElementGenerator, HTMLControlGenerator, the maths of tables, grid and board, code tokenizers and diff, motion
+                            HTMLElementGenerator, HTMLControlGenerator, the maths of tables, grid and board, code tokenizers, diff and folding, motion
     hephaestus/             theme loader, generators (layout, menus, forms, charts, tables, feedback, dialogs, navigation,
                             components, inputs, widgets, board, code), router, session, auth state
   res/themes/               tokens.css, default and dark theme, appearance.css (themes and modes)
@@ -1009,6 +1014,13 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.12.0
+
+  - **Fixed: caret off by one character** in the code editor from 100 lines (two from 1,000): the caret, the selection and clicks did not match the text shown. This was in every version with the editor up to 2.11.2.
+  - **Code editor, new and off unless asked for**: `folding: true` (blocks by indentation; `getValue()` always gives the whole text), `minimap: true`, `multipleCursors: true`. Without the options the editor behaves as before. The `./code` entry grew from about 36 KB to 45 KB (gzip, unminified).
+  - **Code editor**: a function name is recognised when its `(` is further down than the redrawn lines.
+  - **Touch screens**: the expand arrow of a table row and the buttons of the JSON tree are at least 44 x 44 px; in a stacked table the arrow stands in the corner of its block.
 
  ### 2.11.2
 

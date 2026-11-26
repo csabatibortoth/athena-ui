@@ -18,9 +18,14 @@
  *        occurrence when it is set; it stays locked where it is while the text around it changes)
  * @param {(context: {value: string, position: number, line: number, lineText: string, prefix: string, explicit: boolean, language: string}) => (Array<{label: string, insert?: string, detail?: string}>|Promise<Array>)} [options.provideCompletions]
  * @param {boolean} [options.autoComplete=true] with provideCompletions: suggest while typing (otherwise only with Ctrl+Space)
+ * @param {boolean} [options.folding=false] (needs lineNumbers) blocks can be folded by indentation: a click on the arrow beside the line number, Ctrl+Shift+[ and ].
+ *        getValue() and onChange always give the whole text; an edit that would touch folded lines opens them first. Off while there are readOnlyRanges.
+ * @param {boolean} [options.minimap=false] a small picture of the whole text beside it (hidden in a narrow editor)
+ * @param {boolean} [options.multipleCursors=false] Ctrl+D selects the next occurrence, Ctrl+Alt+Up / Down or Alt+click adds a cursor, Escape goes back to one
  * @param {(value: string, reason: string) => void} [options.onChange] after every change made by typing, undo, redo, replace ... (not after setValue)
  * @returns the handle: { element, textarea, getValue, setValue, focus, getSelection, setSelection, insertText, setLanguage, setReadOnly, setWrap, setMarkers,
- *          setReadOnlyRanges, undo, redo, canUndo, canRedo, openFind, closeFind, toggleComment, destroy }
+ *          setReadOnlyRanges, undo, redo, canUndo, canRedo, openFind, closeFind, toggleComment,
+ *          fold, unfold, foldAll, unfoldAll, getCursorCount, destroy }
  */
 export function createCodeEditor(options?: {
     element: string | HTMLElement;
@@ -59,5 +64,8 @@ export function createCodeEditor(options?: {
         detail?: string;
     }> | Promise<any[]>);
     autoComplete?: boolean;
+    folding?: boolean;
+    minimap?: boolean;
+    multipleCursors?: boolean;
     onChange?: (value: string, reason: string) => void;
 }): any;

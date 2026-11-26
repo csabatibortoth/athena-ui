@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 
 import { diffLines, hunksOf, splitLines } from "../src/libs/core/codeDiff.js";
+import { foldAt, foldRegions, fullLine, fullText, moveFolds, toFull, touchesFold, unfoldAt, visibleLine } from "../src/libs/core/codeFolding.js";
+import { editAll, nextOccurrence, stepOver, wordAt } from "../src/libs/hephaestus/codeGenerator/multiCursor.js";
 import { TOKEN_TYPES, getLanguage, getLanguages, registerLanguage, tokenize } from "../src/libs/core/codeLanguages.js";
 
 const types = (text, language) => tokenize(text, language).filter(token => token.type).map(token => `${token.type}:${token.text}`);
@@ -44,6 +46,88 @@ describe("code tokenizer", () => {
         const spans = [];
         tokenize("<p>\n<script>\n1\n</script>", "html", spans);
         assert.deepEqual(spans.filter(span => span.nested).map(span => [span.start, span.end]), [[4, 24]]);
+    });
+
+    test("folding: regions by indentation, and nothing is ever lost", () => {
+        const source = "a {\n    b {\n        c\n\n    }\n    d\n}\ne";
+        assert.deepEqual([...foldRegions(source)].sort((x, y) => x[0] - y[0]), [[0, 5], [1, 2]]);
+        const inner = foldAt(source, [], 1);
+        assert.equal(inner.visible, "a {\n    b {\n\n    }\n    d\n}\ne");
+        assert.equal(fullText(inner.visible, inner.folds), source);
+        const outer = foldAt(inner.visible, inner.folds, 0);
+        assert.equal(outer.visible, "a {\n}\ne");
+        assert.equal(fullText(outer.visible, outer.folds), source, "a fold inside a fold");
+        assert.equal(toFull(outer.visible, outer.folds, outer.visible.indexOf("e")), source.indexOf("\ne") + 1);
+        assert.equal(visibleLine(outer.folds, 2), 0, "a hidden line is shown by its fold");
+        assert.equal(visibleLine(outer.folds, 6), 1);
+        assert.equal(fullLine(outer.folds, 1), 6);
+        const open = unfoldAt(outer.visible, outer.folds, 0);
+        assert.equal(fullText(open.visible, open.folds), source);
+        assert.equal(foldAt(source, [], 7), null, "nothing under it");
+        assert.ok(touchesFold(outer.visible, outer.folds, 3, 4, ""), "deleting the line break after the folded line");
+        assert.ok(touchesFold(outer.visible, outer.folds, 3, 3, "\n"), "a new line there");
+        assert.equal(touchesFold(outer.visible, outer.folds, 3, 3, "x"), undefined, "typing at the end of it is fine");
+        assert.deepEqual(moveFolds("x\na {\n}", "x\ny\na {\n}", [{ line: 1, hidden: "\n b" }]).folds, [{ line: 2, hidden: "\n b" }]);
+        assert.equal(moveFolds("a {\n}", "}", [{ line: 0, hidden: "\n b" }]).broken.length, 1);
+        assert.deepEqual(moveFolds("x {\n}", "x {\nx {\n}", [{ line: 0, hidden: "\n b" }], { from: 0, to: 0 }).folds, [{ line: 1, hidden: "\n b" }], "a copy of the line typed above it");
+    });
+
+    test("folding: whatever one edit does to the visible text, the hidden blocks stay whole and in their order", () => {
+        const source = "a:\n  a1\n  a2\nmid\nb:\n  b1\n  b2\nend";
+        const two = foldAt(source, [], 4);
+        const { visible, folds } = foldAt(two.visible, two.folds, 0);
+        assert.equal(visible, "a:\nmid\nb:\nend");
+        let checked = 0;
+        for (let from = 0; from <= visible.length; from++) {
+            for (let to = from; to <= visible.length; to++) {
+                for (const text of ["", "x", "\n", "p\nq\n"]) {
+                    const after = visible.slice(0, from) + text + visible.slice(to);
+                    for (const edit of [{ from, to }, null]) {
+                        const moved = moveFolds(visible, after, folds, edit);
+                        const whole = fullText(after, moved.all);
+                        const [first, second] = folds.map(fold => whole.indexOf(fold.hidden));
+                        const what = `[${from},${to}] ${JSON.stringify(text)} ${edit ? "known" : "compared"} -> ${JSON.stringify(whole)}`;
+                        assert.ok(first >= 0 && second > first, what);
+                        assert.equal(whole.replace(folds[0].hidden, "").replace(folds[1].hidden, ""), after, what);
+                        if (moved.broken.length) continue;
+                        assert.equal(fullText(after, moved.folds), whole, what);
+                    }
+                    checked++;
+                }
+            }
+        }
+        assert.ok(checked > 400);
+    });
+
+    test("multiple cursors: Backspace and Delete take whole characters", () => {
+        assert.equal(editAll("a🙂b", [[3, 3]], "backward").value, "ab");
+        assert.equal(editAll("a🙂b", [[1, 1]], "forward").value, "ab");
+        assert.equal(editAll("👨‍👩‍👧x e\u0301", [[8, 8], [12, 12]], "backward").value, "x ");
+        assert.equal(editAll("a\nb", [[2, 2]], "backward").value, "ab");
+    });
+
+    test("multiple cursors: a step from any offset of any text, also one that starts with an empty line", () => {
+        assert.equal(stepOver("\nab", 1, -1), 0);
+        for (const value of ["", "a", "\n", "\nab", "\n\n\n", "a\n", "ab\n\ncd", "🙂\n🙂", "\n🙂"]) {
+            for (let offset = 0; offset <= value.length; offset++) {
+                const back = stepOver(value, offset, -1);
+                const next = stepOver(value, offset, 1);
+                const inside = /[\udc00-\udfff]/.test(value[offset] ?? "");
+                if (inside) continue;       // no cursor stands in the middle of a character
+                assert.ok(offset === 0 ? back === 0 : back < offset && back >= offset - 2, `${JSON.stringify(value)} ${offset} back ${back}`);
+                assert.ok(offset === value.length ? next === offset : next > offset && next <= offset + 2, `${JSON.stringify(value)} ${offset} next ${next}`);
+            }
+        }
+    });
+
+    test("multiple cursors: one edit at every range", () => {
+        assert.deepEqual(editAll("ab ab ab", [[0, 2], [6, 8], [3, 5]], "insert", "x").value, "x x x");
+        assert.deepEqual(editAll("abc", [[1, 1], [2, 2]], "backward"), { value: "c", carets: [0, 0], spans: [[0, 1], [1, 2]] });
+        assert.equal(editAll("abc", [[0, 0], [3, 3]], "forward").value, "bc");
+        assert.equal(editAll("a\nb", [[0, 0], [2, 2]], "insert", ["1", "2"]).value, "1a\n2b");
+        assert.deepEqual(nextOccurrence("ab ab", "ab", 5, [[3, 5]]), [0, 2]);
+        assert.equal(nextOccurrence("ab", "ab", 2, [[0, 2]]), null);
+        assert.deepEqual(wordAt("let foo_1 = 2", 6), [4, 9]);
     });
 
     test("the languages and their aliases are there", () => {
