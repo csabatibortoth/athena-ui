@@ -7,13 +7,14 @@
 //
 //   data-key    localStorage key (default "athena.appearance")
 //   data-theme  the theme that is used when nothing is saved (default "default")
-//   data-dark-themes  themes (ids, separated by spaces) that are dark while no mode has been chosen (their defaultMode in createThemeManager)
+//   data-dark-themes, data-light-themes  themes (ids, separated by spaces) that are dark / light while no mode has been chosen (their defaultMode in
+//               createThemeManager)
 (function () {
     var tag = document.currentScript;
     var key = (tag && tag.getAttribute("data-key")) || "athena.appearance";
     var theme = (tag && tag.getAttribute("data-theme")) || "default";
     var mode = "";          // none chosen
-    var darkThemes = ((tag && tag.getAttribute("data-dark-themes")) || "").split(/\s+/);
+    var listed = function (name, id) { return ((tag && tag.getAttribute(name)) || "").split(/\s+/).indexOf(id) >= 0; };
     try {
         var saved = JSON.parse(localStorage.getItem(key) || "{}");
         if (/^[a-z0-9_-]+$/i.test(saved.theme || "")) theme = saved.theme;
@@ -21,7 +22,7 @@
     } catch (e) {
         // Private browsing, or a value that is not JSON: the defaults
     }
-    if (!mode) mode = darkThemes.indexOf(theme) >= 0 ? "dark" : "system";
+    if (!mode) mode = listed("data-dark-themes", theme) ? "dark" : listed("data-light-themes", theme) ? "light" : "system";
     var dark = mode === "dark" || (mode === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.setAttribute("data-theme", theme);
     document.documentElement.setAttribute("data-mode", dark ? "dark" : "light");

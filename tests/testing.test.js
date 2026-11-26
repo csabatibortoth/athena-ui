@@ -112,6 +112,31 @@ test("el: text stays text, code attributes and unsafe addresses are refused", as
     }
 });
 
+test("theme-boot.js paints the same mode the manager will choose, also for themes with a default mode", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { runInNewContext } = await import("node:vm");
+    const source = readFileSync(new URL("../src/theme-boot.js", import.meta.url), "utf8");
+    const paint = (saved, theme, systemDark) => {
+        const attributes = { "data-theme": theme, "data-dark-themes": "night", "data-light-themes": "paper chalk" };
+        const result = {};
+        runInNewContext(source, {
+            document: { currentScript: { getAttribute: name => attributes[name] ?? null }, documentElement: { setAttribute: (name, value) => { result[name] = value; } } },
+            localStorage: { getItem: () => saved && JSON.stringify(saved) },
+            window: { matchMedia: () => ({ matches: systemDark }) }
+        });
+        return result["data-mode"];
+    };
+    for (const system of [true, false]) {
+        assert.equal(paint(null, "night", system), "dark");
+        assert.equal(paint(null, "chalk", system), "light");
+        assert.equal(paint(null, "plain", system), system ? "dark" : "light");
+        assert.equal(paint({ theme: "paper", mode: "system" }, "plain", system), "light", "saved with the theme by an older version: no choice");
+        assert.equal(paint({ theme: "night", mode: "system", chosen: true }, "plain", system), system ? "dark" : "light", "chosen");
+        assert.equal(paint({ theme: "night", mode: "light" }, "plain", system), "light");
+        assert.equal(paint({ theme: "paper", mode: "dark" }, "plain", system), "dark");
+    }
+});
+
 test("createThemeManager: saves the choice, follows the system, ignores unknown ids", async t => {
     const JSDOM = await findJsdom();
     if (!JSDOM) return t.skip("no jsdom found");

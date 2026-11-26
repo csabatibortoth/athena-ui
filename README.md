@@ -699,7 +699,7 @@ A second system lets people choose a theme **and** a mode. It is just two attrib
 
 ```js
 const manager = createThemeManager({ themes: [{ id: "athena", name: "Athena" }, { id: "contrast", name: "High contrast" }], storageKey: "myapp.appearance",
-    themeColorVariable: "--athena-bg" });                  // a theme { id, name, defaultMode: "dark" } is dark until the person chooses a mode                  // <meta name="theme-color"> follows this variable
+    themeColorVariable: "--athena-bg" });                  // a theme { id, name, defaultMode: "dark" } is dark until the person chooses a mode (tell theme-boot.js: data-dark-themes / data-light-themes)                  // <meta name="theme-color"> follows this variable
 manager.setTheme("contrast"); manager.setMode("dark");    // "system" | "light" | "dark"; saved in localStorage, other tabs follow
 manager.onChange(({ theme, mode, dark }) => redrawChartsOrWhatever());
 generateThemePicker({ parent: "account-page", manager });  // radio groups with a small preview of every theme
