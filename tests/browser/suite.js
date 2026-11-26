@@ -1913,6 +1913,37 @@ test("code folding: a copy of the folded line typed or inserted above it does no
     done();
 });
 
+test("code folding with several cursors: Alt+click opens the folds, and nothing is ever reordered", async () => {
+    const source = "a:\n  a1\n  a2\nmid\nb:\n  b1\n  b2\nend";
+    const { editor, done } = featureEditor({ language: "yaml", folding: true, multipleCursors: true, value: source });
+    editor.fold(1);
+    editor.fold(5);
+    const area = editor.textarea;
+    equal(area.value, "a:\nmid\nb:\nend");
+    // a click, then an Alt+click: the browser moves the caret between the two events
+    area.focus();
+    area.setSelectionRange(2, 2);
+    area.dispatchEvent(new PointerEvent("pointerdown", { button: 0, altKey: true, clientX: 500, clientY: 5, bubbles: true, cancelable: true }));
+    area.setSelectionRange(6, 6);
+    area.dispatchEvent(new PointerEvent("pointerup", { button: 0, altKey: true, bubbles: true }));
+    await frame();
+    equal(editor.getCursorCount(), 2);
+    equal(area.value, source, "opened");
+    key(area, "Delete");
+    equal(editor.getValue(), "a:  a1\n  a2\nmidb:\n  b1\n  b2\nend");
+    // an edit nobody can cancel (composition): the line break after a folded line goes, with another fold below
+    editor.setValue(source);
+    editor.fold(1);
+    editor.fold(5);
+    area.setSelectionRange(3, 3);
+    area.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: false }));
+    equal(area.value, "a:\nmid\nb:\nend", "not opened under the browser's feet");
+    area.setRangeText("", 2, 3, "end");
+    area.dispatchEvent(new InputEvent("input", { inputType: "deleteContentBackward", bubbles: true }));
+    equal(editor.getValue(), "a:  a1\n  a2\nmid\nb:\n  b1\n  b2\nend".replace("a:  a1\n  a2\nmid", "a:mid\n  a1\n  a2"));
+    done();
+});
+
 test("multiple cursors: Ctrl+D, typing, Backspace, paste and one undo", () => {
     const { host, editor, done } = featureEditor({ multipleCursors: true, value: "aa = aa + b\naa" });
     editor.focus();

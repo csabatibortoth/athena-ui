@@ -24,6 +24,22 @@ export function nextOccurrence(text, needle, start, ranges) {
     return null;
 }
 
+const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter() : null;
+// whole characters as a person sees them (an emoji, a letter with its accent); without Intl.Segmenter whole code points
+const characters = text => (segmenter ? Array.from(segmenter.segment(text), part => part.segment) : Array.from(text));
+
+/** The offset one character before (step -1) or after (step 1) an offset. */
+export function stepOver(value, offset, step) {
+    if (step < 0) {
+        if (offset <= 0) return 0;
+        const line = value.lastIndexOf("\n", offset - 2) + 1;
+        return offset - characters(value.slice(line, offset)).at(-1).length;
+    }
+    if (offset >= value.length) return value.length;
+    const end = value.indexOf("\n", offset + 1);
+    return offset + characters(value.slice(offset, end === -1 ? value.length : end))[0].length;
+}
+
 /**
  * One edit at every range. `kind` is "insert" (with `text`, or a list with one text per range), "backward" or "forward".
  * @returns {{value: string, carets: number[], spans: [number, number][]}} the new text, the caret after every range (in the order of the argument),
@@ -31,8 +47,8 @@ export function nextOccurrence(text, needle, start, ranges) {
  */
 export function editAll(value, ranges, kind, text = "") {
     const order = ranges.map(([from, to], index) => {
-        if (from === to && kind === "backward") from = Math.max(0, from - 1);
-        if (from === to && kind === "forward") to = Math.min(value.length, to + 1);
+        if (from === to && kind === "backward") from = stepOver(value, from, -1);
+        if (from === to && kind === "forward") to = stepOver(value, to, 1);
         return { from, to, index };
     }).sort((a, b) => a.from - b.from || a.to - b.to);
     let result = "";

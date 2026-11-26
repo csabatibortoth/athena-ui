@@ -17,14 +17,16 @@ export function unfoldAt(visible: any, folds: any, line: any): {
     folds: any;
 };
 /**
- * Where the folds are after the visible text changed from `before` to `after`. A fold whose place was changed is returned in `broken`
- * with the line it should be put back under: nothing is ever dropped.
+ * Where the folds are after the visible text changed from `before` to `after`: `folds` are the ones that were not touched, `broken` the ones
+ * whose place was changed, and `all` both, in their order, with lines of `after`. When any is broken, put ALL of them back with one
+ * fullText(after, all): putting some back first would move the lines of the others. Nothing is ever dropped.
  * `edit` ({ from, to }: the part of `before` that was replaced) should be given when it is known: comparing the texts cannot tell where
  * a line was inserted among equal lines.
  */
 export function moveFolds(before: any, after: any, folds: any, edit?: any): {
     folds: any[];
     broken: any[];
+    all: any;
 };
 export function toFull(visible: any, folds: any, offset: any): any;
 export function fullLine(folds: any, line: any): any;

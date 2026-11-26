@@ -99,8 +99,9 @@ export function unfoldAt(visible, folds, line) {
 }
 
 /**
- * Where the folds are after the visible text changed from `before` to `after`. A fold whose place was changed is returned in `broken`
- * with the line it should be put back under: nothing is ever dropped.
+ * Where the folds are after the visible text changed from `before` to `after`: `folds` are the ones that were not touched, `broken` the ones
+ * whose place was changed, and `all` both, in their order, with lines of `after`. When any is broken, put ALL of them back with one
+ * fullText(after, all): putting some back first would move the lines of the others. Nothing is ever dropped.
  * `edit` ({ from, to }: the part of `before` that was replaced) should be given when it is known: comparing the texts cannot tell where
  * a line was inserted among equal lines.
  */
@@ -114,15 +115,24 @@ export function moveFolds(before, after, folds, edit = null) {
     }
     const count = text => text.split("\n").length;
     const delta = count(after) - count(before);
+    const changedLine = count(after.slice(0, head)) - 1;       // the line of `after` where the change begins
     const kept = [];
     const broken = [];
-    for (const fold of folds) {
+    const all = folds.map(fold => {
         const end = endOfLine(before, fold.line);
-        if (end >= before.length - tail) kept.push({ ...fold, line: fold.line + delta });
-        else if (end < head) kept.push(fold);
-        else broken.push({ ...fold, line: Math.min(fold.line, count(after) - 1) });
-    }
-    return { folds: kept, broken };
+        if (end >= before.length - tail) {
+            kept.push({ ...fold, line: fold.line + delta });
+            return kept.at(-1);
+        }
+        if (end < head) {
+            kept.push(fold);
+            return fold;
+        }
+        // its line break was changed: under what is left of its line (the line where the change begins, when the start of its line went too)
+        broken.push({ ...fold, line: Math.min(fold.line, changedLine) });
+        return broken.at(-1);
+    });
+    return { folds: kept, broken, all };
 }
 
 /** Would replacing [from, to) of the visible text by `text` delete or split a fold? Then the fold has to be opened first. */

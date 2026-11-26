@@ -9,7 +9,7 @@ import { getLanguage, tokenize } from "../../core/codeLanguages.js";
 import { lineNodes, tokensToLines } from "./codeGenerator.js";
 import { foldAt, foldRegions, fullLine, fullText, moveFolds, toFull, touchesFold, unfoldAt, visibleLine } from "../../core/codeFolding.js";
 import { createMinimap } from "./minimap.js";
-import { editAll, nextOccurrence, wordAt } from "./multiCursor.js";
+import { editAll, nextOccurrence, stepOver, wordAt } from "./multiCursor.js";
 
 const HIGHLIGHTS = typeof CSS !== "undefined" && "highlights" in CSS && typeof Highlight === "function" ? CSS.highlights : null;
 const IDENTIFIER = /[\w$]/;
@@ -145,11 +145,11 @@ export function createCodeEditor(options = {}) {
         const moved = moveFolds(foldedVisible, textarea.value, folds, edit?.length === textarea.value.length ? edit : null);
         folds = moved.folds;
         if (moved.broken.length) {
-            const caret = textarea.selectionStart;
-            textarea.value = fullText(textarea.value, moved.broken);
+            // one of them was disturbed: ALL are opened, in one step
+            const caret = toFull(textarea.value, moved.all, textarea.selectionStart);
+            textarea.value = fullText(textarea.value, moved.all);
             textarea.setSelectionRange(caret, caret);
             folds = [];
-            textarea.value = fullText(textarea.value, moved.folds);
         }
         foldedVisible = textarea.value;
     }
@@ -593,7 +593,8 @@ export function createCodeEditor(options = {}) {
         const line = lineOf(offset);
         const target = line + direction;
         if (target < 0 || target >= starts.length) return;
-        const at = starts[target] + Math.min(offset - starts[line], lineText(target).length);
+        let at = starts[target] + Math.min(offset - starts[line], lineText(target).length);
+        if (/[\uDC00-\uDFFF]/.test(textarea.value[at] ?? "")) at--;       // not into the middle of a character
         setCursors([...extras.filter(([from]) => from !== at), primary()]);
         textarea.setSelectionRange(at, at);
         revealCaret();
@@ -603,6 +604,12 @@ export function createCodeEditor(options = {}) {
     /** One edit at every cursor, one undo step. A cursor in something locked stops all of it. */
     function editCursors(kind, text, reason) {
         if (readOnly) return;
+        // cursors exist only in an unfolded text (offsets are those of the textarea); should folds be there all the same, nothing is edited
+        if (folds.length) {
+            clearCursors();
+            unfoldAll();
+            return;
+        }
         const ranges = [primary(), ...extras];
         const result = editAll(textarea.value, ranges, kind, text);
         if (result.spans.some(([from, to]) => blocked(from, to))) return;
@@ -629,7 +636,7 @@ export function createCodeEditor(options = {}) {
         else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && !mod(event) && !event.shiftKey && !event.altKey) {
             const step = event.key === "ArrowLeft" ? -1 : 1;
             const move = ([from, to]) => {
-                const at = from !== to ? (step < 0 ? from : to) : Math.max(0, Math.min(textarea.value.length, to + step));
+                const at = from !== to ? (step < 0 ? from : to) : stepOver(textarea.value, to, step);
                 return [at, at];
             };
             textarea.setSelectionRange(...move(primary()));
@@ -1237,7 +1244,9 @@ export function createCodeEditor(options = {}) {
 
     function onBeforeInput(event) {
         selectionBefore = textarea.selectionStart;
-        if (event.isComposing) return clearCursors();
+        // an edit that cannot be stopped happens to the text as it is: nothing may change that text now, or the edit lands somewhere else
+        // (opening a fold here would let it overwrite lines that were hidden). followFolds puts the folds right afterwards.
+        if (event.isComposing || !event.cancelable) return clearCursors();
         const type = event.inputType;
         if (type === "historyUndo" || type === "historyRedo") {
             event.preventDefault();
@@ -1333,13 +1342,20 @@ export function createCodeEditor(options = {}) {
                 return;
             }
         }
-        if (multi && event.altKey) altFrom = primary();
+        // where the cursor is now, as a place in the whole text: the next one is only possible with everything open
+        if (multi && event.altKey) altFrom = primary().map(offset => toFull(textarea.value, folds, offset));
         else clearCursors();
     };
     const onPointerUp = () => {
         const before = altFrom;
         altFrom = null;
-        if (before) requestAnimationFrame(() => !destroyed && setCursors([...extras, before]));
+        if (before) {
+            requestAnimationFrame(() => {
+                if (destroyed) return;
+                unfoldAll();      // keeps the new cursor on the same text
+                setCursors([...extras, before]);
+            });
+        }
     };
     textarea.addEventListener("pointerdown", onPointerDown);
     textarea.addEventListener("pointerup", onPointerUp);

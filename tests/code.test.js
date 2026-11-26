@@ -72,6 +72,40 @@ describe("code tokenizer", () => {
         assert.deepEqual(moveFolds("x {\n}", "x {\nx {\n}", [{ line: 0, hidden: "\n b" }], { from: 0, to: 0 }).folds, [{ line: 1, hidden: "\n b" }], "a copy of the line typed above it");
     });
 
+    test("folding: whatever one edit does to the visible text, the hidden blocks stay whole and in their order", () => {
+        const source = "a:\n  a1\n  a2\nmid\nb:\n  b1\n  b2\nend";
+        const two = foldAt(source, [], 4);
+        const { visible, folds } = foldAt(two.visible, two.folds, 0);
+        assert.equal(visible, "a:\nmid\nb:\nend");
+        let checked = 0;
+        for (let from = 0; from <= visible.length; from++) {
+            for (let to = from; to <= visible.length; to++) {
+                for (const text of ["", "x", "\n", "p\nq\n"]) {
+                    const after = visible.slice(0, from) + text + visible.slice(to);
+                    for (const edit of [{ from, to }, null]) {
+                        const moved = moveFolds(visible, after, folds, edit);
+                        const whole = fullText(after, moved.all);
+                        const [first, second] = folds.map(fold => whole.indexOf(fold.hidden));
+                        const what = `[${from},${to}] ${JSON.stringify(text)} ${edit ? "known" : "compared"} -> ${JSON.stringify(whole)}`;
+                        assert.ok(first >= 0 && second > first, what);
+                        assert.equal(whole.replace(folds[0].hidden, "").replace(folds[1].hidden, ""), after, what);
+                        if (moved.broken.length) continue;
+                        assert.equal(fullText(after, moved.folds), whole, what);
+                    }
+                    checked++;
+                }
+            }
+        }
+        assert.ok(checked > 400);
+    });
+
+    test("multiple cursors: Backspace and Delete take whole characters", () => {
+        assert.equal(editAll("a🙂b", [[3, 3]], "backward").value, "ab");
+        assert.equal(editAll("a🙂b", [[1, 1]], "forward").value, "ab");
+        assert.equal(editAll("👨‍👩‍👧x e\u0301", [[8, 8], [12, 12]], "backward").value, "x ");
+        assert.equal(editAll("a\nb", [[2, 2]], "backward").value, "ab");
+    });
+
     test("multiple cursors: one edit at every range", () => {
         assert.deepEqual(editAll("ab ab ab", [[0, 2], [6, 8], [3, 5]], "insert", "x").value, "x x x");
         assert.deepEqual(editAll("abc", [[1, 1], [2, 2]], "backward"), { value: "c", carets: [0, 0], spans: [[0, 1], [1, 2]] });
