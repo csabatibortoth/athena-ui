@@ -2110,6 +2110,39 @@ dialog.dialog::backdrop {
     border-radius: var(--athena-radius) var(--athena-radius) 0 0;
 }
 
+/* A vertical rail (layout "vertical", or orientation "vertical" above the breakpoint): items below each other, sheets beside them */
+.athena-menu.athena-menu-vertical .athena-menu-list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+}
+
+.athena-menu.athena-menu-vertical .menu-item { position: relative; }
+.athena-menu.athena-menu-vertical .menu-item-end { margin-left: 0; }
+
+.athena-menu.athena-menu-vertical .menu-control {
+    width: 100%;
+    min-height: 44px;
+    text-align: left;
+}
+
+.athena-menu.athena-menu-vertical .menu-control.is-active,
+.athena-menu.athena-menu-vertical .has-active > .menu-control {
+    box-shadow: inset 4px 0 0 var(--athena-menu-active, var(--athena-accent));
+}
+
+.athena-menu.athena-menu-vertical > .athena-menu-list > .menu-item > .menu-sheet {
+    top: 0;
+    right: auto;
+    left: 100%;
+    margin: 0 0 0 2px;
+}
+
+.athena-menu.athena-menu-vertical > .athena-menu-list > .menu-item > .menu-control .menu-caret {
+    margin-left: auto;
+    rotate: -90deg;
+}
+
 /* Menu: groups inside groups, and badges */
 
 .athena-menu .menu-sheet-nested {

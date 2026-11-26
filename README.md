@@ -426,7 +426,7 @@ and supports the arrow keys, Home and End. The same works in the footer menu.
 ```js
 const menu = generateMenu({
     parent: "header",                              // an element, an id or a selector
-    layout: "responsive",                          // "bar" | "bottom-tabs" | "responsive" (tabs at the bottom under 700px, groups open as sheets)
+    layout: "responsive",                          // "bar" | "vertical" | "bottom-tabs" | "responsive" (tabs at the bottom under 700px, groups open as sheets)
     followHash: true,                              // the item whose href equals location.hash is the active one
     onNavigate: (item, event) => console.log(item.id),   // only when a person uses an item, never from select() or while building
     items: [
@@ -447,7 +447,10 @@ Groups nest to any depth: ArrowDown / ArrowUp open the first level, ArrowRight o
 first, Home / End jump, a click outside closes everything. A badge above 99 shows "99+". `generateHeaderMenu({ items, onNavigate })` puts the same menu into the header.
 
 On a coloured header set `--athena-menu-bg`, `--athena-menu-fg`, `--athena-menu-hover` and `--athena-menu-active` (the line under the active item) on the menu or a parent; without them the bar is
-transparent as before. When there are more bottom tabs than fit, the bar scrolls sideways (the page does not) and keeps the current one in view. `layout: "responsive"` switches to tabs at the bottom up to `breakpoint` px (default 700), and gives the menu the class `is-tabs` while they show.
+transparent as before.
+
+**A vertical rail:** `layout: "vertical"`, or `layout: "responsive"` with `orientation: "vertical"` (a rail on wide screens, bottom tabs on narrow ones; `menu.update({ orientation })` switches it). Up / Down
+move along the rail, Right opens a group beside it, Left or Esc closes it. When there are more bottom tabs than fit, the bar scrolls sideways (the page does not) and keeps the current one in view. `layout: "responsive"` switches to tabs at the bottom up to `breakpoint` px (default 700), and gives the menu the class `is-tabs` while they show.
 
 ### Router
 
@@ -659,6 +662,10 @@ restyle everything at once:
 
 The colours come in a light and a dark set. Without the attribute `data-mode` on `<html>` the page follows the system (`prefers-color-scheme`); `data-mode="dark"` or
 `"light"` chooses. [docs/styling.md](docs/styling.md) lists every token and, for every group of rules, the classes and variables it uses (it is generated from the CSS by `npm run docs`).
+
+**Shape and type tokens** (none set by default): `--athena-radius-control` (buttons, badges, pager, menu items: a large value makes pills), `--athena-font` (chart text), `--athena-font-heading` and
+`--athena-heading-transform` (page, card, widget and dialog titles). Text on a status colour is `--athena-info-fg`, `-success-fg`, `-warning-fg`, `-danger-fg`: set them in a theme of your own that changes the
+status colours.
 
 #### Generic class names Athena styles
 
