@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 
 import { diffLines, hunksOf, splitLines } from "../src/libs/core/codeDiff.js";
 import { foldAt, foldRegions, fullLine, fullText, moveFolds, toFull, touchesFold, unfoldAt, visibleLine } from "../src/libs/core/codeFolding.js";
-import { editAll, nextOccurrence, wordAt } from "../src/libs/hephaestus/codeGenerator/multiCursor.js";
+import { editAll, nextOccurrence, stepOver, wordAt } from "../src/libs/hephaestus/codeGenerator/multiCursor.js";
 import { TOKEN_TYPES, getLanguage, getLanguages, registerLanguage, tokenize } from "../src/libs/core/codeLanguages.js";
 
 const types = (text, language) => tokenize(text, language).filter(token => token.type).map(token => `${token.type}:${token.text}`);
@@ -104,6 +104,20 @@ describe("code tokenizer", () => {
         assert.equal(editAll("a🙂b", [[1, 1]], "forward").value, "ab");
         assert.equal(editAll("👨‍👩‍👧x e\u0301", [[8, 8], [12, 12]], "backward").value, "x ");
         assert.equal(editAll("a\nb", [[2, 2]], "backward").value, "ab");
+    });
+
+    test("multiple cursors: a step from any offset of any text, also one that starts with an empty line", () => {
+        assert.equal(stepOver("\nab", 1, -1), 0);
+        for (const value of ["", "a", "\n", "\nab", "\n\n\n", "a\n", "ab\n\ncd", "🙂\n🙂", "\n🙂"]) {
+            for (let offset = 0; offset <= value.length; offset++) {
+                const back = stepOver(value, offset, -1);
+                const next = stepOver(value, offset, 1);
+                const inside = /[\udc00-\udfff]/.test(value[offset] ?? "");
+                if (inside) continue;       // no cursor stands in the middle of a character
+                assert.ok(offset === 0 ? back === 0 : back < offset && back >= offset - 2, `${JSON.stringify(value)} ${offset} back ${back}`);
+                assert.ok(offset === value.length ? next === offset : next > offset && next <= offset + 2, `${JSON.stringify(value)} ${offset} next ${next}`);
+            }
+        }
     });
 
     test("multiple cursors: one edit at every range", () => {

@@ -32,7 +32,7 @@ const characters = text => (segmenter ? Array.from(segmenter.segment(text), part
 export function stepOver(value, offset, step) {
     if (step < 0) {
         if (offset <= 0) return 0;
-        const line = value.lastIndexOf("\n", offset - 2) + 1;
+        const line = offset < 2 ? 0 : value.lastIndexOf("\n", offset - 2) + 1;      // lastIndexOf takes -1 as 0
         return offset - characters(value.slice(line, offset)).at(-1).length;
     }
     if (offset >= value.length) return value.length;
