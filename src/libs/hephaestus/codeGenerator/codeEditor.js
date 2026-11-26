@@ -125,7 +125,7 @@ export function createCodeEditor(options = {}) {
             at += line.length + 1;
         }
         // a comment, a string, a template or a <script> that reaches the end may go on in what follows
-        const open = spans.at(-1)?.nested === true && spans.at(-1).end === text.length;
+        const open = spans.at(-1)?.end === text.length && (spans.at(-1).nested || text.endsWith("\n"));      // an empty last line has no token to tell it by
         return { lines, inside, open };
     }
 
@@ -193,14 +193,29 @@ export function createCodeEditor(options = {}) {
         while (tail < limit - head && before.text.charCodeAt(before.text.length - 1 - tail) === text.charCodeAt(text.length - 1 - tail)) tail++;
         const count = starts.length;
         const delta = count - before.starts.length;
-        let first = lineOf(head);
-        while (first > 0 && insideAtStart[first]) first--;
+        // Rules look around: is this "/" a division (what stands before it), is this name a function (what follows it)? So the line with text
+        // before the change and the one after it are drawn again too, and the tokenizer gets one more line before them, only to read.
+        const restart = line => {
+            while (line > 0 && insideAtStart[line]) line--;
+            return line;
+        };
+        const previous = line => {
+            let at = line - 1;
+            while (at > 0 && !lineText(at).trim()) at--;
+            return restart(Math.max(at, 0));
+        };
+        let first = restart(lineOf(head));
+        if (first > 0) first = previous(first);
+        const context = first > 0 ? previous(first) : 0;
         let last = lineOf(text.length - tail) + 1;
+        while (last < count && !lineText(last).trim()) last++;
+        if (last < count) last++;
         let step = 1;
         for (;;) {
             while (last < count && insideAtStart[last - delta]) last++;
             const end = last < count ? starts[last] - 1 : text.length;
-            const fresh = tokenLines(text.slice(starts[first], end));
+            const read = tokenLines(text.slice(starts[context], end));
+            const fresh = { lines: read.lines.slice(first - context), inside: read.inside.slice(first - context), open: read.open };
             const lastToken = fresh.lines.at(-1).at(-1);
             if (last < count && (fresh.open || lastToken && (lastToken.type === "comment" || lastToken.type === "string" || lastToken.type === "meta"))) {
                 last = Math.min(count, last + step);      // it may run on: look further (doubling, so a long comment does not cost much more)
