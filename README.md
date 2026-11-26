@@ -1005,6 +1005,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Releases
 
+ ### 2.11.0
+
+  - **Widgets**: `createWidgetGallery` (add a widget by click, keyboard or drag), `grid.beginDrop()` for a toolbox of your own, `collision: "swap"`, and a placeholder that shows where a dragged widget will land. A widget added onto a locked one no longer overlaps it.
+  - **Code**: `<script>` and `<style>` inside HTML and nested `${}` of template strings are highlighted (code inside `${}` is no longer coloured as a string); bracket matching ignores strings and comments; `readOnlyRanges` also takes `{ text }`.
+  - **Charts**: `update({ series })` moves bars, lines and points to their new values (`animate: false` switches it off; never under reduced motion).
+  - **Development**: `npm run size` checks the gzip size of every entry point against a budget.
+
  ### 2.10.0
 
   - **New: `log` language in `athena-ui-js/code`** (`highlightCode(text, "log")`): times (including the nginx / Apache `[25/Nov/2026:10:11:12 +0000]` form), IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Patterns are bounded and invalid addresses stay plain; tokenizing always gives the input back.
