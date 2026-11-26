@@ -27,6 +27,25 @@ describe("grid layout maths", () => {
         assert.equal(input[0].y, 5);
     });
 
+    test("placeItem with collision swap: a clean exchange, otherwise the push rule", () => {
+        const row = [item("a", 0, 0, 3, 2), item("b", 3, 0, 3, 2)];
+        const places = result => result.map(entry => [entry.id, entry.x, entry.y]);
+        assert.deepEqual(places(placeItem(row, "a", { x: 1 }, 12, { collision: "swap" })), [["a", 3, 0], ["b", 0, 0]], "touching the neighbour exchanges them");
+        assert.deepEqual(places(placeItem(row, "a", { x: 1 }, 12)), [["a", 1, 0], ["b", 3, 2]], "the default still pushes");
+        const column = [item("a", 0, 0, 3, 2), item("b", 0, 2, 3, 4)];
+        assert.deepEqual(places(placeItem(column, "a", { y: 2 }, 12, { collision: "swap" })), places(placeItem(column, "a", { y: 2 }, 12)).map(([id]) => [id, 0, id === "a" ? 4 : 0]), "different heights exchange too");
+        assert.deepEqual(places(placeItem(row, "a", { x: 1 }, 12, { collision: "swap", swapCover: 0.5 })), [["a", 1, 0], ["b", 3, 2]], "a third covered: not yet");
+        assert.deepEqual(places(placeItem(row, "a", { x: 2 }, 12, { collision: "swap", swapCover: 0.5 })), [["a", 3, 0], ["b", 0, 0]], "two thirds covered");
+        const wide = [item("a", 0, 0, 3, 2), item("b", 3, 0, 6, 2)];
+        assert.deepEqual(places(placeItem(wide, "a", { x: 1 }, 12, { collision: "swap" })), [["a", 6, 0], ["b", 0, 0]], "different widths exchange");
+        assert.deepEqual(places(placeItem(wide, "b", { x: 2 }, 12, { collision: "swap" })), [["a", 6, 0], ["b", 0, 0]], "in the other direction too");
+        const two = [item("a", 0, 0, 6, 2), item("b", 0, 2, 3, 2), item("c", 3, 2, 3, 2)];
+        assert.deepEqual(placeItem(two, "a", { y: 2 }, 12, { collision: "swap" }), placeItem(two, "a", { y: 2 }, 12), "two hit: push");
+        const locked = [item("a", 0, 0, 3, 2), item("b", 3, 0, 3, 2, { locked: true })];
+        assert.equal(placeItem(locked, "a", { x: 3 }, 12, { collision: "swap" }), null, "a locked item is not exchanged");
+        assert.equal(overlaps(placeItem(row, "a", { w: 5 }, 12, { collision: "swap" })), false, "a resize never swaps");
+    });
+
     test("placeItem: the item goes where it is put, what is in the way is pushed down, and the result has no overlap", () => {
         const items = [item("a", 0, 0, 2, 2), item("b", 2, 0, 2, 2), item("c", 2, 2, 2, 2)];
         const result = placeItem(items, "a", { x: 1 }, 4);

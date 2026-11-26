@@ -803,6 +803,11 @@ const id = await grid.addWidgetWithSettings("clock");           // adds a widget
   A **locked** widget (`lockWidget(id)`) is not moved, not resized, not pushed, and nothing can be put on it.
 - **Keyboard**: focus the handle, Space or Enter picks the widget up, arrow keys move it, Shift with arrow keys resizes it, Enter drops it, Escape cancels. Every step is announced
   in a live region ("Column 2, row 1, 3 wide, 2 high"). Pointer Events: mouse, pen and touch work the same.
+- **Moving**: the widget follows the pointer and a placeholder shows where it will land. `collision: "swap"` makes a widget moved onto another exchange places with it
+  (under a pointer once half of it is covered, with the keyboard at once; when that is a clean exchange; otherwise, and for a resize, widgets are pushed as by default).
+- **Gallery**: `createWidgetGallery({ element, grid, types, withSettings, onAdd })` lists the registered types (`title`, `description`). A click, Enter or Space adds one; a mouse or
+  pen drags it onto the grid, a finger drags it by the grip. It adds whether or not edit mode is on: show it when your application wants it.
+- **Drag from your own toolbox**: `const drop = grid.beginDrop(type)`, then `drop.move(clientX, clientY)`, `drop.drop()` or `drop.cancel()`.
 - **Undo and redo** of every change (`undo()`, `redo()`, `canUndo()`); `updateWidget(id, { config })` is for data from code and is not an undo step.
 - **Layouts** (`getLayout()` / `setLayout(json)`) are plain JSON and the application decides where they are stored. Loading is checked: a bad entry is skipped (reported in the result),
   duplicate ids are replaced, places are clamped and made free of overlaps, `__proto__`-style keys are dropped, and a type that is not registered is shown as a placeholder (its data is kept, nothing is executed).

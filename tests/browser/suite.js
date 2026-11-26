@@ -1727,6 +1727,102 @@ const widgetsCleanup = grid => {
     $1("#wg")?.remove();
 };
 
+// ---- ATH-5: swap, placeholder, gallery, drag from outside ----
+
+A.registerWidget("t-gallery", { title: "<b>Gallery note</b>", description: "A <img src=x> description", defaultSize: { w: 3, h: 2 }, render() {} });
+
+test("widgets: a drag shows a placeholder, the widget follows the pointer, and no style attribute is written", async () => {
+    const grid = makeGrid({ editable: true, collision: "swap", widgets: [noteAt("a", 0, 0), noteAt("b", 3, 0)] });
+    $1("#wg").style.width = "1000px";
+    const handle = $1('[data-widget-id="a"] .widget-handle');
+    const rect = handle.getBoundingClientRect();
+    const stride = (1000 + 12) / 12;
+    ptr("pointerdown", handle, rect.x + 2, rect.y + 2);
+    ptr("pointermove", handle, rect.x + 2 + 3 * stride, rect.y + 12);
+    assert($1("#wg .widget-placeholder"), "a placeholder");
+    equal(placeOf(grid, "a").x, 3);
+    equal(placeOf(grid, "b").x, 0, "swapped");
+    const node = $1('[data-widget-id="a"]');
+    equal(node.getAttribute("style"), null);
+    assert(Math.abs(node.getBoundingClientRect().top - $1("#wg .widget-placeholder").getBoundingClientRect().top - 10) < 2, "10px under the finger");
+    ptr("pointerup", handle, rect.x + 2 + 3 * stride, rect.y + 12);
+    equal($1("#wg .widget-placeholder"), null);
+    equal(node.getAnimations().length, 0, "nothing holds the offset (reduced motion in the tests)");
+    widgetsCleanup(grid);
+});
+
+test("widgets: beginDrop previews, cancel restores, drop adds once at the place shown", () => {
+    const calls = [];
+    const grid = makeGrid({ widgets: [noteAt("a", 0, 0)], onChange: (layout, reason) => calls.push(reason) });
+    $1("#wg").style.width = "1000px";
+    const box = $1("#wg").getBoundingClientRect();
+    let session = grid.beginDrop("t-gallery");
+    equal(grid.beginDrop("t-gallery"), null, "one gesture at a time");
+    assert(session.move(box.left + 40, box.top + 10), "over the grid");
+    equal(placeOf(grid, "a").y, 2, "the widget there makes room");
+    session.cancel();
+    equal(placeOf(grid, "a").y, 0);
+    equal($1("#wg .widget-placeholder"), null);
+    session = grid.beginDrop("t-gallery");
+    equal(session.move(box.left - 50, box.top), false, "outside");
+    equal(session.drop(), null, "a drop outside adds nothing");
+    equal(calls.length, 0);
+    session = grid.beginDrop("t-gallery");
+    session.move(box.left + 700, box.top + 10);
+    const id = session.drop();
+    equal(grid.getWidgets().length, 2);
+    equal(placeOf(grid, id).y, 0);
+    assert(placeOf(grid, id).x >= 6, "where the pointer was");
+    equal(calls.join(), "add");
+    equal(grid.beginDrop("nope"), null);
+    widgetsCleanup(grid);
+});
+
+test("widgets: a new widget aimed at a locked one does not overlap it", () => {
+    const grid = makeGrid({ widgets: [noteAt("a", 0, 0, { locked: true })] });
+    const id = grid.addWidget("t-gallery", { x: 0, y: 0 });
+    const a = placeOf(grid, "a");
+    const b = placeOf(grid, id);
+    assert(b.x >= a.x + a.w || b.y >= a.y + a.h, "beside or below");
+    widgetsCleanup(grid);
+});
+
+test("widgets: the gallery adds by click and by drag, text only, one widget per action", async () => {
+    const added = [];
+    const grid = makeGrid({ widgets: [] });
+    $1("#wg").style.width = "1000px";
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const gallery = A.createWidgetGallery({ element: host, grid, types: ["t-gallery", "nope"], onAdd: id => added.push(id) });
+    equal($$("button", host).length, 1, "unknown types are left out");
+    const button = $1("button", host);
+    equal($1("b, img", host), null, "titles are text");
+    assert(button.getBoundingClientRect().height >= 44, "a finger target");
+    assert($1(".widget-gallery-grip", host).getBoundingClientRect().width >= 44);
+    button.click();
+    await tick();
+    equal(grid.getWidgets().length, 1);
+    const box = $1("#wg").getBoundingClientRect();
+    const from = button.getBoundingClientRect();
+    ptr("pointerdown", button, from.x + 60, from.y + 10);
+    ptr("pointermove", document.body, box.left + 700, box.top + 10);
+    assert($1("#wg .widget-placeholder"), "the grid shows where it goes");
+    ptr("pointerup", document.body, box.left + 700, box.top + 10);
+    button.click();      // the click a browser sends after a drag on the same button
+    await tick();
+    equal(grid.getWidgets().length, 2);
+    equal(added.length, 2);
+    ptr("pointerdown", button, from.x + 60, from.y + 10);
+    ptr("pointermove", document.body, box.left + 100, box.top + 10);
+    press(document.body, "Escape");
+    equal($1("#wg .widget-placeholder"), null, "Escape cancels");
+    ptr("pointerup", document.body, box.left + 100, box.top + 10);
+    equal(grid.getWidgets().length, 2);
+    gallery.destroy();
+    host.remove();
+    widgetsCleanup(grid);
+});
+
 // ---- 2.7.0: what the migration of Heimdall showed ----
 
 test("field: hideLabel keeps the label for screen readers and the browser, and hides it visually", () => {

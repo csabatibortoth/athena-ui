@@ -359,6 +359,17 @@ describe("what a person does", { skip }, () => {
         assert.equal(await column("hosts"), "2");
     }));
 
+    test("widgets: a widget is dragged from the gallery onto the dashboard with a real mouse", { timeout: 240000 }, () => withPage("/widgets", async page => {
+        await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 5`, { timeout: 90000 });
+        await page.waitFor(`document.querySelector("#widget-gallery button")`);
+        const [dx, dy] = await page.eval(`(() => { document.getElementById("widget-gallery").scrollIntoView(); const from = document.querySelector('#widget-gallery [data-widget-type="clock"]').getBoundingClientRect(); const to = document.getElementById("dashboard").getBoundingClientRect(); return [to.left + to.width / 2 - (from.left + from.width / 2), to.top + 40 - (from.top + from.height / 2)]; })()`);
+        await page.drag('#widget-gallery [data-widget-type="clock"]', dx, dy);
+        await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 6`);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        assert.equal(await page.eval(`document.querySelectorAll("#dashboard .widget").length`), 6, "one widget, not two");
+        assert.equal(await page.eval(`document.querySelector("#dashboard .widget-placeholder")`), null);
+    }));
+
     test("code: real typing in the editor closes brackets and keeps indentation, Tab indents and Escape then Tab leaves, undo works, locked lines refuse", { timeout: 240000 }, () => withPage("/code", async page => {
         await page.waitFor(`document.querySelector(".page-title")?.textContent === "Code"`, { timeout: 90000 });
         await page.waitFor(`document.querySelector("#code-editor textarea") && document.querySelectorAll("#code-editor .code-line").length > 5`, { timeout: 30000 });
