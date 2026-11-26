@@ -59,6 +59,25 @@ describe("every page draws, without a single error, under the strict policy", { 
     }
 });
 
+describe("no page scrolls sideways", { skip }, () => {
+    const routes = ["/", "/tables", "/charts", "/forms", "/dialogs", "/navigation", "/widgets", "/board", "/code", "/motion", "/themes", "/about", "/account"];
+    for (const width of [320, 375, 768, 1440]) {
+        test(`at ${width} px`, { timeout: 240000 }, async () => {
+            const wide = [];
+            for (const route of routes) {
+                await withPage(route, async page => {
+                    await page.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
+                    await page.waitFor(`document.querySelector(".page-title")`, { timeout: 90000 });
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                    const over = await page.eval(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
+                    if (over > 0) wide.push(`${route}: ${over}px`);
+                });
+            }
+            assert.deepEqual(wide, []);
+        });
+    }
+});
+
 describe("what a person does", { skip }, () => {
     test("sign in: a wrong password is told in the form, a right one opens the page that was asked for, and the cookie is out of reach of scripts", { timeout: 240000 }, () => withPage("/admin", async page => {
         await page.waitFor(`document.querySelector(".page-title")?.textContent === "Account"`, { timeout: 90000 });

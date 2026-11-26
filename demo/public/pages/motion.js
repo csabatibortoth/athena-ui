@@ -56,7 +56,8 @@ export default async function motion(context, { app }) {
     generateButton({
         parent: springBlock, text: "Move", variant: "secondary", onclick: () => {
             const { easing, duration } = spring({ stiffness: 220, damping: 12 });
-            animate(ball, right ? [{ translate: "240px 0" }, { translate: "0 0" }] : [{ translate: "0 0" }, { translate: "240px 0" }], { easing, duration, fill: "forwards" });
+            const far = `${Math.min(240, track.clientWidth - 16 - ball.offsetWidth)}px 0`;      // a narrow screen has a shorter track
+            animate(ball, right ? [{ translate: far }, { translate: "0 0" }] : [{ translate: "0 0" }, { translate: far }], { easing, duration, fill: "forwards" });
             right = !right;
         }
     });

@@ -1759,6 +1759,50 @@ test("code editor: a copy typed right before a locked text does not take the loc
     host.remove();
 });
 
+// ---- ATH-39: nothing widens the page ----
+
+test("layout: bordered containers with padding, and a hidden label in a wide table, do not widen what holds them", () => {
+    const box = document.createElement("div");
+    box.style.width = "300px";
+    box.style.overflow = "auto";
+    document.getElementById("wrapper").append(box);
+    const header = document.createElement("div");
+    header.className = "header-container default-cointainer-bordered";
+    header.style.padding = "8px 16px";
+    box.append(header);
+    equal(header.getBoundingClientRect().width, 300);
+    box.style.overflow = "visible";
+    box.style.position = "static";
+    const wrapper = document.createElement("div");
+    wrapper.className = "athena-table-wrapper";
+    wrapper.innerHTML = '<table class="athena-table"><tbody><tr><td>x</td><td><span class="athena-visually-hidden">label</span></td></tr></tbody></table>';
+    box.append(wrapper);
+    $1("td", wrapper).style.minWidth = "900px";
+    equal($1("span", wrapper).offsetParent === wrapper || wrapper.contains($1("span", wrapper).offsetParent), true, "the label is positioned inside the scroll area");
+    box.remove();
+});
+
+test("menu: bottom tabs that do not fit scroll inside the bar, and the current one is in view", async () => {
+    const host = document.createElement("div");
+    host.style.width = "300px";
+    document.getElementById("wrapper").append(host);
+    const menu = A.generateMenu({ parent: host, layout: "bottom-tabs", items: Array.from({ length: 30 }, (_, i) => ({ id: `t${i}`, label: `Section ${i}` })), active: "t29" });
+    const list = $1(".athena-menu-list", menu.element);
+    assert(list.scrollWidth > list.clientWidth, "more than fit");
+    equal(getComputedStyle(list).overflowX, "auto");
+    const inView = id => {
+        const bar = list.getBoundingClientRect();
+        const tab = $1(`[data-id="${id}"]`, menu.element).getBoundingClientRect();
+        return tab.left >= bar.left - 1 && tab.right <= bar.right + 1;
+    };
+    assert(inView("t29"), "the active tab at the start");
+    menu.select("t0");
+    assert(inView("t0"), "and after select()");
+    assert($$(".menu-item", menu.element).every(item => item.getBoundingClientRect().width >= 44), "finger targets");
+    menu.destroy();
+    host.remove();
+});
+
 // ---- ATH-10: charts morph on update ----
 
 test("charts: update({ series }) moves from the old shape to the new one; reduced motion, a resize and animate:false do not", async () => {
