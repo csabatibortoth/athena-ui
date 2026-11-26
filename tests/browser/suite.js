@@ -1829,6 +1829,8 @@ test("menu: a vertical rail moves with Up and Down, opens groups beside it with 
     const box = id => control(id).getBoundingClientRect();
     assert(box("g").top >= box("a").bottom - 1, "below each other");
     assert(box("a").height >= 44, "a finger target");
+    menu.update({ items: [{ id: "a", label: "A link", href: "#a" }, { id: "g", label: "Group", children: [{ id: "x", label: "X" }, { id: "y", label: "Y" }] }, { id: "z", label: "Zulu" }] });
+    for (const id of ["a", "g", "z"]) assert(box(id).right <= menu.element.getBoundingClientRect().right + 0.5, `${id} stays inside the rail`);
     control("a").focus();
     key(control("a"), "ArrowDown");
     equal(document.activeElement, control("g"), "Down moves on");

@@ -270,3 +270,123 @@ body {
 .demo-log li {
     padding: 2px 0;
 }
+
+/* ============================================================ Bridge: a theme inspired by LCARS
+   Flat colour, swept frames of changing thickness, pill caps. Colours and shapes are tokens; the frame is drawn around the demo's own
+   header, content and footer. No logos, no insignia, no fonts from elsewhere: the condensed look uses what the device has. */
+
+[data-theme="bridge"] {
+    --athena-radius: 14px;
+    --athena-radius-control: 999px;
+    --athena-shadow: none;
+    --athena-font: "Roboto Condensed", "Avenir Next Condensed", "Arial Narrow", "Liberation Sans Narrow", "DejaVu Sans Condensed", sans-serif;
+    --athena-font-heading: var(--athena-font);
+    --athena-heading-transform: uppercase;
+}
+
+[data-theme="bridge"][data-mode="dark"] {
+    color-scheme: dark;
+    --athena-bg: #000;
+    --athena-fg: #f5e6d3;
+    --athena-muted: #b9a9d6;
+    --athena-border: #cc99cc;
+    --athena-line: #5c4a73;
+    --athena-surface: #17121f;
+    --athena-surface-alt: #0d0a12;
+    --athena-hover: #2d2140;
+    --athena-overlay: rgb(0 0 0 / 75%);
+    --athena-accent: #ff9c33;
+    --athena-accent-fg: #000;
+    --athena-focus: #ffffff;
+    --athena-danger: #ff7a6e;
+    --athena-success: #99cc99;
+    --athena-warning: #ffcc66;
+    --athena-info: #99ccff;
+    --athena-info-fg: #000; --athena-success-fg: #000; --athena-warning-fg: #000; --athena-danger-fg: #000;
+    --series-1: #ff9c33; --series-2: #99ccff; --series-3: #cc99cc; --series-4: #ffcc99;
+    --series-5: #99cc99; --series-6: #ffcc66; --series-7: #ff7a6e; --series-8: #9999ff;
+    --bridge-a: #ff9c33; --bridge-b: #cc99cc; --bridge-c: #9999ff; --bridge-d: #ffcc99; --bridge-ink: #000;
+}
+
+[data-theme="bridge"][data-mode="light"] {
+    color-scheme: light;
+    --athena-bg: #fbf6ee;
+    --athena-fg: #1d1420;
+    --athena-muted: #5a4a68;
+    --athena-border: #6a4a7a;
+    --athena-line: #d8c8dc;
+    --athena-surface: #f3eadf;
+    --athena-surface-alt: #fffaf3;
+    --athena-hover: #efe0f0;
+    --athena-overlay: rgb(30 15 40 / 45%);
+    --athena-accent: #8a4300;
+    --athena-accent-fg: #fff;
+    --athena-focus: #2b1a8a;
+    --athena-danger: #a8261c;
+    --athena-success: #1f6b3a;
+    --athena-warning: #7a5200;
+    --athena-info: #1d5a8c;
+    --athena-info-fg: #fff; --athena-success-fg: #fff; --athena-warning-fg: #fff; --athena-danger-fg: #fff;
+    --series-1: #b35900; --series-2: #1d5a8c; --series-3: #7b3f7b; --series-4: #9a6a3a;
+    --series-5: #1f6b3a; --series-6: #7a5200; --series-7: #a8261c; --series-8: #44449a;
+    --bridge-a: #f0a04b; --bridge-b: #c9a0c9; --bridge-c: #a9a9f0; --bridge-d: #f2c99c; --bridge-ink: #1d1420;
+}
+
+html[data-theme="bridge"] body { font-family: var(--athena-font); letter-spacing: 0.02em; }
+html[data-theme="bridge"] .demo-block > h2 { text-transform: uppercase; color: var(--athena-accent); }
+html[data-theme="bridge"] #container { border: 0; }
+html[data-theme="bridge"] .demo-brand { background: var(--bridge-a); color: var(--bridge-ink); text-transform: uppercase; padding: 6px 18px; }
+html[data-theme="bridge"] .demo-version { color: var(--bridge-ink); }
+html[data-theme="bridge"] .demo-footer { border-top: 12px solid var(--bridge-b); }
+
+html[data-theme="bridge"] .athena-table-pager button { border: 1px solid var(--athena-border); border-radius: 999px; background: var(--athena-surface); color: var(--athena-fg); font: inherit; padding: 4px 14px; cursor: pointer; }
+html[data-theme="bridge"] .athena-table-pager button:disabled { opacity: 0.5; cursor: not-allowed; }
+/* the router moves the focus to the page after it changes: the page is not a control, and a ring around it would break the swept frame */
+html[data-theme="bridge"] #wrapper:focus-visible { outline: none; }
+
+/* phones: the elbow becomes a pill in a top bar; the tabs stay at the bottom */
+html[data-theme="bridge"] #header { background: none; border: 0; }
+html[data-theme="bridge"] .demo-brand { border-radius: 999px; }
+html[data-theme="bridge"] .athena-menu.is-tabs .menu-control.is-active { background: var(--bridge-a); color: var(--bridge-ink); }
+
+/* wide screens: a rail at the left, an elbow into the bar above the content, another into the footer */
+@media (min-width: 701px) {
+    html[data-theme="bridge"] #container {
+        display: grid;
+        grid-template-columns: 208px minmax(0, 1fr);
+        grid-template-rows: 1fr auto;
+        column-gap: 10px;
+        height: auto;               /* the default theme makes .container as high as the screen: the rail must go on with the page */
+        min-height: 100vh;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+    html[data-theme="bridge"] :is(#header, #wrapper) { height: auto; }      /* and 20 % / 75 % of it for the header and the content */
+    html[data-theme="bridge"] #header { grid-column: 1; grid-row: 1 / span 2; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 4px; padding: 0; }
+    html[data-theme="bridge"] .demo-brand { justify-content: flex-end; align-items: flex-start; min-height: 74px; border-radius: 44px 0 0 0; }
+    html[data-theme="bridge"] #header .athena-menu { flex: none; }
+    html[data-theme="bridge"] #header .athena-menu-list { gap: 4px; }
+    html[data-theme="bridge"] #header::after { content: ""; flex: 1; min-height: 60px; background: var(--bridge-b); border-radius: 0 0 0 44px; }
+    html[data-theme="bridge"] .athena-menu-vertical > .athena-menu-list > .menu-item > .menu-control {
+        justify-content: flex-end;
+        border-radius: 0 999px 999px 0;
+        background: var(--bridge-c);
+        color: var(--bridge-ink);
+        text-transform: uppercase;
+    }
+    html[data-theme="bridge"] .athena-menu-vertical > .athena-menu-list > .menu-item:nth-child(3n + 2) > .menu-control { background: var(--bridge-d); }
+    html[data-theme="bridge"] .athena-menu-vertical > .athena-menu-list > .menu-item:nth-child(3n) > .menu-control { background: var(--bridge-b); }
+    html[data-theme="bridge"] .athena-menu-vertical > .athena-menu-list > .menu-item > .menu-control.is-active {
+        background: var(--bridge-a);
+        box-shadow: inset 14px 0 0 var(--athena-fg);
+    }
+    html[data-theme="bridge"] .athena-menu-vertical > .athena-menu-list > .menu-item > .menu-control:hover { filter: brightness(1.12); }
+    html[data-theme="bridge"] #wrapper {
+        grid-column: 2;
+        width: 100%;
+        border: 0;
+        border-top: 22px solid var(--bridge-a);
+        border-radius: 36px 0 0 0;
+    }
+    html[data-theme="bridge"] .demo-footer { grid-column: 2; border-top: 0; border-bottom: 12px solid var(--bridge-b); border-radius: 0 0 0 28px; }
+}

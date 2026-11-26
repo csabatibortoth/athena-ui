@@ -2121,6 +2121,7 @@ dialog.dialog::backdrop {
 .athena-menu.athena-menu-vertical .menu-item-end { margin-left: 0; }
 
 .athena-menu.athena-menu-vertical .menu-control {
+    box-sizing: border-box;      /* the padding is inside the rail, for a link as for a button */
     width: 100%;
     min-height: 44px;
     text-align: left;

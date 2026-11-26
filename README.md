@@ -77,7 +77,7 @@ Without npm, serve the `src` folder with any static web server and open `index.h
 
 **Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
-`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor (also with folding, a minimap and several cursors), the JSON tree, motion, every field type, native dialogs, a menu with groups inside groups, themes
+`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor (also with folding, a minimap and several cursors), the JSON tree, motion, a theme inspired by LCARS (Bridge), every field type, native dialogs, a menu with groups inside groups, themes
 and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy. The footer shows the version and, on a deployed site, the commit it was built from.
 
 ```sh
