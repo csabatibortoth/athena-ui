@@ -3194,6 +3194,10 @@ dialog.dialog[open]::backdrop {
     background: color-mix(in srgb, var(--athena-muted) 14%, transparent);
 }
 
+.code-line.has-locked-text {
+    background: color-mix(in srgb, var(--athena-muted) 7%, transparent);
+}
+
 .code-line.has-marker {
     text-decoration: underline wavy;
     text-decoration-thickness: 1px;

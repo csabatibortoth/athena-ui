@@ -18,6 +18,27 @@ describe("code tokenizer", () => {
         }
     });
 
+    test("template strings: code inside ${} is code, at any depth", () => {
+        const source = "const a = `x ${ f(`y ${1 + 2} {`, '}') } z`; // end";
+        assert.equal(tokenize(source, "js").map(token => token.text).join(""), source);
+        const found = types(source, "js");
+        for (const expected of ["function:f", "number:1", "number:2", "string:'}'", "comment:// end"]) assert.ok(found.includes(expected), `${expected} in ${found}`);
+        assert.deepEqual(types("`plain`", "js"), ["string:`plain`"]);
+        for (const broken of ["`a ${ b", "`a ${ `", "`${".repeat(200), "`a \\", "`${ /* }"]) assert.equal(tokenize(broken, "js").map(token => token.text).join(""), broken, broken);
+    });
+
+    test("html: script and style have their own colours, other script types stay plain", () => {
+        const source = "<SCRIPT>const a = '</p>';</SCRIPT><style>a { color: red; }</style><script type=\"text/x-template\">const b</script><p>const</p>";
+        assert.equal(tokenize(source, "html").map(token => token.text).join(""), source);
+        const found = types(source, "html");
+        assert.ok(found.includes("keyword:const") && found.includes("string:'</p>'") && found.includes("property:color"), String(found));
+        assert.equal(found.filter(entry => entry === "keyword:const").length, 1, "not in the template, not in the paragraph");
+        assert.ok(types("<script>\nlet x", "html").includes("keyword:let"), "while it is typed");
+        const spans = [];
+        tokenize("<p>\n<script>\n1\n</script>", "html", spans);
+        assert.deepEqual(spans.filter(span => span.nested).map(span => [span.start, span.end]), [[4, 24]]);
+    });
+
     test("the languages and their aliases are there", () => {
         for (const name of ["javascript", "typescript", "json", "html", "css", "sql", "shell", "yaml", "csharp", "python", "log"]) assert.ok(getLanguage(name), name);
         for (const [alias, name] of [["js", "javascript"], ["ts", "typescript"], ["sh", "shell"], ["bash", "shell"], ["yml", "yaml"], ["c#", "csharp"], ["cs", "csharp"], ["py", "python"], ["JS", "javascript"], ["xml", "html"]]) {
@@ -71,7 +92,7 @@ describe("code tokenizer", () => {
         assert.ok(types('foo("x\\"y")', "js").includes('string:"x\\"y"'), "an escaped quote stays inside the string");
         assert.ok(types("x = /ab+c/g", "js").includes("string:/ab+c/g"), "a regular expression after =");
         assert.deepEqual(types("a / b / c", "js"), ["operator:/", "operator:/"], "division is not a regular expression");
-        assert.ok(types("`a ${b} c`", "js").includes("string:`a ${b} c`"));
+        assert.deepEqual(types("`a ${b} c`", "js"), ["string:`a ", "punctuation:${", "punctuation:}", "string: c`"], "the code inside ${} is not a string");
         assert.ok(types("foo(1)", "js").includes("function:foo"));
         assert.ok(types("/* a\nb */ x", "js").includes("comment:/* a\nb */"), "a block comment spans lines");
     });

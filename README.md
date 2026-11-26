@@ -866,7 +866,7 @@ generateCodeBlock({ parent: "docs", code: sql, language: "sql", lineNumbers: tru
 const editor = createCodeEditor({
     element: "editor", value: source, language: "ts", onChange: value => save(value),
     markers: [{ line: 3, message: "Unexpected token", level: "error" }],                                   // lint markers, shown in the status line
-    readOnlyRanges: [{ from: 1, to: 2 }],                                                                   // lines that cannot be changed
+    readOnlyRanges: [{ from: 1, to: 2 }, { text: "// do not edit" }],                                        // lines, or a piece of text, that cannot be changed
     provideCompletions: ({ prefix }) => words.filter(word => word.startsWith(prefix)).map(label => ({ label }))
 });
 
@@ -876,7 +876,7 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
 
 - **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`), `log`. The `log` language comes from Heimdall's log display: times, IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Its patterns are bounded so a hostile line stays cheap; tokenizing always gives the input text back. A three-digit number in 100..599 gets the status colour even without context (a pid, for example).
   A language is a plain object (`registerLanguage({ name, aliases, rules: [{ type, pattern }], lineComment, blockComment, pairs, indentAfter })`), so your own are one call.
-  The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours) but it does not know nested `${}` of a template string or the `<script>` inside HTML.
+  The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours) but it knows nested `${}` of a template string and the `<script>` and `<style>` inside HTML, but not, for example, CSS inside a template string. Bracket matching ignores brackets in strings and comments.
 - **Colours** are the tokens `--athena-tok-comment`, `-string`, `-keyword` ... (light and dark); a test keeps every one at 4.5:1 contrast or more.
 - **The editor is a real `<textarea>`** with the highlighted text behind it, so native input, selection, spell-check off, mobile keyboards, IME and screen readers all work.
   Tab and Shift+Tab indent and outdent (also several lines), Enter keeps the indentation (and goes one level deeper after `{`, `(`, `:`), brackets and quotes are closed, stepped over, wrapped around a selection and

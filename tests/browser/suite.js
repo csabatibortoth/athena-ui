@@ -1727,6 +1727,72 @@ const widgetsCleanup = grid => {
     $1("#wg")?.remove();
 };
 
+// ---- ATH-6: embedded languages, bracket matching, locked text ----
+
+test("code editor: editing inside a script keeps its colours, removing the closing tag takes the rest along, untouched lines stay", () => {
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const editor = A.createCodeEditor({ element: host, language: "html", value: "<script>\nconst a = 1;\nconst b = 2;\n</script>\n<p>let</p>" });
+    const lines = () => $$(".code-line", host);
+    const keywords = index => $$(".tok-keyword", lines()[index]).map(node => node.textContent).join();
+    equal(keywords(1), "const");
+    const kept = lines()[2];
+    const at = editor.getValue().indexOf("1");
+    editor.setSelection(at, at + 1);
+    editor.insertText("7");
+    equal(keywords(1), "const", "still JavaScript");
+    assert(lines()[2] === kept, "the line below was not drawn again");
+    const close = editor.getValue().indexOf("</script>");
+    editor.setSelection(close, close + 9);
+    editor.insertText("");
+    equal(keywords(4), "let", "the paragraph is script now");
+    editor.destroy();
+    host.remove();
+});
+
+test("code editor: brackets in strings and comments do not count", () => {
+    if (!("highlights" in CSS)) return;
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const source = "f(')', /* ) */ 1)";
+    const editor = A.createCodeEditor({ element: host, language: "js", value: source });
+    editor.focus();
+    editor.setSelection(2, 2);
+    editor.textarea.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowRight", bubbles: true }));
+    document.dispatchEvent(new Event("selectionchange"));
+    const found = [...(CSS.highlights.get("athena-code-bracket") ?? [])].map(range => range.toString());
+    equal(found.join(""), "()");
+    const second = [...CSS.highlights.get("athena-code-bracket")][1];
+    const before = new Range();
+    before.setStart($1(".code-line", host), 0);
+    before.setEnd(second.startContainer, second.startOffset);
+    equal(before.toString().length, source.length - 1, "the last one");
+    editor.destroy();
+    host.remove();
+});
+
+test("code editor: a locked text cannot be changed and stays locked while the text around it changes", () => {
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const editor = A.createCodeEditor({ element: host, language: "js", value: "a = KEEP;\nb", readOnlyRanges: [{ text: "KEEP" }, { text: "absent" }] });
+    const put = (from, to, text) => {
+        editor.setSelection(from, to);
+        editor.insertText(text);
+        return editor.getValue();
+    };
+    equal(put(5, 6, "x"), "a = KEEP;\nb", "inside");
+    equal(put(3, 5, ""), "a = KEEP;\nb", "overlapping");
+    equal(put(0, 0, "KEEP "), "KEEP a = KEEP;\nb", "typing a copy before it");
+    equal(put(0, 4, "gone"), "gone a = KEEP;\nb", "the copy is not locked");
+    equal(put(13, 13, "!"), "gone a = KEEP!;\nb", "right after it one may type");
+    equal(put(10, 11, "x"), "gone a = KEEP!;\nb", "the original still is");
+    assert($1(".code-line.has-locked-text", host), "and the line shows it");
+    editor.setReadOnlyRanges([]);
+    equal(put(10, 11, "x"), "gone a = KxEP!;\nb");
+    editor.destroy();
+    host.remove();
+});
+
 // ---- ATH-5: swap, placeholder, gallery, drag from outside ----
 
 A.registerWidget("t-gallery", { title: "<b>Gallery note</b>", description: "A <img src=x> description", defaultSize: { w: 3, h: 2 }, render() {} });
