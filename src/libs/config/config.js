@@ -6,7 +6,7 @@
 export const BORDERED_CLASS = "default-cointainer-bordered";
 
 export const defaults = Object.freeze({
-    version: "2.11.2",
+    version: "2.12.0",
     container_class: "container",
     header_class: "header-container",
     header_menu_class: "header-menu menu",

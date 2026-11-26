@@ -4,7 +4,7 @@ A small, dependency-free UI framework written as ES modules. It ships the buildi
 charts, dialogs, menus, a router and themes, a dashboard of widgets, a Kanban board, a code editor and more. Use single components from their own
 entry points, or let one `init()` call generate the page layout (header, menu, content wrapper, footer) with its theme.
 
-Current version: **2.11.2**
+Current version: **2.12.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -36,7 +36,7 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Autocomplete, multi select, file upload, drag-and-drop area, stepper, date and time ranges, rich text and WYSIWYG editor
 
 **Code**
-- Syntax highlighting (including `<script>` and `<style>` in HTML and nested template strings), a code editor on a real `<textarea>`, a diff view
+- Syntax highlighting (including `<script>` and `<style>` in HTML and nested template strings), a code editor on a real `<textarea>` (with optional folding, a minimap and multiple cursors), a diff view
 
 **Navigation and feedback**
 - Menu with groups, badges and a user menu, bottom tabs on a phone; tabs, accordion, dropdown, sidebar, breadcrumbs, pagination, hash / history router
@@ -77,7 +77,7 @@ Without npm, serve the `src` folder with any static web server and open `index.h
 
 **Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
-`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor, the JSON tree, motion, every field type, native dialogs, a menu with groups inside groups, themes
+`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor (also with folding, a minimap and several cursors), the JSON tree, motion, every field type, native dialogs, a menu with groups inside groups, themes
 and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy. The footer shows the version and, on a deployed site, the commit it was built from.
 
 ```sh
@@ -967,7 +967,7 @@ npm run check:package # the npm package holds everything the entry points import
 npm run smoke:package # the packed package installs in an empty folder and every entry point imports
 ```
 
-The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges, the URL check, the grid and board maths, the code tokenizer and diff, the JSON tree and the contents of the package.
+The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges, the URL check, the grid and board maths, the code tokenizer, diff, folding and cursor maths, the JSON tree and the contents of the package.
 The browser tests start a small static server, open `tests/browser/index.html` in headless Chrome, Chromium or Edge and run every
 component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, toolbar, paste), tables (resizing, virtual scrolling), router,
 session, themes, charts, widgets, board, code editor, JSON tree and motion. Set `CHROME_PATH` if the browser is not found. `DEBUG=1` prints the browser log when the page does not report results.
@@ -993,7 +993,7 @@ src/
   libs/
     config/                 default configuration, application hooks
     core/                   DOM / focus helpers, el, validation, translations, CSV, formatting, sanitizer, cookies, theme manager,
-                            HTMLElementGenerator, HTMLControlGenerator, the maths of tables, grid and board, code tokenizers and diff, motion
+                            HTMLElementGenerator, HTMLControlGenerator, the maths of tables, grid and board, code tokenizers, diff and folding, motion
     hephaestus/             theme loader, generators (layout, menus, forms, charts, tables, feedback, dialogs, navigation,
                             components, inputs, widgets, board, code), router, session, auth state
   res/themes/               tokens.css, default and dark theme, appearance.css (themes and modes)
@@ -1014,6 +1014,13 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.12.0
+
+  - **Fixed: caret off by one character** in the code editor from 100 lines (two from 1,000): the caret, the selection and clicks did not match the text shown. This was in every version with the editor up to 2.11.2.
+  - **Code editor, new and off unless asked for**: `folding: true` (blocks by indentation; `getValue()` always gives the whole text), `minimap: true`, `multipleCursors: true`. Without the options the editor behaves as before. The `./code` entry grew from about 36 KB to 45 KB (gzip, unminified).
+  - **Code editor**: a function name is recognised when its `(` is further down than the redrawn lines.
+  - **Touch screens**: the expand arrow of a table row and the buttons of the JSON tree are at least 44 x 44 px; in a stacked table the arrow stands in the corner of its block.
 
  ### 2.11.2
 
