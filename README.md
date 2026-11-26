@@ -255,6 +255,7 @@ Other options: `id`, `width` (600), `height` (360), `legend`, `zero: false` (a l
 - **Long series** are thinned to the width of the plot (the lowest and the highest value of every slice stay, so peaks are not lost), and dots are only drawn up to 80 points in view.
 - **Streaming**: `chart.push({ x: Date.now(), values: [12, 3] }, { maxPoints: 500 })` adds a point to every series, drops the oldest ones and redraws at most once per frame.
 - `chart.update({ series })` redraws with changes, `chart.destroy()` removes the chart and its table. `generateChart` returns the `<svg>` element that carries these
+- **Morph:** when `update({ series })` keeps the number of points, bars, lines and points move from the old values to the new ones. Not on zoom, resize or `push`, not for very long series, not under reduced motion; `animate: false` switches it off.
   methods, or `null` when the options are invalid.
 
 ### Tables
@@ -731,6 +732,8 @@ generateStat({ parent: "wrapper", label: "CPU", value: "91 %", tone: "bad", note
 await copyToClipboard(token);                                              // and says "Copied" in a toast
 formatBytes(1536); formatNumber(1234567.891); formatDuration(7500000); formatRelativeTime(date); formatDate(date, { time: true });   // Intl, in the current language
 ```
+
+**Size budget:** `npm run size` measures every entry point with what it imports (gzip, unminified) against `scripts/size-budget.json` and fails when one has grown past it.
 
 ### Motion: animations and transitions
 

@@ -1727,6 +1727,46 @@ const widgetsCleanup = grid => {
     $1("#wg")?.remove();
 };
 
+// ---- ATH-10: charts morph on update ----
+
+test("charts: update({ series }) moves from the old shape to the new one; reduced motion, a resize and animate:false do not", async () => {
+    const heights = chart => $$(".chart-bar", chart.element).map(bar => Number(bar.getAttribute("height")));
+    const make = (extra = {}) => A.generateChart({ parent: "wrapper", type: "bar", labels: ["a", "b"], series: [{ data: [10, 5] }], ...extra });
+    let chart = make();
+    chart.update({ series: [{ data: [5, 10] }] });
+    const final = heights(chart);
+    assert(final[0] < final[1], "reduced motion: at once");
+    chart.destroy();
+    A.setMotion("full");
+    try {
+        chart = make();
+        const first = heights(chart);
+        chart.update({ series: [{ data: [5, 10] }] });
+        equal(heights(chart).join(), first.join(), "starts where it was");
+        await tick(900);
+        equal(heights(chart).join(), final.join(), "and ends where it belongs");
+        chart.update({ width: 500 });
+        const resized = heights(chart);
+        await tick(50);
+        equal(heights(chart).join(), resized.join(), "a resize is not animated");
+        chart.destroy();
+        chart = make({ animate: false });
+        chart.update({ series: [{ data: [5, 10] }] });
+        equal(heights(chart).join(), final.join(), "animate: false");
+        chart.destroy();
+        const line = A.generateChart({ parent: "wrapper", type: "area", labels: ["a", "b", "c"], series: [{ data: [1, 5, 2] }] });
+        const points = () => $1("polyline.chart-line", line.element).getAttribute("points");
+        const old = points();
+        line.update({ series: [{ data: [5, 1, 4] }] });
+        equal(points(), old, "a line starts where it was");
+        await tick(900);
+        assert(points() !== old, "and moves");
+        line.destroy();
+    } finally {
+        A.setMotion("reduce");
+    }
+});
+
 // ---- ATH-6: embedded languages, bracket matching, locked text ----
 
 test("code editor: editing inside a script keeps its colours, removing the closing tag takes the rest along, untouched lines stay", () => {

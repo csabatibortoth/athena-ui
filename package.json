@@ -13,7 +13,8 @@
     "test:demo": "node --test --test-timeout=600000 demo/tests/demo.test.mjs demo/tests/browser.test.mjs",
     "demo": "node demo/server.mjs",
     "demo:build": "node demo/scripts/build-package.mjs",
-    "smoke:package": "node scripts/smoke-package.mjs"
+    "smoke:package": "node scripts/smoke-package.mjs",
+    "size": "node scripts/size-budget.mjs"
   },
   "exports": {
     ".": {
