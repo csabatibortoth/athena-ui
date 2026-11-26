@@ -109,6 +109,25 @@ describe("what a person does", { skip }, () => {
         });
     });
 
+    test("touch screens: the expand arrow and the JSON tree buttons are at least 44 px", { timeout: 240000 }, async () => {
+        for (const [route, ready, selector] of [["/tables", "#expanding [aria-expanded]", "#expanding [aria-expanded]"], ["/code", ".athena-jt-btn", ".athena-jt-btn, .athena-jt-tree summary"]]) {
+            await withPage(route, async page => {
+                await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
+                await page.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+                await page.waitFor(`document.querySelector(${JSON.stringify(ready)})`, { timeout: 90000 });
+                await new Promise(resolve => setTimeout(resolve, 600));
+                const small = await page.eval(`[...document.querySelectorAll(${JSON.stringify(selector)})].map(node => node.getBoundingClientRect()).filter(box => box.width && (box.height < 44 || box.width < 44)).map(box => Math.round(box.width) + "x" + Math.round(box.height))`);
+                assert.deepEqual(small, [], route);
+                if (route === "/tables") {
+                    // the arrow shares its line with the first value of the row
+                    const gap = await page.eval(`(() => { const row = document.querySelector("#expanding tbody tr"); const [toggle, first] = row.children; return Math.abs(toggle.getBoundingClientRect().top - first.getBoundingClientRect().top); })()`);
+                    assert.ok(gap < 8, `the arrow stands ${gap}px apart`);
+                }
+                assert.equal(await page.eval(`document.documentElement.scrollWidth - document.documentElement.clientWidth`), 0, `${route} scrolls sideways`);
+            });
+        }
+    });
+
     test("widgets: a statistic fits its widget at the default size", { timeout: 240000 }, () => withPage("/widgets", async page => {
         await page.waitFor(`document.querySelectorAll("#dashboard .widget .stat").length === 2`, { timeout: 90000 });
         const over = await page.eval(`[...document.querySelectorAll("#dashboard .widget .stat")].map(stat => stat.parentElement.scrollHeight - stat.parentElement.clientHeight)`);
