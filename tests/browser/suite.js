@@ -1727,6 +1727,38 @@ const widgetsCleanup = grid => {
     $1("#wg")?.remove();
 };
 
+test("code editor: a copy typed right before a locked text does not take the lock, also through undo and redo", () => {
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const editor = A.createCodeEditor({ element: host, value: "a = KEEP;", readOnlyRanges: [{ text: "KEEP" }] });
+    const put = (from, to, text) => {
+        editor.setSelection(from, to);
+        editor.insertText(text);
+        return editor.getValue();
+    };
+    // what the browser does for typing and pasting: beforeinput, the change, input
+    const native = (from, to, text) => {
+        const area = editor.textarea;
+        area.setSelectionRange(from, to);
+        area.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertFromPaste", data: text, bubbles: true, cancelable: true }));
+        area.setRangeText(text, from, to, "end");
+        area.dispatchEvent(new InputEvent("input", { inputType: "insertFromPaste", bubbles: true }));
+        return area.value;
+    };
+    equal(put(4, 4, "KEEP "), "a = KEEP KEEP;");
+    equal(put(9, 13, "gone"), "a = KEEP KEEP;", "the original stays locked");
+    equal(put(4, 9, ""), "a = KEEP;", "the copy was free");
+    equal(native(4, 4, "KEEP "), "a = KEEP KEEP;");
+    equal(put(9, 13, "gone"), "a = KEEP KEEP;", "pasted copy");
+    editor.undo();
+    equal(put(4, 8, "gone"), "a = KEEP;", "after undo");
+    editor.redo();
+    equal(put(9, 13, "gone"), "a = KEEP KEEP;", "after redo");
+    equal(put(4, 8, "free"), "a = free KEEP;");
+    editor.destroy();
+    host.remove();
+});
+
 // ---- ATH-10: charts morph on update ----
 
 test("charts: update({ series }) moves from the old shape to the new one; reduced motion, a resize and animate:false do not", async () => {

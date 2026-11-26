@@ -27,6 +27,13 @@ describe("code tokenizer", () => {
         for (const broken of ["`a ${ b", "`a ${ `", "`${".repeat(200), "`a \\", "`${ /* }"]) assert.equal(tokenize(broken, "js").map(token => token.text).join(""), broken, broken);
     });
 
+    test("template strings: a regular expression inside ${} does not swallow what follows", () => {
+        for (const first of ["const a = `${s.replace(/'/g, '')}`;", "const a = `${s.split(/\\//)}`;", "const a = `${s.replace(/\\{/g, \"\")}`;", "const a = `${s.replace(/`/g, \"\")}`;", "const a = `${/[/\"]/.test(s)}`;", "const a = `${x / 2} ${y / 3}`;"]) {
+            const found = types(`${first}\nconst next = 1; // after`, "js");
+            assert.ok(found.includes("comment:// after") && found.includes("number:1"), `${first}: ${found}`);
+        }
+    });
+
     test("html: script and style have their own colours, other script types stay plain", () => {
         const source = "<SCRIPT>const a = '</p>';</SCRIPT><style>a { color: red; }</style><script type=\"text/x-template\">const b</script><p>const</p>";
         assert.equal(tokenize(source, "html").map(token => token.text).join(""), source);

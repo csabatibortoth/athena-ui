@@ -379,7 +379,8 @@ export function createCodeEditor(options = {}) {
     let lastTime = 0;
 
     function snapshot() {
-        return { value: textarea.value, start: textarea.selectionStart, end: textarea.selectionEnd };
+        relocate();
+        return { value: textarea.value, start: textarea.selectionStart, end: textarea.selectionEnd, anchors: new Map(anchors) };
     }
 
     function remember(type) {
@@ -398,6 +399,9 @@ export function createCodeEditor(options = {}) {
 
     function restore(entry, reason) {
         textarea.value = entry.value;
+        // undo and redo put the locked texts back where they were in that state
+        for (const [range, at] of entry.anchors) anchors.set(range, at);
+        anchoredValue = entry.value;
         textarea.setSelectionRange(entry.start, entry.end);
         lastType = null;
         afterChange(reason, { remembered: true });
@@ -421,12 +425,28 @@ export function createCodeEditor(options = {}) {
 
     let anchors = new Map();               // the place of every { text } range
     let anchoredValue = "";
+    let selectionBefore = null;            // where the selection was before the browser changed the text
+    let edit = null;                       // the change that was just made: [from, to) of the old text, and the new length
+
+    /** What the browser replaced, from the selection before and the caret after. Null when that does not explain the new text. */
+    function nativeEdit() {
+        const value = textarea.value;
+        const caret = textarea.selectionStart;
+        if (selectionBefore === null) return null;
+        const from = Math.min(selectionBefore, caret);
+        const to = caret - (value.length - anchoredValue.length);
+        const fits = to >= from && value.slice(0, from) === anchoredValue.slice(0, from) && value.slice(caret) === anchoredValue.slice(to);
+        return fits ? { from, to, length: value.length } : null;
+    }
 
     /** Keeps the { text } ranges where they are: a change before one moves it by as much as the text grew or shrank. */
     function relocate(fresh = false) {
         const value = textarea.value;
         if (fresh) anchors = new Map();
         else if (value === anchoredValue) return;
+        // the edit says where the text changed; comparing the two texts cannot (a copy typed in front of a locked text looks like text added after it)
+        const known = edit?.length === value.length ? edit : null;
+        edit = null;
         let head = 0;
         while (head < value.length && head < anchoredValue.length && value[head] === anchoredValue[head]) head++;
         const delta = value.length - anchoredValue.length;
@@ -435,7 +455,7 @@ export function createCodeEditor(options = {}) {
             let at = anchors.get(range) ?? -1;
             if (at < 0) at = value.indexOf(range.text);
             else {
-                if (head < at + range.text.length) at += delta;
+                if (known ? known.to <= at : head < at + range.text.length) at += delta;
                 if (!value.startsWith(range.text, at)) at = value.indexOf(range.text);
             }
             anchors.set(range, at);
@@ -479,7 +499,9 @@ export function createCodeEditor(options = {}) {
     function applyEdit(from, to, text, { select = [from + text.length, from + text.length], reason = "edit" } = {}) {
         if (readOnly || blocked(from, to)) return false;
         const value = textarea.value;
+        relocate();
         textarea.value = value.slice(0, from) + text + value.slice(to);
+        edit = { from, to, length: textarea.value.length };
         textarea.setSelectionRange(select[0], select[1]);
         afterChange(reason);
         return true;
@@ -942,6 +964,7 @@ export function createCodeEditor(options = {}) {
     }
 
     function onBeforeInput(event) {
+        selectionBefore = textarea.selectionStart;
         if (event.isComposing) return;
         const type = event.inputType;
         if (type === "historyUndo" || type === "historyRedo") {
@@ -976,6 +999,8 @@ export function createCodeEditor(options = {}) {
 
     function onInput(event) {
         if (event.inputType === "historyUndo" || event.inputType === "historyRedo") return;
+        edit = nativeEdit();
+        selectionBefore = null;
         afterChange(event.inputType ?? "input", { native: true });
     }
 

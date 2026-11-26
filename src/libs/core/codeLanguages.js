@@ -119,6 +119,10 @@ const TS_TYPES = ["string", "number", "boolean", "any", "unknown", "never", "voi
 // ---- template strings: `a ${ b(`c ${d}`) } e` cannot be matched by a pattern, so it is scanned ----
 const MAX_NESTING = 20;
 
+// a "/" where a value is expected starts a regular expression: its quotes, backticks and braces are not code
+const REGEX_LITERAL = /(?<=(?:^|[=(:,[!&|?{};]|\breturn)\s*)\/(?![*/])(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[a-z]*/;
+const REGEX_HERE = new RegExp(REGEX_LITERAL.source, "y");
+
 /** Scans the template that starts at `start`; returns its end and the ranges of the code inside its outermost ${}. */
 function scanTemplate(source, start) {
     const code = [];
@@ -152,6 +156,9 @@ function scanTemplate(source, start) {
         } else if (char === "/" && source[i + 1] === "*") {
             const close = source.indexOf("*/", i + 2);
             i = close === -1 ? source.length : close + 1;
+        } else if (char === "/") {
+            REGEX_HERE.lastIndex = i;
+            if (REGEX_HERE.test(source)) i = REGEX_HERE.lastIndex - 1;
         }
         i++;
     }
@@ -192,7 +199,7 @@ const jsRules = (name, keywords, types = []) => [
     rule("comment", /\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/),
     rule("string", new RegExp(`${STRING_DOUBLE.source}|${STRING_SINGLE.source}`)),
     templateRule(name),
-    rule("string", /(?<=(?:^|[=(:,[!&|?{};]|\breturn)\s*)\/(?![*/])(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[a-z]*/),
+    rule("string", REGEX_LITERAL),
     rule("number", NUMBER_C),
     rule("keyword", words(keywords)),
     ...(types.length ? [rule("type", words(types))] : []),
