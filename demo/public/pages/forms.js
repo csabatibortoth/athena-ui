@@ -51,6 +51,12 @@ export default async function forms(context, { app }) {
     readout.textContent = `From ${range.getRange().from.toLocaleString()} to ${range.getRange().to.toLocaleString()}`;
     times.append(readout);
 
+    const tags = block(root, "Suggestions, or your own words", "Enter accepts what was typed (allowFreeText, onEnter); the arrow keys still pick a suggestion.");
+    const entered = el("p", { attrs: { id: "free-text-result", role: "status" }, text: "Nothing entered yet." });
+    generateAutocomplete({ parent: tags, label: "Tag", options: ["backend", "frontend", "release", "security"], allowFreeText: true, onEnter: text => { entered.textContent = `Entered: ${text}`; } });
+    tags.append(entered);
+    code(tags, `generateAutocomplete({ options, allowFreeText: true, onEnter: text => addTag(text) });`);
+
     const wizard = block(root, "A wizard", "A step can say no: the first one needs a name.");
     let wizardName = "";
     generateStepper({

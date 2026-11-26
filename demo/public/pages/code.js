@@ -1,6 +1,7 @@
 import { createCodeEditor, createDiffView, generateCodeBlock, getLanguages } from "/athena/code.js";
 import { generatePageHeader } from "/athena/components.js";
 import { generateButton, generateField } from "/athena/forms.js";
+import { generateJsonTree } from "/athena/json-tree.js";
 import { el } from "/athena/dom.js";
 import { block } from "/util.js";
 
@@ -75,6 +76,10 @@ export default async function codePage(context, { app }) {
     generateButton({ parent: diffBar, text: "Unified", variant: "secondary", onclick: () => diff.setMode("unified") });
     generateButton({ parent: diffBar, text: "Split", variant: "secondary", onclick: () => diff.setMode("split") });
     generateButton({ parent: diffBar, text: "Diff the editor", variant: "secondary", onclick: () => diff.setTexts(EDITOR_TEXT, editor.getValue()) });
+
+    // ------------------------------------------------------------ JSON tree
+    const treeBlock = block(root, "JSON tree", "An object as a tree that opens and closes, with buttons to copy a value or its path. The word in term is marked. Everything is shown as text.");
+    generateJsonTree({ request: { id: "7f3a", method: "GET", path: "/api/hosts", headers: { "x-request-id": "abc-123" } }, response: { status: 503, retry: true, error: "upstream timeout", note: "<img src=x> stays text" } }, { parent: treeBlock, term: "timeout", open: 2 });
 
     return () => {
         editor.destroy();

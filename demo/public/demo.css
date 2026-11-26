@@ -197,6 +197,17 @@ body {
     background: none;
 }
 
+/* The coloured header of the Navigation page */
+.demo-banner {
+    padding: 4px 8px;
+    border-radius: var(--athena-radius);
+    background: #1f3a5f;
+    --athena-menu-bg: #1f3a5f;
+    --athena-menu-fg: #fff;
+    --athena-menu-hover: #2d5080;
+    --athena-menu-active: #ffd166;
+}
+
 /* The Motion page */
 .motion-list {
     display: flex;

@@ -66,6 +66,7 @@ export default async function dialogs(context, { app, auth }) {
     // ------------------------------------------------------------ toasts, alerts, progress
     const toasts = buttons("Toasts", "They are announced to screen readers and go away by themselves.");
     for (const type of ["info", "success", "warning", "error"]) toasts.add(type, () => showToast({ title: type[0].toUpperCase() + type.slice(1), message: `This is a ${type} toast.`, type }), "secondary");
+    toasts.add("At the bottom right, further in", () => showToast({ message: "position and offset place a toast.", position: "bottom-right", offset: { x: 24, y: 80 } }), "secondary");
     toasts.add("Copy a token", () => copyToClipboard("demo-token-8f2c1a"), "secondary");
 
     const alerts = block(root, "Alerts, progress and spinner", "");

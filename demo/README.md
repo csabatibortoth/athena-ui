@@ -22,7 +22,7 @@ npm run demo:build      # makes demo/dist, the package that is deployed
 | `demo/server.mjs`, `demo/api.mjs` | Static files with security headers, ETag and gzip; the API: hosts (100,000 made up ones, always the same), metrics (a signal that depends only on the time), a sign in with a session cookie (HttpOnly, SameSite=Strict, Secure on https), two accounts |
 | `demo/public/` | The pages (`pages/*.js`, one per group of components, loaded when first visited) and `demo.css` (a theme of its own, "Ocean", is two blocks of tokens) |
 | `demo/tests/` | `demo.test.mjs` (server and API, with Node's test runner), `browser.test.mjs` (the pages in headless Chrome through the DevTools protocol, `cdp.mjs`) |
-| `demo/scripts/` | `build-package.mjs` (the deployment package), `smoke.mjs` (a check of the running site) |
+| `demo/scripts/` | `build-package.mjs` (the deployment package; `build.json` in it names the commit, shown in the footer), `smoke.mjs` (a check of the running site) |
 
 The demo uses Athena UI from `src/` of this repository (`/athena/...`), not from npm: it always shows the code that is deployed.
 The accounts are made up and public: `demo` / `demo-pass` (viewer) and `admin` / `admin-pass` (administrator). The data lives in memory and nothing is stored.
@@ -30,7 +30,7 @@ The accounts are made up and public: `demo` / `demo-pass` (viewer) and `admin` /
 ## Deploying to Azure App Service
 
 The workflow `.github/workflows/demo-deploy.yml` runs the tests (`ci.yml`), builds `demo/dist` (server, pages and a copy of `src/`; no dependencies, so Azure installs and builds
-nothing), deploys it with `azure/webapps-deploy`, and then checks the site (`demo/scripts/smoke.mjs`: the new version answers, the files are there, the headers are strict, and the
+nothing), deploys it with `azure/webapps-deploy`, and then checks the site (`demo/scripts/smoke.mjs`: the new version answers and runs the deployed commit, the files are there, the headers are strict, and the
 cookie is HttpOnly, Secure and SameSite=Strict). It runs when `master` changes, and on request from any branch (Actions, "Deploy the demo to Azure App Service", Run workflow).
 
 ### Once, in Azure (Linux App Service, Node 24)

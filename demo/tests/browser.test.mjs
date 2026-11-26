@@ -81,6 +81,34 @@ describe("no page scrolls sideways", { skip }, () => {
 });
 
 describe("what a person does", { skip }, () => {
+    test("the newer options are on their pages and work", { timeout: 240000 }, async () => {
+        await withPage("/charts", async page => {
+            await page.waitFor(`[...document.querySelectorAll(".chart-title")].some(title => title.textContent.includes("broken sensor"))`, { timeout: 90000 });
+            assert.equal(await page.eval(`[...document.querySelectorAll("svg")].find(svg => svg.textContent.includes("broken sensor")).querySelectorAll("polyline.chart-line").length`), 3, "two gaps, three pieces");
+        });
+        await withPage("/tables", async page => {
+            await page.waitFor(`document.querySelector("#expanding tbody tr")`, { timeout: 90000 });
+            await page.eval(`document.querySelector("#expanding [aria-expanded]").click()`);
+            await page.waitFor(`document.querySelector("#expanding tbody").textContent.includes("looked after by")`);
+            await page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent === "Hide the owner").click()`);
+            await page.waitFor(`![...document.querySelectorAll("#expanding thead th")].some(th => th.textContent.includes("Owner"))`);
+        });
+        await withPage("/forms", async page => {
+            await page.waitFor(`document.getElementById("free-text-result")`, { timeout: 90000 });
+            await page.eval(`(() => { const input = document.getElementById("free-text-result").parentElement.querySelector("input"); input.scrollIntoView({ block: "center" }); input.focus(); })()`);
+            await page.type("mine");
+            await page.press("Enter", "Enter", 13);
+            await page.waitFor(`document.getElementById("free-text-result").textContent === "Entered: mine"`);
+        });
+        await withPage("/code", async page => {
+            await page.waitFor(`document.querySelector(".athena-jt-hit")?.textContent === "timeout"`, { timeout: 90000 });
+        });
+        await withPage("/navigation", async page => {
+            await page.waitFor(`document.querySelector(".demo-banner .athena-menu")`, { timeout: 90000 });
+            assert.equal(await page.eval(`getComputedStyle(document.querySelector(".demo-banner .athena-menu")).color`), "rgb(255, 255, 255)");
+        });
+    });
+
     test("widgets: a statistic fits its widget at the default size", { timeout: 240000 }, () => withPage("/widgets", async page => {
         await page.waitFor(`document.querySelectorAll("#dashboard .widget .stat").length === 2`, { timeout: 90000 });
         const over = await page.eval(`[...document.querySelectorAll("#dashboard .widget .stat")].map(stat => stat.parentElement.scrollHeight - stat.parentElement.clientHeight)`);
@@ -92,7 +120,8 @@ describe("what a person does", { skip }, () => {
         await page.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
         await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 5`, { timeout: 90000 });
         assert.equal(await page.eval(`matchMedia("(pointer: coarse)").matches`), true, "the emulation is a touch screen");
-        await page.clickText("Edit mode: off");
+        // not a click at coordinates: while the emulated phone lays the page out again, the fixed tab bar can be where the button was a moment ago
+        await page.eval(`[...document.querySelectorAll("#widget-bar button")].find(button => button.textContent === "Edit mode: off").click()`);
         await page.waitFor(`document.getElementById("dashboard").classList.contains("is-editable")`);
         const small = await page.eval(`[...document.querySelectorAll("#dashboard .widget-handle, #dashboard .widget-action, #dashboard .widget-resize")]
             .map(node => ({ name: node.className, box: node.getBoundingClientRect() })).filter(({ box }) => box.width && (box.width < 44 || box.height < 44)).map(({ name, box }) => name + " " + box.width + "x" + box.height)`);
@@ -291,14 +320,11 @@ describe("what a person does", { skip }, () => {
         await page.waitFor(`document.documentElement.dataset.motion === "reduce"`);
         assert.match(await page.eval(`document.getElementById("motion-status").textContent`), /ON: nothing below moves/);
         assert.equal(await page.eval(`getComputedStyle(document.documentElement).getPropertyValue("--athena-duration-base").trim()`), "0ms");
-        // The page change above ran as a view transition (motion was still on): until it has ended its overlay takes the clicks. And the page can be scrolled
-        // so that the buttons are above the screen: scroll each one into view. (The first version of this test clicked at that moment and asserted that
-        // nothing was animated: the clicks hit nothing, so it passed whatever the library did.)
+        // The page change above ran as a view transition (motion was still on). A click at coordinates can hit nothing then: the overlay of the transition
+        // takes it, or the page is still being scrolled to the top. That failed on CI (the new row never came). This half is about what moves, not
+        // about clicking, so the buttons are pressed themselves. The wait for the new row below proves that the presses did something.
         await page.waitFor(`!document.documentElement.getAnimations({ subtree: true }).some(animation => String(animation.effect?.pseudoElement ?? "").startsWith("::view-transition"))`, { timeout: 15000 });
-        const press = async text => {
-            await page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent.includes(${JSON.stringify(text)}))?.scrollIntoView({ block: "center", behavior: "instant" })`);
-            await page.clickText(text);
-        };
+        const press = text => page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent.trim() === ${JSON.stringify(text)}).click()`);
         calls = await animated();
         const rows = await items();
         await press("Add one");

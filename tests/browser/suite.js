@@ -1818,6 +1818,32 @@ test("date time range: fits a narrow place, whatever the font", () => {
     box.remove();
 });
 
+// ---- ATH-42: a redrawn line knows what stands around it ----
+
+test("code editor: a line that is redrawn is coloured as in a fresh editor, whatever depends on the lines around it", () => {
+    const hosts = [document.createElement("div"), document.createElement("div")];
+    document.getElementById("wrapper").append(...hosts);
+    const drawn = host => $$(".code-line", host).map(line => [...line.childNodes].map(node => `${node.className ?? ""}:${node.textContent}`).join("|")).join("\n");
+    const cases = [
+        ["js", "a\n/ 2 /", " c", "end", "a division, because of the line before"],
+        ["js", "a\n\n/x/.test(s)", ";", "end", "over an empty line"],
+        ["js", "a\n/x/", "=", 1, "the line before changes: now a regular expression"],
+        ["js", "foo\nx", "(", 4, "the line after changes: now a function name"],
+        ["ts", "b = 1;\n/(\n\nlet a;", "/*", 4, "a comment opened above an empty line runs on"]
+    ];
+    for (const [language, value, text, at, what] of cases) {
+        const typed = A.createCodeEditor({ element: hosts[0], language, value });
+        const position = at === "end" ? value.length : at;
+        typed.setSelection(position, position);
+        typed.insertText(text);
+        const fresh = A.createCodeEditor({ element: hosts[1], language, value: typed.getValue() });
+        equal(drawn(hosts[0]), drawn(hosts[1]), what);
+        typed.destroy();
+        fresh.destroy();
+    }
+    for (const host of hosts) host.remove();
+});
+
 // ---- ATH-38: two older editor bugs ----
 
 test("code editor: typing on the empty last line of an open comment draws it as a fresh editor does", () => {

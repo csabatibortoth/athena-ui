@@ -4,7 +4,7 @@ A small, dependency-free UI framework written as ES modules. It ships the buildi
 charts, dialogs, menus, a router and themes, a dashboard of widgets, a Kanban board, a code editor and more. Use single components from their own
 entry points, or let one `init()` call generate the page layout (header, menu, content wrapper, footer) with its theme.
 
-Current version: **2.11.1**
+Current version: **2.11.2**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -77,8 +77,8 @@ Without npm, serve the `src` folder with any static web server and open `index.h
 
 **Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
-`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard, the board, the code editor, motion, every field type, native dialogs, a menu with groups inside groups, themes
-and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy.
+`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor, the JSON tree, motion, every field type, native dialogs, a menu with groups inside groups, themes
+and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy. The footer shows the version and, on a deployed site, the commit it was built from.
 
 ```sh
 npm run demo          # http://localhost:3000
@@ -886,7 +886,7 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
   deleted together, Ctrl+/ comments, Alt+Up / Alt+Down move lines, Ctrl+Z / Ctrl+Y undo and redo (typing is grouped), Ctrl+F finds and Ctrl+H replaces (case, regular expression, all matches
   highlighted, replace all is one undo step), Ctrl+Space suggests. The matching bracket is highlighted (CSS Custom Highlight API where the browser has it).
   **Escape, then Tab, leaves the editor** (so the keyboard is never trapped); the way out is read to screen readers.
-- **Size**: only the lines around a change are tokenized again, and a test checks that this gives exactly what tokenizing everything gives. On the (slow) development machine the work of the editor per key press is
+- **Size**: only the lines around a change are tokenized again (with the neighbouring lines, because a `/` or a function name depends on them), and tests check that this gives what tokenizing everything gives. In rare, tangled text a redrawn line can still be coloured differently until it is changed again. On the (slow) development machine the work of the editor per key press is
   about 13 ms in a 5,000 line file; the browser's own layout of two large text blocks is the larger part (about 90 ms per key at 5,000 lines; smaller files were not measured separately). Texts longer than 300,000 characters
   (`maxHighlightLength`) are shown without highlighting. Not there yet: multiple cursors, minimap, folding.
 
@@ -1009,6 +1009,11 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.11.2
+
+  - **Code editor**: a redrawn line takes its neighbouring lines into account, so a division is not coloured as a regular expression (and the other way round), a function name is recognised when its `(` follows on the next line, and a comment that reaches an empty line goes on.
+  - **Demo**: shows the commit it was built from, and has examples for chart gaps and time formats, expanding and changing table columns, toast position, a coloured menu, the JSON tree and free-text suggestions.
 
  ### 2.11.1
 

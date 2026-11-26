@@ -75,8 +75,10 @@ shared.menu = generateMenu({
 });
 auth.onChange(() => shared.menu.update({ items: menuItems() }));
 
+const build = el("span", { attrs: { id: "demo-build" } });
+api("/api/version").then(answer => { if (answer?.build) build.textContent = ` (build ${answer.build})`; }).catch(() => {});
 app.container.append(el("footer", { class: "demo-footer" },
-    "Athena UI ", config.version, " · MIT · ",
+    "Athena UI ", config.version, build, " · MIT · ",
     el("a", { attrs: { href: "https://github.com/csabatibortoth/athena-ui", rel: "noopener noreferrer", target: "_blank" }, text: "GitHub" }), " · ",
     el("a", { attrs: { href: "https://www.npmjs.com/package/athena-ui-js", rel: "noopener noreferrer", target: "_blank" }, text: "npm" }),
     " · everything on this page runs under a strict Content-Security-Policy"));

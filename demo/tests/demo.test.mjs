@@ -5,6 +5,10 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import { createDemoServer, resolveFile, SECURITY_HEADERS } from "../server.mjs";
 import { HOST_COUNT, listHosts, metricAt, metricsSince, resetForTests } from "../api.mjs";
 import { join, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 let server;
 let base;
@@ -252,10 +256,32 @@ describe("the rest of the API", () => {
     test("health, version, and answers for what does not exist", async () => {
         assert.equal((await (await get("/api/health")).json()).status, "ok");
         assert.match((await (await get("/api/version")).json()).node, /^v\d+/);
+        assert.equal((await (await get("/api/version")).json()).build, null, "a demo run from the sources has no build");
         assert.equal((await get("/api/nothing")).status, 404);
         assert.equal((await get("/api/")).status, 400);
         assert.equal((await post("/api/nothing", {})).status, 404);
         const response = await get("/api/health");
         assert.equal(response.headers.get("cache-control"), "no-store");
+    });
+});
+
+describe("the package that is deployed", () => {
+    test("knows the commit it was built from and says it with the version", async () => {
+        const folder = mkdtempSync(join(tmpdir(), "athena-build-"));
+        try {
+            const out = join(folder, "dist");
+            const commit = "0123456789abcdef0123456789abcdef01234567";
+            execFileSync(process.execPath, [fileURLToPath(new URL("../scripts/build-package.mjs", import.meta.url)), out], { env: { ...process.env, GITHUB_SHA: commit }, stdio: "ignore" });
+            const packaged = await import(pathToFileURL(join(out, "server.mjs")));
+            const server = packaged.createDemoServer({ log: () => {} });
+            await new Promise(done => server.listen(0, "127.0.0.1", done));
+            try {
+                assert.equal((await (await fetch(`http://127.0.0.1:${server.address().port}/api/version`)).json()).build, "0123456");
+            } finally {
+                server.close();
+            }
+        } finally {
+            rmSync(folder, { recursive: true, force: true });
+        }
     });
 });
