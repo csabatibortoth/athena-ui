@@ -190,6 +190,13 @@ body {
     --series-5: #8fd36a; --series-6: #f1d36a; --series-7: #c79bf0; --series-8: #a9bfc8;
 }
 
+/* A statistic inside a widget: the widget is the card already (a card in a card did not fit two rows) */
+#dashboard .widget-body > .stat {
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
 /* The Motion page */
 .motion-list {
     display: flex;

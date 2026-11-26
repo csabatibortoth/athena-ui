@@ -79,6 +79,12 @@ describe("no page scrolls sideways", { skip }, () => {
 });
 
 describe("what a person does", { skip }, () => {
+    test("widgets: a statistic fits its widget at the default size", { timeout: 240000 }, () => withPage("/widgets", async page => {
+        await page.waitFor(`document.querySelectorAll("#dashboard .widget .stat").length === 2`, { timeout: 90000 });
+        const over = await page.eval(`[...document.querySelectorAll("#dashboard .widget .stat")].map(stat => stat.parentElement.scrollHeight - stat.parentElement.clientHeight)`);
+        assert.deepEqual(over, [0, 0]);
+    }));
+
     test("widgets on a touch screen: every control is at least 44 px, and the corner resizes", { timeout: 240000 }, () => withPage("/widgets", async page => {
         await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
         await page.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
