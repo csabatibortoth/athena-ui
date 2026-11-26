@@ -143,6 +143,73 @@ describe("what a person does", { skip }, () => {
         assert.equal(await page.eval(`document.documentElement.scrollWidth - document.documentElement.clientWidth`), 0);
     }));
 
+    test("the Bridge theme: a rail at the side on wide screens, tabs on a phone, readable, and back again", { timeout: 240000 }, async () => {
+        const contrast = `(selector => [...document.querySelectorAll(selector)].map(node => {
+            const channel = text => text.match(/[0-9.]+/g).slice(0, 3).map(v => v / 255).map(c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+            const light = text => { const [r, g, b] = channel(text); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+            const style = getComputedStyle(node);
+            const [high, low] = [light(style.color), light(style.backgroundColor)].sort((a, b) => b - a);
+            return (high + 0.05) / (low + 0.05);
+        }))`;
+        for (const mode of ["dark", "light"]) {
+            await withPage("/about", async page => {
+                await page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+                await page.eval(`localStorage.setItem("athena.demo.appearance", JSON.stringify({ theme: "bridge", mode: "${mode}" })); location.reload()`);
+                await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.querySelector("#header .athena-menu-vertical .menu-control.is-active")`, { timeout: 90000 });
+                const [first, second] = await page.eval(`[...document.querySelectorAll("#header .athena-menu-list > li > .menu-control")].slice(0, 2).map(node => node.getBoundingClientRect().top)`);
+                assert.ok(second > first, "the items are below each other");
+                assert.deepEqual(await page.eval(`[...document.querySelectorAll("#header .athena-menu-list > li > .menu-control")].filter(node => node.getBoundingClientRect().right > document.getElementById("header").getBoundingClientRect().right + 0.5).map(node => node.textContent)`), [], "the buttons stay in the rail");
+                const [rail, content] = await page.eval(`[document.getElementById("header").getBoundingClientRect().bottom, document.getElementById("wrapper").getBoundingClientRect().bottom]`);
+                assert.ok(rail >= content - 1, `the rail ends at ${rail}, the page content at ${content}`);
+                assert.ok(await page.eval(`document.getElementById("wrapper").getBoundingClientRect().left >= document.getElementById("header").getBoundingClientRect().right`), "the content is beside the rail");
+                const ratios = await page.eval(`${contrast}("#header .athena-menu-vertical > .athena-menu-list > .menu-item > .menu-control, .demo-brand")`);
+                assert.ok(ratios.length > 10 && Math.min(...ratios) >= 4.5, `${mode}: ${Math.min(...ratios).toFixed(2)}:1`);
+                for (const width of [320, 375, 768, 1024, 1920]) {
+                    await page.send("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: width < 700 });
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    assert.equal(await page.eval(`document.documentElement.scrollWidth - document.documentElement.clientWidth`), 0, `${mode} ${width}px scrolls sideways`);
+                    assert.equal(await page.eval(`Boolean(document.querySelector("#header .athena-menu.is-tabs"))`), width <= 700, `${width}px tabs`);
+                    assert.equal(await page.eval(`Boolean(document.querySelector("#header .athena-menu-vertical"))`), width > 700, `${width}px rail`);
+                }
+            });
+        }
+        // picked by a person who has chosen no mode: dark, also on a light system; a chosen mode stays; and on a reload the same
+        await withPage("/themes", async page => {
+            await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }, { name: "prefers-reduced-motion", value: "reduce" }] });
+            await page.waitFor(`document.documentElement.dataset.mode === "light" && [...document.querySelectorAll(".theme-picker-option")].some(option => option.textContent.includes("Bridge"))`, { timeout: 90000 });
+            const choose = value => page.eval(`[...document.querySelectorAll(".theme-picker input")].find(input => input.value === "${value}").click()`);
+            await choose("bridge");
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.documentElement.dataset.mode === "dark"`);
+            await page.eval(`location.reload()`);
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.documentElement.dataset.mode === "dark" && document.querySelector(".theme-picker")`, { timeout: 90000 });
+            await choose("athena");
+            await page.waitFor(`document.documentElement.dataset.mode === "light"`);
+            await choose("light");
+            await choose("bridge");
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.documentElement.dataset.mode === "light"`);
+        });
+        // wide screens: the content starts at the rail; the animations are there with motion on and take no time without
+        await withPage("/charts", async page => {
+            await page.send("Emulation.setDeviceMetricsOverride", { width: 2560, height: 1200, deviceScaleFactor: 1, mobile: false });
+            await page.eval(`localStorage.setItem("athena.demo.appearance", JSON.stringify({ theme: "bridge" })); location.reload()`);
+            await page.waitFor(`document.documentElement.dataset.theme === "bridge" && document.querySelector("#header .athena-menu-vertical") && document.querySelector(".page-title")`, { timeout: 90000 });
+            const [gap, rest] = await page.eval(`(() => { const rail = document.getElementById("header").getBoundingClientRect(); const content = document.getElementById("wrapper").getBoundingClientRect(); return [content.left - rail.right, innerWidth - content.right]; })()`);
+            assert.ok(gap <= 12 && rest <= 40, `gap ${gap}px, left over ${rest}px`);
+            const durations = () => page.eval(`getComputedStyle(document.querySelector("#header .athena-menu-vertical .menu-item")).animationName + " " + getComputedStyle(document.querySelector("#header .athena-menu-vertical .menu-item")).animationDuration`);
+            assert.equal(await durations(), "bridge-slide 0s", "reduced motion");
+            await page.eval(`document.documentElement.dataset.motion = "full"`);
+            assert.match(await durations(), /^bridge-slide 0\.[1-9]/);
+        });
+        await withPage("/themes", async page => {
+            await page.waitFor(`[...document.querySelectorAll(".theme-picker-option")].some(option => option.textContent.includes("Bridge"))`, { timeout: 90000 });
+            const pick = name => page.eval(`[...document.querySelectorAll(".theme-picker-option")].find(option => option.textContent.includes("${name}")).querySelector("input").click()`);
+            await pick("Bridge");
+            await page.waitFor(`document.querySelector("#header .athena-menu-vertical")`);
+            await pick("Ocean");
+            await page.waitFor(`!document.querySelector("#header .athena-menu-vertical")`);
+        });
+    });
+
     test("widgets: a statistic fits its widget at the default size", { timeout: 240000 }, () => withPage("/widgets", async page => {
         await page.waitFor(`document.querySelectorAll("#dashboard .widget .stat").length === 2`, { timeout: 90000 });
         const over = await page.eval(`[...document.querySelectorAll("#dashboard .widget .stat")].map(stat => stat.parentElement.scrollHeight - stat.parentElement.clientHeight)`);

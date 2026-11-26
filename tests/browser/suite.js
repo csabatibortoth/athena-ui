@@ -1818,6 +1818,59 @@ test("date time range: fits a narrow place, whatever the font", () => {
     box.remove();
 });
 
+// ---- ATH-47: a vertical menu, and the tokens for shape and type ----
+
+test("menu: a vertical rail moves with Up and Down, opens groups beside it with Right, and can be switched", async () => {
+    const host = document.createElement("div");
+    host.style.width = "220px";
+    document.getElementById("wrapper").append(host);
+    const menu = A.generateMenu({ parent: host, layout: "vertical", items: [{ id: "a", label: "Alpha" }, { id: "g", label: "Group", children: [{ id: "x", label: "X" }, { id: "y", label: "Y" }] }, { id: "z", label: "Zulu" }] });
+    const control = id => $1(`[data-id="${id}"]`, menu.element);
+    const box = id => control(id).getBoundingClientRect();
+    assert(box("g").top >= box("a").bottom - 1, "below each other");
+    assert(box("a").height >= 44, "a finger target");
+    menu.update({ items: [{ id: "a", label: "A link", href: "#a" }, { id: "g", label: "Group", children: [{ id: "x", label: "X" }, { id: "y", label: "Y" }] }, { id: "z", label: "Zulu" }] });
+    for (const id of ["a", "g", "z"]) assert(box(id).right <= menu.element.getBoundingClientRect().right + 0.5, `${id} stays inside the rail`);
+    control("a").focus();
+    key(control("a"), "ArrowDown");
+    equal(document.activeElement, control("g"), "Down moves on");
+    key(control("g"), "ArrowDown");
+    equal($1(".menu-sheet", menu.element).hidden, true, "Down does not open the group");
+    equal(document.activeElement, control("z"));
+    key(control("z"), "ArrowUp");
+    key(control("g"), "ArrowRight");
+    equal(document.activeElement, control("x"), "Right opens it");
+    assert($1(".menu-sheet", menu.element).getBoundingClientRect().left >= box("g").right - 1, "beside the rail");
+    key(control("x"), "ArrowLeft");
+    equal(document.activeElement, control("g"), "Left closes it");
+    menu.destroy();
+    const bar = A.generateMenu({ parent: host, items: [{ id: "a", label: "A" }, { id: "b", label: "B" }] });
+    const top = id => $1(`[data-id="${id}"]`, bar.element).getBoundingClientRect().top;
+    equal(top("a"), top("b"));
+    bar.update({ orientation: "vertical" });
+    assert(top("b") > top("a"), "switched to a rail");
+    bar.update({ orientation: "horizontal" });
+    equal(top("a"), top("b"), "and back");
+    bar.destroy();
+    host.remove();
+});
+
+test("tokens: control shape and heading type are unset by default and apply when a theme sets them", () => {
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const button = A.generateButton({ parent: host, text: "Go" }).element;
+    const card = A.generateCard({ parent: host, title: "Title", content: "c" });
+    const title = () => $1(".card-title", host);
+    const radius = getComputedStyle(button).borderTopLeftRadius;
+    equal(getComputedStyle(title()).textTransform, "none");
+    host.style.setProperty("--athena-radius-control", "999px");
+    host.style.setProperty("--athena-heading-transform", "uppercase");
+    equal(getComputedStyle(button).borderTopLeftRadius, "999px");
+    equal(getComputedStyle(title()).textTransform, "uppercase");
+    assert(radius !== "999px");
+    host.remove();
+});
+
 // ---- ATH-37: folding, minimap, multiple cursors ----
 
 const FOLDABLE = "function a() {\n    one();\n    two();\n}\nconst x = 1;";

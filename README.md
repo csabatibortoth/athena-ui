@@ -4,7 +4,7 @@ A small, dependency-free UI framework written as ES modules. It ships the buildi
 charts, dialogs, menus, a router and themes, a dashboard of widgets, a Kanban board, a code editor and more. Use single components from their own
 entry points, or let one `init()` call generate the page layout (header, menu, content wrapper, footer) with its theme.
 
-Current version: **2.12.0**
+Current version: **2.13.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -39,11 +39,11 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Syntax highlighting (including `<script>` and `<style>` in HTML and nested template strings), a code editor on a real `<textarea>` (with optional folding, a minimap and multiple cursors), a diff view
 
 **Navigation and feedback**
-- Menu with groups, badges and a user menu, bottom tabs on a phone; tabs, accordion, dropdown, sidebar, breadcrumbs, pagination, hash / history router
+- Menu with groups, badges and a user menu, as a bar or a vertical rail, bottom tabs on a phone; tabs, accordion, dropdown, sidebar, breadcrumbs, pagination, hash / history router
 - Dialogs and confirmations, toasts, alerts, spinner, progress bar, tooltips, animations that respect reduced motion
 
 **Foundation**
-- Themes and modes (light / dark / like the system) with a theme manager, a picker and a no-flash boot script; translations (English, Hungarian)
+- Themes and modes (light / dark / like the system) with a theme manager, a picker and a no-flash boot script; tokens for colours, shape and type; translations (English, Hungarian)
 - Safe DOM building (`el`, `createSafeBuilder`): text stays text, no event attributes, no inline style
 - Written as ES modules, no build step, no dependencies, TypeScript definitions, one entry point per component, and a cascade layer so your CSS always wins
 - Content-Security-Policy friendly: no inline script, no inline style, text from data is only ever inserted as text (the browser tests run under a strict policy)
@@ -77,7 +77,7 @@ Without npm, serve the `src` folder with any static web server and open `index.h
 
 **Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
-`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor (also with folding, a minimap and several cursors), the JSON tree, motion, every field type, native dialogs, a menu with groups inside groups, themes
+`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard and its gallery, the board, the code editor (also with folding, a minimap and several cursors), the JSON tree, motion, a theme inspired by LCARS (Bridge), every field type, native dialogs, a menu with groups inside groups, themes
 and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy. The footer shows the version and, on a deployed site, the commit it was built from.
 
 ```sh
@@ -426,7 +426,7 @@ and supports the arrow keys, Home and End. The same works in the footer menu.
 ```js
 const menu = generateMenu({
     parent: "header",                              // an element, an id or a selector
-    layout: "responsive",                          // "bar" | "bottom-tabs" | "responsive" (tabs at the bottom under 700px, groups open as sheets)
+    layout: "responsive",                          // "bar" | "vertical" | "bottom-tabs" | "responsive" (tabs at the bottom under 700px, groups open as sheets)
     followHash: true,                              // the item whose href equals location.hash is the active one
     onNavigate: (item, event) => console.log(item.id),   // only when a person uses an item, never from select() or while building
     items: [
@@ -447,7 +447,10 @@ Groups nest to any depth: ArrowDown / ArrowUp open the first level, ArrowRight o
 first, Home / End jump, a click outside closes everything. A badge above 99 shows "99+". `generateHeaderMenu({ items, onNavigate })` puts the same menu into the header.
 
 On a coloured header set `--athena-menu-bg`, `--athena-menu-fg`, `--athena-menu-hover` and `--athena-menu-active` (the line under the active item) on the menu or a parent; without them the bar is
-transparent as before. When there are more bottom tabs than fit, the bar scrolls sideways (the page does not) and keeps the current one in view. `layout: "responsive"` switches to tabs at the bottom up to `breakpoint` px (default 700), and gives the menu the class `is-tabs` while they show.
+transparent as before.
+
+**A vertical rail:** `layout: "vertical"`, or `layout: "responsive"` with `orientation: "vertical"` (a rail on wide screens, bottom tabs on narrow ones; `menu.update({ orientation })` switches it). Up / Down
+move along the rail, Right opens a group beside it, Left or Esc closes it. When there are more bottom tabs than fit, the bar scrolls sideways (the page does not) and keeps the current one in view. `layout: "responsive"` switches to tabs at the bottom up to `breakpoint` px (default 700), and gives the menu the class `is-tabs` while they show.
 
 ### Router
 
@@ -660,6 +663,10 @@ restyle everything at once:
 The colours come in a light and a dark set. Without the attribute `data-mode` on `<html>` the page follows the system (`prefers-color-scheme`); `data-mode="dark"` or
 `"light"` chooses. [docs/styling.md](docs/styling.md) lists every token and, for every group of rules, the classes and variables it uses (it is generated from the CSS by `npm run docs`).
 
+**Shape and type tokens** (none set by default): `--athena-radius-control` (buttons, badges, pager, menu items: a large value makes pills), `--athena-font` (chart text), `--athena-font-heading` and
+`--athena-heading-transform` (page, card, widget and dialog titles). Text on a status colour is `--athena-info-fg`, `-success-fg`, `-warning-fg`, `-danger-fg`: set them in a theme of your own that changes the
+status colours.
+
 #### Generic class names Athena styles
 
 Some components use plain class names that an application may also use: `.chip` / `.chip-remove`, `.facts` / `.fact`, `.widget` / `.widget-body` / `.widget-header` / `.widget-title`,
@@ -692,7 +699,7 @@ A second system lets people choose a theme **and** a mode. It is just two attrib
 
 ```js
 const manager = createThemeManager({ themes: [{ id: "athena", name: "Athena" }, { id: "contrast", name: "High contrast" }], storageKey: "myapp.appearance",
-    themeColorVariable: "--athena-bg" });                  // <meta name="theme-color"> follows this variable
+    themeColorVariable: "--athena-bg" });                  // a theme { id, name, defaultMode: "dark" } is dark until the person chooses a mode (tell theme-boot.js: data-dark-themes / data-light-themes)                  // <meta name="theme-color"> follows this variable
 manager.setTheme("contrast"); manager.setMode("dark");    // "system" | "light" | "dark"; saved in localStorage, other tabs follow
 manager.onChange(({ theme, mode, dark }) => redrawChartsOrWhatever());
 generateThemePicker({ parent: "account-page", manager });  // radio groups with a small preview of every theme
@@ -700,7 +707,7 @@ generateThemePicker({ parent: "account-page", manager, previewModes: "both" }); 
 ```
 
 **The contract of a theme** (also at the top of `appearance.css`): a theme is a pair of CSS blocks that set the tokens
-`--athena-bg`, `-fg`, `-muted`, `-line`, `-border`, `-surface`, `-surface-alt`, `-hover`, `-overlay`, `-accent`, `-accent-fg`, `-focus`, `-danger`, `-success`, `-warning`, `-info`, `-shadow` and `--series-1` ... `--series-8`:
+`--athena-bg`, `-fg`, `-muted`, `-line`, `-border`, `-surface`, `-surface-alt`, `-hover`, `-overlay`, `-accent`, `-accent-fg`, `-focus`, `-danger`, `-success`, `-warning`, `-info`, the text on those four (`-danger-fg`, `-success-fg`, `-warning-fg`, `-info-fg`), `-shadow` and `--series-1` ... `--series-8`:
 
 ```css
 [data-theme="ocean"][data-mode="light"] { --athena-bg: #f4f9fb; /* ... */ }
@@ -1014,6 +1021,15 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.13.0
+
+  - **Fixed: unreadable badges in the dark theme** (white on the status colours, 2.0:1 to 3.0:1). The text on a status colour is now a token (`--athena-info-fg`, `-success-fg`, `-warning-fg`, `-danger-fg`) that every shipped theme sets.
+    **Check this if you have a theme of your own:** status colours of yours that are dark (made for white text) get near-black text in dark mode until you set these four tokens.
+  - **Menu**: `layout: "vertical"` (a rail), and `orientation: "vertical"` for the responsive layout, with `menu.update({ orientation })`.
+  - **Themes**: a theme can set `defaultMode` ("dark" or "light"), used while no mode has been chosen; give `theme-boot.js` the same with `data-dark-themes` / `data-light-themes`. A "system" that 2.12 or older saved along with a theme counts as not chosen (it matters only for a theme with a `defaultMode`).
+  - **Tokens** for shape and type, unset by default: `--athena-radius-control`, `--athena-font`, `--athena-font-heading`, `--athena-heading-transform`.
+  - **Demo**: a theme inspired by LCARS, "Bridge": swept frames, a rail of pill buttons, dark by default, with motion that follows the reduced-motion setting.
 
  ### 2.12.0
 
