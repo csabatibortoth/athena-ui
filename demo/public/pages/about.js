@@ -28,7 +28,7 @@ export default async function about(context, { app }) {
         table.textContent = "The headers could not be read.";
     }
     const versions = await api("/api/version").catch(() => null);
-    if (versions) generateFacts({ parent: server, inline: true, items: [{ term: "Demo", description: versions.demo }, { term: "Node.js", description: versions.node }] });
+    if (versions) generateFacts({ parent: server, inline: true, items: [{ term: "Demo", description: versions.demo }, { term: "Build", description: versions.build ?? "from the sources" }, { term: "Node.js", description: versions.node }] });
 
     const ideas = block(root, "What to try", "");
     ideas.append(el("ul", {}, ...[

@@ -2,11 +2,13 @@
 //
 //   dist/package.json      "start": "node server.mjs", Node 24, no dependencies (so Azure has nothing to install or build)
 //   dist/server.mjs, api.mjs
+//   dist/build.json        the commit the package was built from, shown next to the version
 //   dist/public/           the pages of the demo
 //   dist/public/athena/    Athena UI itself, copied from src/ of this repository: the demo always shows the code that is being deployed
 //
 //   node demo/scripts/build-package.mjs [outputFolder]
 
+import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,6 +44,13 @@ writeFileSync(join(out, "package.json"), JSON.stringify({
     engines: { node: ">=24" },
     license: "MIT"
 }, null, 2) + "\n");
+
+// Which commit this is: GitHub Actions says it, a build by hand asks git. Neither: the demo shows the version only.
+let commit = process.env.GITHUB_SHA ?? "";
+if (!commit) {
+    try { commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* not a repository */ }
+}
+if (/^[0-9a-f]{40}$/.test(commit)) writeFileSync(join(out, "build.json"), JSON.stringify({ commit: commit.slice(0, 7) }) + "\n");
 
 // A short list of what is in the package, for the log of the deployment
 const files = [];

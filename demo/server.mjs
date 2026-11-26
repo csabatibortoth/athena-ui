@@ -14,6 +14,9 @@ const PUBLIC = resolve(process.env.PUBLIC_DIR ?? join(here, "public"));
 const ATHENA = resolve(process.env.ATHENA_DIR ?? (existsSync(join(PUBLIC, "athena")) ? join(PUBLIC, "athena") : join(here, "..", "src")));
 const VERSION = JSON.parse(readFileSync(existsSync(join(here, "package.json")) ? join(here, "package.json") : join(here, "..", "package.json"), "utf8")).version;
 
+// The commit of the package (build-package.mjs writes it). A demo run from the sources has none.
+const BUILD = existsSync(join(here, "build.json")) ? JSON.parse(readFileSync(join(here, "build.json"), "utf8")).commit : null;
+
 const TYPES = {
     ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
     ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".md": "text/markdown; charset=utf-8"
@@ -90,7 +93,7 @@ export function createDemoServer({ log = console.log } = {}) {
             const path = new URL(request.url, "http://local").pathname;
             if (path === "/api/version") {
                 response.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-                response.end(JSON.stringify({ demo: VERSION, node: process.version }));
+                response.end(JSON.stringify({ demo: VERSION, build: BUILD, node: process.version }));
                 return;
             }
             if (await handleApi(request, response, { secure, ip })) return;

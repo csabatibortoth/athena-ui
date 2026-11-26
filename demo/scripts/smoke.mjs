@@ -13,6 +13,8 @@ if (!/^https?:\/\//.test(base)) {
     console.error("Usage: node demo/scripts/smoke.mjs <url> [expected version]");
     process.exit(1);
 }
+// in a GitHub Actions deployment: the commit that was deployed (the same version can be deployed from two commits)
+const commit = (process.env.GITHUB_SHA ?? "").slice(0, 7);
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const problems = [];
@@ -20,18 +22,20 @@ const check = (ok, message) => { if (!ok) problems.push(message); console.log(`$
 
 // 1. wait for the new version
 let version = null;
+let build = null;
 for (let attempt = 1; attempt <= 36; attempt++) {
     try {
         const response = await fetch(`${base}/api/version`, { signal: AbortSignal.timeout(10000) });
         if (response.ok) {
-            version = (await response.json()).demo;
-            if (version === expected) break;
+            ({ demo: version, build = null } = await response.json());
+            if (version === expected && (!commit || build === commit)) break;
         }
     } catch { /* not up yet */ }
     console.log(`waiting for ${base} to run version ${expected} (attempt ${attempt}, found ${version ?? "nothing"})`);
     await wait(5000);
 }
 check(version === expected, `the site runs version ${expected} (found ${version ?? "nothing"})`);
+if (commit) check(build === commit, `the site runs commit ${commit} (found ${build ?? "nothing"})`);
 
 // 2. the page, the library, the API
 const page = await fetch(`${base}/`);
