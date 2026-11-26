@@ -4,7 +4,7 @@ A small, dependency-free UI framework written as ES modules. It ships the buildi
 charts, dialogs, menus, a router and themes, a dashboard of widgets, a Kanban board, a code editor and more. Use single components from their own
 entry points, or let one `init()` call generate the page layout (header, menu, content wrapper, footer) with its theme.
 
-Current version: **2.12.0**
+Current version: **2.13.0**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -39,11 +39,11 @@ Known limits are listed below, so you can judge whether it fits your project:
 - Syntax highlighting (including `<script>` and `<style>` in HTML and nested template strings), a code editor on a real `<textarea>` (with optional folding, a minimap and multiple cursors), a diff view
 
 **Navigation and feedback**
-- Menu with groups, badges and a user menu, bottom tabs on a phone; tabs, accordion, dropdown, sidebar, breadcrumbs, pagination, hash / history router
+- Menu with groups, badges and a user menu, as a bar or a vertical rail, bottom tabs on a phone; tabs, accordion, dropdown, sidebar, breadcrumbs, pagination, hash / history router
 - Dialogs and confirmations, toasts, alerts, spinner, progress bar, tooltips, animations that respect reduced motion
 
 **Foundation**
-- Themes and modes (light / dark / like the system) with a theme manager, a picker and a no-flash boot script; translations (English, Hungarian)
+- Themes and modes (light / dark / like the system) with a theme manager, a picker and a no-flash boot script; tokens for colours, shape and type; translations (English, Hungarian)
 - Safe DOM building (`el`, `createSafeBuilder`): text stays text, no event attributes, no inline style
 - Written as ES modules, no build step, no dependencies, TypeScript definitions, one entry point per component, and a cascade layer so your CSS always wins
 - Content-Security-Policy friendly: no inline script, no inline style, text from data is only ever inserted as text (the browser tests run under a strict policy)
@@ -707,7 +707,7 @@ generateThemePicker({ parent: "account-page", manager, previewModes: "both" }); 
 ```
 
 **The contract of a theme** (also at the top of `appearance.css`): a theme is a pair of CSS blocks that set the tokens
-`--athena-bg`, `-fg`, `-muted`, `-line`, `-border`, `-surface`, `-surface-alt`, `-hover`, `-overlay`, `-accent`, `-accent-fg`, `-focus`, `-danger`, `-success`, `-warning`, `-info`, `-shadow` and `--series-1` ... `--series-8`:
+`--athena-bg`, `-fg`, `-muted`, `-line`, `-border`, `-surface`, `-surface-alt`, `-hover`, `-overlay`, `-accent`, `-accent-fg`, `-focus`, `-danger`, `-success`, `-warning`, `-info`, the text on those four (`-danger-fg`, `-success-fg`, `-warning-fg`, `-info-fg`), `-shadow` and `--series-1` ... `--series-8`:
 
 ```css
 [data-theme="ocean"][data-mode="light"] { --athena-bg: #f4f9fb; /* ... */ }
@@ -1021,6 +1021,15 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.13.0
+
+  - **Fixed: unreadable badges in the dark theme** (white on the status colours, 2.0:1 to 3.0:1). The text on a status colour is now a token (`--athena-info-fg`, `-success-fg`, `-warning-fg`, `-danger-fg`) that every shipped theme sets.
+    **Check this if you have a theme of your own:** status colours of yours that are dark (made for white text) get near-black text in dark mode until you set these four tokens.
+  - **Menu**: `layout: "vertical"` (a rail), and `orientation: "vertical"` for the responsive layout, with `menu.update({ orientation })`.
+  - **Themes**: a theme can set `defaultMode` ("dark" or "light"), used while no mode has been chosen; give `theme-boot.js` the same with `data-dark-themes` / `data-light-themes`. A "system" that 2.12 or older saved along with a theme counts as not chosen (it matters only for a theme with a `defaultMode`).
+  - **Tokens** for shape and type, unset by default: `--athena-radius-control`, `--athena-font`, `--athena-font-heading`, `--athena-heading-transform`.
+  - **Demo**: a theme inspired by LCARS, "Bridge": swept frames, a rail of pill buttons, dark by default, with motion that follows the reduced-motion setting.
 
  ### 2.12.0
 
