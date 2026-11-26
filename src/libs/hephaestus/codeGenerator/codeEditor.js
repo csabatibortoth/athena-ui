@@ -124,9 +124,7 @@ export function createCodeEditor(options = {}) {
             inside.push(span < spans.length && spans[span].start < at);
             at += line.length + 1;
         }
-        // a comment, a string, a template or a <script> that reaches the end may go on in what follows
-        const open = spans.at(-1)?.end === text.length && (spans.at(-1).nested || text.endsWith("\n"));      // an empty last line has no token to tell it by
-        return { lines, inside, open };
+        return { lines, inside };
     }
 
     /** Replaces the lines [from, to) (as drawn) by new ones: the nodes and the tokens. */
@@ -213,11 +211,14 @@ export function createCodeEditor(options = {}) {
         let step = 1;
         for (;;) {
             while (last < count && insideAtStart[last - delta]) last++;
-            const end = last < count ? starts[last] - 1 : text.length;
-            const read = tokenLines(text.slice(starts[context], end));
-            const fresh = { lines: read.lines.slice(first - context), inside: read.inside.slice(first - context), open: read.open };
+            // and past the end, up to the next line with text, again only to read: is the name at the end of this part followed by "("?
+            let ahead = last;
+            while (ahead < count && !lineText(ahead).trim()) ahead++;
+            ahead = Math.min(count, ahead + 1);
+            const read = tokenLines(text.slice(starts[context], ahead < count ? starts[ahead] - 1 : text.length));
+            const fresh = { lines: read.lines.slice(first - context, last - context), inside: read.inside.slice(first - context, last - context) };
             const lastToken = fresh.lines.at(-1).at(-1);
-            if (last < count && (fresh.open || lastToken && (lastToken.type === "comment" || lastToken.type === "string" || lastToken.type === "meta"))) {
+            if (last < count && (read.inside[last - context] || lastToken && (lastToken.type === "comment" || lastToken.type === "string" || lastToken.type === "meta"))) {
                 last = Math.min(count, last + step);      // it may run on: look further (doubling, so a long comment does not cost much more)
                 step *= 2;
                 continue;

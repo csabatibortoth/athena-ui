@@ -1829,7 +1829,8 @@ test("code editor: a line that is redrawn is coloured as in a fresh editor, what
         ["js", "a\n\n/x/.test(s)", ";", "end", "over an empty line"],
         ["js", "a\n/x/", "=", 1, "the line before changes: now a regular expression"],
         ["js", "foo\nx", "(", 4, "the line after changes: now a function name"],
-        ["ts", "b = 1;\n/(\n\nlet a;", "/*", 4, "a comment opened above an empty line runs on"]
+        ["ts", "b = 1;\n/(\n\nlet a;", "/*", 4, "a comment opened above an empty line runs on"],
+        ["js", "x\na\n\n(", "b", 3, "a function name whose ( is further down"]
     ];
     for (const [language, value, text, at, what] of cases) {
         const typed = A.createCodeEditor({ element: hosts[0], language, value });
