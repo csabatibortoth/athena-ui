@@ -128,6 +128,21 @@ describe("what a person does", { skip }, () => {
         }
     });
 
+    test("code: a real click folds a block, the minimap scrolls, and a phone does not scroll sideways", { timeout: 240000 }, () => withPage("/code", async page => {
+        await page.waitFor(`document.querySelector("#code-large .code-line.is-foldable")`, { timeout: 90000 });
+        await page.eval(`document.getElementById("code-large").scrollIntoView({ block: "center", behavior: "instant" })`);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const arrow = await page.eval(`(() => { const area = document.querySelector("#code-large textarea").getBoundingClientRect(); const line = document.querySelector("#code-large .code-line").getBoundingClientRect(); return { x: area.left + 10, y: line.top + line.height / 2 }; })()`);
+        for (const type of ["mousePressed", "mouseReleased"]) await page.send("Input.dispatchMouseEvent", { type, x: arrow.x, y: arrow.y, button: "left", clickCount: 1 });
+        await page.waitFor(`document.querySelector("#code-large .code-line").classList.contains("is-folded")`);
+        const map = await page.eval(`(() => { const box = document.querySelector("#code-large .code-minimap").getBoundingClientRect(); return { x: box.left + 20, y: box.top + Math.min(box.height, 250) }; })()`);
+        for (const type of ["mousePressed", "mouseReleased"]) await page.send("Input.dispatchMouseEvent", { type, x: map.x, y: map.y, button: "left", clickCount: 1 });
+        await page.waitFor(`document.querySelector("#code-large .code-editor-scroll").scrollTop > 100`);
+        await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
+        await page.waitFor(`getComputedStyle(document.querySelector("#code-large .code-minimap")).display === "none"`);
+        assert.equal(await page.eval(`document.documentElement.scrollWidth - document.documentElement.clientWidth`), 0);
+    }));
+
     test("widgets: a statistic fits its widget at the default size", { timeout: 240000 }, () => withPage("/widgets", async page => {
         await page.waitFor(`document.querySelectorAll("#dashboard .widget .stat").length === 2`, { timeout: 90000 });
         const over = await page.eval(`[...document.querySelectorAll("#dashboard .widget .stat")].map(stat => stat.parentElement.scrollHeight - stat.parentElement.clientHeight)`);

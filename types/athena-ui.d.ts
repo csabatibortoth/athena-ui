@@ -41,6 +41,7 @@ export * from "./libs/hephaestus/codeGenerator/codeGenerator.js";
 export * from "./libs/hephaestus/codeGenerator/codeEditor.js";
 export * from "./libs/core/codeLanguages.js";
 export * from "./libs/core/codeDiff.js";
+export * from "./libs/core/codeFolding.js";
 export * from "./libs/hephaestus/modalGenerator/modalGenerator.js";
 export * from "./libs/core/theme.js";
 export * from "./libs/hephaestus/componentGenerator/themePicker.js";

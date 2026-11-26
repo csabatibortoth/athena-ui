@@ -3105,6 +3105,55 @@ dialog.dialog[open]::backdrop {
     text-indent: calc(-1 * (var(--code-gutter, 2ch) + 1.5ch));
 }
 
+/* folding: the arrow stands beside the number, a mark after the folded line; the numbers go on after the hidden lines */
+.code-editor.has-folding { --code-fold: 2ch; }
+.code-editor.has-folding .athena-code.has-line-numbers .code-line::before { content: counter(line) "\2007\2007"; width: calc(var(--code-gutter, 2ch) + var(--code-fold)); }
+.code-editor.has-folding .athena-code.has-line-numbers .code-line.is-foldable::before { content: counter(line) "\2007▾"; }
+.code-editor.has-folding .athena-code.has-line-numbers .code-line.is-folded::before { content: counter(line) "\2007▸"; }
+.code-editor.has-folding .code-line.is-folded::after {
+    content: " ⋯";
+    color: var(--athena-muted);
+    counter-increment: line var(--code-hidden, 0);
+}
+
+.code-editor-body { display: flex; min-width: 0; min-height: 0; flex: 1; }
+.code-editor-body > .code-editor-scroll { flex: 1; min-width: 0; }
+
+.code-minimap {
+    position: relative;
+    flex: none;
+    width: 80px;
+    overflow: hidden;
+    border-left: var(--athena-border-width) solid var(--athena-line);
+    background: var(--athena-surface-alt);
+    cursor: pointer;
+    touch-action: none;
+}
+.code-minimap-canvas { position: absolute; top: 0; left: 0; width: 80px; height: 100%; }
+.code-minimap-view {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: var(--code-minimap-top, 0);
+    height: var(--code-minimap-size, 0);
+    background: color-mix(in srgb, var(--athena-accent) 18%, transparent);
+}
+.code-editor.has-minimap { container-type: inline-size; }
+@container (max-width: 480px) {
+    .code-minimap { display: none; }
+}
+
+.code-editor-cursors { position: absolute; inset: 0 0 auto 0; height: 0; pointer-events: none; }
+.code-editor-cursor {
+    position: absolute;
+    top: var(--code-cursor-top);
+    left: var(--code-cursor-left);
+    width: 2px;
+    height: 1.2em;
+    background: var(--athena-fg);
+}
+::highlight(athena-code-cursors) { background-color: color-mix(in srgb, var(--athena-accent) 35%, transparent); }
+
 .code-line.is-highlighted {
     background: color-mix(in srgb, var(--athena-accent) 14%, transparent);
 }
@@ -3249,6 +3298,14 @@ dialog.dialog[open]::backdrop {
 
 .code-editor-highlight.has-line-numbers ~ .code-editor-input {
     padding-left: calc(12px + var(--code-gutter, 2ch) + 1.5ch);
+}
+
+.code-editor.has-folding .code-editor-highlight.has-line-numbers ~ .code-editor-input {
+    padding-left: calc(12px + var(--code-gutter, 2ch) + var(--code-fold) + 1.5ch);
+}
+.code-editor.has-folding .athena-code.has-line-numbers.code-wrap .code-line {
+    padding-left: calc(12px + var(--code-gutter, 2ch) + var(--code-fold) + 1.5ch);
+    text-indent: calc(-1 * (var(--code-gutter, 2ch) + var(--code-fold) + 1.5ch));
 }
 
 .code-editor-input::selection {

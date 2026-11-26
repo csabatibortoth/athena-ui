@@ -880,6 +880,11 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
 - **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`), `log`. The `log` language comes from Heimdall's log display: times, IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Its patterns are bounded so a hostile line stays cheap; tokenizing always gives the input text back. A three-digit number in 100..599 gets the status colour even without context (a pid, for example).
   A language is a plain object (`registerLanguage({ name, aliases, rules: [{ type, pattern }], lineComment, blockComment, pairs, indentAfter })`), so your own are one call.
   The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours). It knows nested `${}` of a template string and the `<script>` and `<style>` inside HTML, but not, for example, CSS inside a template string. Bracket matching ignores brackets in strings and comments.
+- **Folding, minimap, several cursors** (all off unless asked for): `folding: true` folds blocks by indentation (the arrow beside the line number, Ctrl+Shift+[ and ], `fold(line)`, `unfold(line)`,
+  `foldAll()`, `unfoldAll()`). `getValue()` and `onChange` always give the whole text; an edit that would delete or split folded lines only opens them; find, `setSelection` and `insertText` open
+  everything first; there is no folding while there are `readOnlyRanges`, or without line numbers. `minimap: true` draws the text small beside the editor (hidden under 480 px of editor width).
+  `multipleCursors: true`: Ctrl+D selects the next occurrence, Ctrl+Alt+Up / Down or Alt+click adds a cursor; typing, Enter, Backspace, Delete, paste and Left / Right act at all of them, one undo
+  step; Escape, a click or another command goes back to one. Not with IME composition (predictive typing on a phone goes back to one cursor).
 - **Colours** are the tokens `--athena-tok-comment`, `-string`, `-keyword` ... (light and dark); a test keeps every one at 4.5:1 contrast or more.
 - **The editor is a real `<textarea>`** with the highlighted text behind it, so native input, selection, spell-check off, mobile keyboards, IME and screen readers all work.
   Tab and Shift+Tab indent and outdent (also several lines), Enter keeps the indentation (and goes one level deeper after `{`, `(`, `:`), brackets and quotes are closed, stepped over, wrapped around a selection and
@@ -888,7 +893,7 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
   **Escape, then Tab, leaves the editor** (so the keyboard is never trapped); the way out is read to screen readers.
 - **Size**: only the lines around a change are tokenized again (with the neighbouring lines, because a `/` or a function name depends on them), and tests check that this gives what tokenizing everything gives. In rare, tangled text a redrawn line can still be coloured differently until it is changed again. On the (slow) development machine the work of the editor per key press is
   about 13 ms in a 5,000 line file; the browser's own layout of two large text blocks is the larger part (about 90 ms per key at 5,000 lines; smaller files were not measured separately). Texts longer than 300,000 characters
-  (`maxHighlightLength`) are shown without highlighting. Not there yet: multiple cursors, minimap, folding.
+  (`maxHighlightLength`) are shown without highlighting.
 
 ### JSON tree
 

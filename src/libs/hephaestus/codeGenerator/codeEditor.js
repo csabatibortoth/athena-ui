@@ -7,6 +7,9 @@ import { asHandle, cx, el, resolveElement, uid } from "../../core/dom.js";
 import { translate } from "../../core/i18n.js";
 import { getLanguage, tokenize } from "../../core/codeLanguages.js";
 import { lineNodes, tokensToLines } from "./codeGenerator.js";
+import { foldAt, foldRegions, fullLine, fullText, moveFolds, toFull, touchesFold, unfoldAt, visibleLine } from "../../core/codeFolding.js";
+import { createMinimap } from "./minimap.js";
+import { editAll, nextOccurrence, wordAt } from "./multiCursor.js";
 
 const HIGHLIGHTS = typeof CSS !== "undefined" && "highlights" in CSS && typeof Highlight === "function" ? CSS.highlights : null;
 const IDENTIFIER = /[\w$]/;
@@ -34,9 +37,14 @@ const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  *        occurrence when it is set; it stays locked where it is while the text around it changes)
  * @param {(context: {value: string, position: number, line: number, lineText: string, prefix: string, explicit: boolean, language: string}) => (Array<{label: string, insert?: string, detail?: string}>|Promise<Array>)} [options.provideCompletions]
  * @param {boolean} [options.autoComplete=true] with provideCompletions: suggest while typing (otherwise only with Ctrl+Space)
+ * @param {boolean} [options.folding=false] (needs lineNumbers) blocks can be folded by indentation: a click on the arrow beside the line number, Ctrl+Shift+[ and ].
+ *        getValue() and onChange always give the whole text; an edit that would touch folded lines opens them first. Off while there are readOnlyRanges.
+ * @param {boolean} [options.minimap=false] a small picture of the whole text beside it (hidden in a narrow editor)
+ * @param {boolean} [options.multipleCursors=false] Ctrl+D selects the next occurrence, Ctrl+Alt+Up / Down or Alt+click adds a cursor, Escape goes back to one
  * @param {(value: string, reason: string) => void} [options.onChange] after every change made by typing, undo, redo, replace ... (not after setValue)
  * @returns the handle: { element, textarea, getValue, setValue, focus, getSelection, setSelection, insertText, setLanguage, setReadOnly, setWrap, setMarkers,
- *          setReadOnlyRanges, undo, redo, canUndo, canRedo, openFind, closeFind, toggleComment, destroy }
+ *          setReadOnlyRanges, undo, redo, canUndo, canRedo, openFind, closeFind, toggleComment,
+ *          fold, unfold, foldAll, unfoldAll, getCursorCount, destroy }
  */
 export function createCodeEditor(options = {}) {
     const container = resolveElement(options.element);
@@ -70,9 +78,81 @@ export function createCodeEditor(options = {}) {
     const status = el("div", { class: "code-editor-status" }, position, note);
     const root = container;
     root.classList.add("code-editor", `code-tab-${tabSize}`);
-    root.replaceChildren(scroller, status, hint);
+    const minimap = options.minimap ? createMinimap(scroller) : null;
+    const body = el("div", { class: "code-editor-body" }, scroller, minimap?.element ?? null);
+    root.classList.toggle("has-folding", Boolean(options.folding) && lineNumbers);
+    root.classList.toggle("has-minimap", Boolean(options.minimap));
+    root.replaceChildren(body, status, hint);
     status.hidden = options.statusBar === false;
     textarea.value = String(options.value ?? "").replace(/\r\n?/g, "\n");
+
+    /* ---- folding: the textarea holds the visible text, every fold keeps the lines it took out ---- */
+
+    let folds = [];
+    let foldedVisible = "";          // the visible text the folds belong to
+    let regions = new Map();
+    const canFold = () => Boolean(options.folding) && lineNumbers && !plain && !locked.length;
+    const whole = () => fullText(textarea.value, folds);
+
+    function showVisible(next, selection) {
+        const scroll = scroller.scrollTop;
+        folds = next.folds;
+        textarea.value = foldedVisible = next.visible;
+        if (selection !== undefined) textarea.setSelectionRange(selection[0], selection[1]);
+        relocate();       // the next edit by the browser is measured against this text
+        render();
+        scroller.scrollTop = scroll;
+    }
+
+    /** Opens every fold; the selection stays on the same text. */
+    function unfoldAll() {
+        if (!folds.length) return false;
+        const start = toFull(textarea.value, folds, textarea.selectionStart);
+        const end = toFull(textarea.value, folds, textarea.selectionEnd);
+        showVisible({ visible: whole(), folds: [] }, [start, end]);
+        return true;
+    }
+
+    function unfoldLine(line) {
+        const next = unfoldAt(textarea.value, folds, line);
+        if (!next) return false;
+        const map = offset => toFull(textarea.value, folds.filter(fold => fold.line === line), offset);
+        showVisible(next, [map(textarea.selectionStart), map(textarea.selectionEnd)]);
+        note.textContent = translate("code.unfolded");
+        return true;
+    }
+
+    function foldLine(line) {
+        if (!canFold()) return false;
+        clearCursors();
+        if (find.open) closeFind();
+        const next = foldAt(textarea.value, folds, line);
+        if (!next) return false;
+        const header = next.visible.split("\n").slice(0, line + 1).join("\n").length;
+        const caret = Math.min(textarea.selectionStart, header);
+        showVisible(next, [caret, caret]);
+        note.textContent = translate("code.folded", { count: folds.find(fold => fold.line === line).hidden.split("\n").length - 1 });
+        return true;
+    }
+
+    /** The folds follow a change of the visible text; one whose place was changed is opened where it was. */
+    function followFolds() {
+        if (!folds.length) {
+            foldedVisible = textarea.value;
+            return;
+        }
+        if (textarea.value === foldedVisible) return;
+        const moved = moveFolds(foldedVisible, textarea.value, folds, edit?.length === textarea.value.length ? edit : null);
+        folds = moved.folds;
+        if (moved.broken.length) {
+            const caret = textarea.selectionStart;
+            textarea.value = fullText(textarea.value, moved.broken);
+            textarea.setSelectionRange(caret, caret);
+            folds = [];
+            textarea.value = fullText(textarea.value, moved.folds);
+        }
+        foldedVisible = textarea.value;
+    }
 
     /* ---- the text and its lines ---- */
 
@@ -155,7 +235,10 @@ export function createCodeEditor(options = {}) {
         pre.classList.toggle("has-line-numbers", lineNumbers && !plain);
         pre.classList.toggle("code-wrap", wrap);
         pre.className = pre.className.replace(/\bcode-digits-\d\b/g, "").trim();
-        pre.classList.add(`code-digits-${Math.min(7, String(starts.length).length)}`);
+        const digits = `code-digits-${Math.min(7, String(fullLine(folds, starts.length - 1) + 1).length)}`;
+        pre.classList.add(digits);
+        // the textarea starts its text where the highlighted text starts: it needs the width of the numbers too
+        textarea.className = `code-editor-input ${digits}`;
         const found = getLanguage(language);
         code.className = found ? `language-${found.name}` : "";
         const before = { text: renderedText, starts: renderedStarts, language: renderedLanguage };
@@ -168,6 +251,7 @@ export function createCodeEditor(options = {}) {
             insideAtStart = [];
             renderedText = "";
             code.replaceChildren(document.createTextNode(`${text}\n`));
+            minimap?.draw([]);
             return;
         }
         if (!nodes.length || before.language !== language) {
@@ -264,7 +348,12 @@ export function createCodeEditor(options = {}) {
         for (const marker of [...markers.filter(item => item.level === "error"), ...markers.filter(item => item.level !== "error")]) {
             if (seen.has(marker.line)) continue;
             seen.add(marker.line);
-            add(marker.line - 1, "has-marker", `marker-${marker.level ?? "error"}`);
+            add(visibleLine(folds, marker.line - 1), "has-marker", `marker-${marker.level ?? "error"}`);
+        }
+        if (canFold()) {
+            regions = foldRegions(textarea.value);
+            for (const line of regions.keys()) add(line, "is-foldable");
+            for (const fold of folds) add(fold.line, "is-foldable", "is-folded");
         }
         for (const range of locked) {
             const at = anchors.get(range) ?? -1;
@@ -277,6 +366,10 @@ export function createCodeEditor(options = {}) {
             node.classList.add(...classes);
             decorated.push([node, classes]);
         }
+        // the line numbers go on after the folded lines: a custom property through the CSSOM, which a strict Content-Security-Policy allows
+        for (const fold of folds) nodes[fold.line]?.style.setProperty("--code-hidden", String(fold.hidden.split("\n").length - 1));
+        minimap?.draw(lineTokens);
+        paintCursors();
         markCurrentLine();
     }
 
@@ -291,9 +384,10 @@ export function createCodeEditor(options = {}) {
         currentNode?.classList.remove("is-current");
         currentNode = textarea.selectionStart === textarea.selectionEnd ? (nodes[line] ?? null) : null;
         currentNode?.classList.add("is-current");
-        position.textContent = translate("code.position", { line: line + 1, column: column + 1 });
-        const marker = markers.find(entry => entry.line === line + 1);
-        const message = marker ? translate("code.marker", { line: line + 1, message: marker.message }) : "";
+        const shown = fullLine(folds, line) + 1;
+        position.textContent = translate("code.position", { line: shown, column: column + 1 });
+        const marker = markers.find(entry => entry.line === shown);
+        const message = marker ? translate("code.marker", { line: shown, message: marker.message }) : "";
         if (note.textContent !== message) note.textContent = message;
     }
 
@@ -397,7 +491,7 @@ export function createCodeEditor(options = {}) {
 
     function snapshot() {
         relocate();
-        return { value: textarea.value, start: textarea.selectionStart, end: textarea.selectionEnd, anchors: new Map(anchors) };
+        return { value: whole(), start: toFull(textarea.value, folds, textarea.selectionStart), end: toFull(textarea.value, folds, textarea.selectionEnd), anchors: new Map(anchors) };
     }
 
     function remember(type) {
@@ -415,7 +509,10 @@ export function createCodeEditor(options = {}) {
     }
 
     function restore(entry, reason) {
-        textarea.value = entry.value;
+        // an undone or redone text is shown whole
+        folds = [];
+        clearCursors();
+        textarea.value = foldedVisible = entry.value;
         // undo and redo put the locked texts back where they were in that state
         for (const [range, at] of entry.anchors) anchors.set(range, at);
         anchoredValue = entry.value;
@@ -436,6 +533,126 @@ export function createCodeEditor(options = {}) {
         historyIndex++;
         restore(history[historyIndex], "redo");
         return true;
+    }
+
+    /* ---- multiple cursors: the textarea has the real one, the others are [from, to] here ---- */
+
+    let extras = [];
+    let cursorLayer = null;
+    let altFrom = null;
+    const multi = Boolean(options.multipleCursors);
+
+    function paintCursors() {
+        if (!multi) return;
+        cursorLayer ??= scroller.appendChild(el("div", { class: "code-editor-cursors", attrs: { "aria-hidden": "true" } }));
+        const box = cursorLayer.getBoundingClientRect();
+        cursorLayer.replaceChildren(...(plain ? [] : extras).map(([, to]) => {
+            const rect = caretRect(to);
+            const caret = el("span", { class: "code-editor-cursor" });
+            caret.style.setProperty("--code-cursor-top", `${rect.top - box.top}px`);
+            caret.style.setProperty("--code-cursor-left", `${rect.left - box.left}px`);
+            return caret;
+        }));
+        setHighlight("athena-code-cursors", plain ? [] : extras.filter(([from, to]) => to > from).map(([from, to]) => rangeBetween(from, to)).filter(Boolean));
+    }
+
+    function setCursors(next) {
+        extras = next.slice(0, 500);
+        paintCursors();
+        note.textContent = extras.length ? translate("code.cursors", { count: extras.length + 1 }) : "";
+    }
+
+    function clearCursors() {
+        if (extras.length) setCursors([]);
+    }
+
+    const primary = () => [textarea.selectionStart, textarea.selectionEnd];
+
+    function addNextOccurrence() {
+        unfoldAll();
+        measure();
+        const [from, to] = primary();
+        if (from === to) {
+            const [start, end] = wordAt(textarea.value, from);
+            textarea.setSelectionRange(start, end);
+            return afterSelection();
+        }
+        const found = nextOccurrence(textarea.value, textarea.value.slice(from, to), to, [primary(), ...extras]);
+        if (!found) return;
+        // the new one becomes the real selection, so it is the one in view
+        setCursors([...extras, [from, to]]);
+        textarea.setSelectionRange(found[0], found[1]);
+        revealCaret();
+        markCurrentLine();
+    }
+
+    function addCursorOnLine(direction) {
+        unfoldAll();
+        measure();
+        const offset = textarea.selectionStart;
+        const line = lineOf(offset);
+        const target = line + direction;
+        if (target < 0 || target >= starts.length) return;
+        const at = starts[target] + Math.min(offset - starts[line], lineText(target).length);
+        setCursors([...extras.filter(([from]) => from !== at), primary()]);
+        textarea.setSelectionRange(at, at);
+        revealCaret();
+        markCurrentLine();
+    }
+
+    /** One edit at every cursor, one undo step. A cursor in something locked stops all of it. */
+    function editCursors(kind, text, reason) {
+        if (readOnly) return;
+        const ranges = [primary(), ...extras];
+        const result = editAll(textarea.value, ranges, kind, text);
+        if (result.spans.some(([from, to]) => blocked(from, to))) return;
+        relocate();
+        for (const [range, start] of anchors) {
+            if (start >= 0) anchors.set(range, result.spans.reduce((moved, [from, to], i) => (to <= start ? moved + (Array.isArray(text) ? text[i] ?? "" : kind === "insert" ? text : "").length - (to - from) : moved), start));
+        }
+        textarea.value = result.value;
+        anchoredValue = result.value;
+        const [main, ...rest] = result.carets;
+        textarea.setSelectionRange(main, main);
+        extras = [...new Set(rest)].filter(at => at !== main).map(at => [at, at]);
+        afterChange(reason);
+        paintCursors();
+    }
+
+    /** Keys while there are several cursors, and the keys that make them. Returns true when the key was used. */
+    function cursorKey(event) {
+        if (!multi || plain) return false;
+        if (mod(event) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "d") addNextOccurrence();
+        else if (mod(event) && event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) addCursorOnLine(event.key === "ArrowUp" ? -1 : 1);
+        else if (!extras.length) return false;
+        else if (event.key === "Escape") clearCursors();
+        else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && !mod(event) && !event.shiftKey && !event.altKey) {
+            const step = event.key === "ArrowLeft" ? -1 : 1;
+            const move = ([from, to]) => {
+                const at = from !== to ? (step < 0 ? from : to) : Math.max(0, Math.min(textarea.value.length, to + step));
+                return [at, at];
+            };
+            textarea.setSelectionRange(...move(primary()));
+            setCursors(extras.map(move));
+        } else if (event.key === "Enter" && !mod(event)) editCursors("insert", "\n", "newline");
+        else if (event.key === "Backspace" || event.key === "Delete") editCursors(event.key === "Backspace" ? "backward" : "forward", "", "delete");
+        else {
+            // anything that moves or does something else goes back to one cursor
+            if (!["Shift", "Control", "Alt", "Meta"].includes(event.key) && (event.key.length > 1 || mod(event)) && !(mod(event) && "cx".includes(event.key.toLowerCase()))) clearCursors();
+            return false;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        return true;
+    }
+
+    function onPaste(event) {
+        if (!extras.length || readOnly) return;
+        const text = event.clipboardData?.getData("text/plain")?.replace(/\r\n?/g, "\n");
+        if (text === undefined) return;
+        event.preventDefault();
+        const lines = text.split("\n");
+        editCursors("insert", lines.length === extras.length + 1 ? lines : text, "paste");       // one line each, when there are as many
     }
 
     /* ---- changes ---- */
@@ -499,6 +716,7 @@ export function createCodeEditor(options = {}) {
     const blocked = (from, to) => lockedSpans().some(([start, end, isText]) => (isText ? from < end && to > start : from <= end && to >= start));
 
     function afterChange(reason, { remembered = false, native = false } = {}) {
+        followFolds();
         scheduleRender();
         if (!remembered) remember(reason);
         measure();
@@ -508,13 +726,26 @@ export function createCodeEditor(options = {}) {
         // The browser scrolls to the caret by itself while the person types; our own edits (Tab, Enter, replace, undo ...) do it here, once per frame
         // (measuring the caret makes the browser lay the whole text out, which is the expensive part of a big file)
         if (!native) requestAnimationFrame(() => !destroyed && revealCaret());
-        options.onChange?.(textarea.value, reason);
+        options.onChange?.(whole(), reason);
         maybeComplete(reason);
     }
 
     /** Replaces [from, to) by text and puts the selection where it says (default: after the text). */
     function applyEdit(from, to, text, { select = [from + text.length, from + text.length], reason = "edit" } = {}) {
-        if (readOnly || blocked(from, to)) return false;
+        if (readOnly) return false;
+        const folded = folds.length && touchesFold(textarea.value, folds, from, to, text);
+        if (folded) {
+            // text that nobody sees is never deleted: a replacement only opens the fold, an insertion goes where it was meant
+            if (to > from) {
+                unfoldLine(folded.line);
+                return false;
+            }
+            const at = toFull(textarea.value, folds, from);
+            unfoldAll();
+            select = [select[0] + at - from, select[1] + at - from];
+            from = to = at;
+        }
+        if (blocked(from, to)) return false;
         const value = textarea.value;
         relocate();
         textarea.value = value.slice(0, from) + text + value.slice(to);
@@ -802,10 +1033,12 @@ export function createCodeEditor(options = {}) {
                 replaceCurrent();
             }
         });
-        root.insertBefore(findBar, scroller);
+        root.insertBefore(findBar, body);
     }
 
     function openFind({ replace = false } = {}) {
+        unfoldAll();
+        clearCursors();
         if (!findBar) buildFindBar();
         find.open = true;
         findBar.hidden = false;
@@ -924,6 +1157,16 @@ export function createCodeEditor(options = {}) {
 
     function onKeyDown(event) {
         if (event.isComposing) return;
+        if (cursorKey(event)) return;
+        if (options.folding && mod(event) && event.shiftKey && (event.code === "BracketLeft" || event.code === "BracketRight")) {
+            event.preventDefault();
+            measure();
+            let line = lineOf(textarea.selectionStart);
+            if (event.code === "BracketRight") return void unfoldLine(line);
+            while (line >= 0 && !(regions.get(line) >= lineOf(textarea.selectionStart))) line--;      // the innermost block around the caret
+            if (line >= 0) foldLine(line);
+            return;
+        }
         if (list && !list.hidden && items.length) {
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                 event.preventDefault();
@@ -994,13 +1237,21 @@ export function createCodeEditor(options = {}) {
 
     function onBeforeInput(event) {
         selectionBefore = textarea.selectionStart;
-        if (event.isComposing) return;
+        if (event.isComposing) return clearCursors();
         const type = event.inputType;
         if (type === "historyUndo" || type === "historyRedo") {
             event.preventDefault();
             return void (type === "historyUndo" ? undo() : redo());
         }
         if (readOnly) return;
+        if (extras.length) {
+            const kind = type === "deleteContentBackward" ? "backward" : type === "deleteContentForward" ? "forward" : type === "insertText" || type === "insertLineBreak" ? "insert" : null;
+            if (kind) {
+                event.preventDefault();
+                return editCursors(kind, type === "insertLineBreak" ? "\n" : event.data ?? "", type);
+            }
+            clearCursors();
+        }
         if (type === "insertLineBreak" || type === "insertParagraph") {
             event.preventDefault();
             return void newLine();
@@ -1017,6 +1268,11 @@ export function createCodeEditor(options = {}) {
                 from = starts[lineOf(start)];
                 to = from + lineText(lineOf(start)).length + 1;
             }
+        }
+        const folded = folds.length && touchesFold(textarea.value, folds, from, to, event.data ?? "");
+        if (folded) {
+            event.preventDefault();
+            return void unfoldLine(folded.line);
         }
         if (blocked(from, to)) {
             event.preventDefault();
@@ -1064,6 +1320,30 @@ export function createCodeEditor(options = {}) {
         }
     };
 
+    const onPointerDown = event => {
+        if (event.button !== 0) return;
+        if (canFold() && event.clientX - textarea.getBoundingClientRect().left < Number.parseFloat(getComputedStyle(textarea).paddingLeft)) {
+            const line = nodes.findIndex(node => {
+                const rect = node.getBoundingClientRect();
+                return event.clientY >= rect.top && event.clientY < rect.bottom;
+            });
+            if (line >= 0 && (regions.has(line) || folds.some(fold => fold.line === line))) {
+                event.preventDefault();
+                if (!unfoldLine(line)) foldLine(line);
+                return;
+            }
+        }
+        if (multi && event.altKey) altFrom = primary();
+        else clearCursors();
+    };
+    const onPointerUp = () => {
+        const before = altFrom;
+        altFrom = null;
+        if (before) requestAnimationFrame(() => !destroyed && setCursors([...extras, before]));
+    };
+    textarea.addEventListener("pointerdown", onPointerDown);
+    textarea.addEventListener("pointerup", onPointerUp);
+    textarea.addEventListener("paste", onPaste);
     textarea.addEventListener("keydown", onKeyDown);
     textarea.addEventListener("beforeinput", onBeforeInput);
     textarea.addEventListener("input", onInput);
@@ -1094,10 +1374,13 @@ export function createCodeEditor(options = {}) {
     const handle = asHandle({
         element: root,
         textarea,
-        getValue: () => textarea.value,
+        getValue: whole,
         setValue(value) {
+            folds = [];
+            clearCursors();
             textarea.value = String(value ?? "").replace(/\r\n?/g, "\n");
             textarea.setSelectionRange(0, 0);
+            foldedVisible = textarea.value;
             history.length = 0;
             historyIndex = -1;
             relocate(true);
@@ -1111,14 +1394,16 @@ export function createCodeEditor(options = {}) {
         getSelection() {
             measure();
             const { line, column } = caretInfo();
-            return { start: textarea.selectionStart, end: textarea.selectionEnd, line: line + 1, column: column + 1 };
+            return { start: toFull(textarea.value, folds, textarea.selectionStart), end: toFull(textarea.value, folds, textarea.selectionEnd), line: fullLine(folds, line) + 1, column: column + 1 };
         },
         setSelection(start, end = start) {
+            unfoldAll();      // offsets are those of the whole text
+            clearCursors();
             textarea.setSelectionRange(start, end);
             afterSelection();
             revealCaret();
         },
-        insertText: text => applyEdit(textarea.selectionStart, textarea.selectionEnd, String(text), { reason: "insertText" }),
+        insertText: text => (clearCursors(), applyEdit(textarea.selectionStart, textarea.selectionEnd, String(text), { reason: "insertText" })),
         setLanguage(next) {
             language = next;
             render();
@@ -1142,6 +1427,7 @@ export function createCodeEditor(options = {}) {
             return handle;
         },
         setReadOnlyRanges(next = []) {
+            if (next.length) unfoldAll();
             locked = next.map(range => ({ ...range }));
             relocate(true);
             decorate();
@@ -1151,7 +1437,28 @@ export function createCodeEditor(options = {}) {
         canUndo: () => !readOnly && historyIndex > 0,
         canRedo: () => !readOnly && historyIndex < history.length - 1,
         openFind, closeFind, toggleComment,
+        /** Folds the block that starts at a line of the whole text (from 1). */
+        fold: line => foldLine(visibleLine(folds, line - 1)),
+        unfold: line => unfoldLine(visibleLine(folds, line - 1)),
+        /** Folds every outermost block. */
+        foldAll() {
+            unfoldAll();
+            if (!canFold()) return false;
+            const outer = [];
+            let covered = -1;
+            for (const [first, last] of [...foldRegions(textarea.value)].sort((a, b) => a[0] - b[0])) {
+                if (first <= covered) continue;
+                outer.push(first);
+                covered = last;
+            }
+            for (const line of outer.reverse()) foldLine(line);
+            return outer.length > 0;
+        },
+        unfoldAll,
+        getCursorCount: () => extras.length + 1,
         destroy() {
+            minimap?.destroy();
+            setHighlight("athena-code-cursors", []);
             if (destroyed) return;
             destroyed = true;
             clearTimeout(renderTimer);
@@ -1160,7 +1467,7 @@ export function createCodeEditor(options = {}) {
             setHighlight("athena-code-bracket", []);
             setHighlight("athena-code-find", []);
             setHighlight("athena-code-find-current", []);
-            root.classList.remove("code-editor", "is-readonly", "code-wrap", `code-tab-${tabSize}`);
+            root.classList.remove("code-editor", "is-readonly", "code-wrap", "has-folding", "has-minimap", `code-tab-${tabSize}`);
             root.replaceChildren();
         }
     }, { element: root });
