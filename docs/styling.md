@@ -72,7 +72,7 @@ Dark colours: set `data-mode="dark"` on `<html>` (or let `createThemeManager` do
 | Group of rules | Classes | Variables it reads |
 | --- | --- | --- |
 | General | - | `--athena-accent` `--athena-bg` `--athena-border-width` `--athena-fg` `--athena-line` |
-| Header, Wrapper, Footer | `.footer-container` `.header-container` `.wrapper-container` | - |
+| Header, Wrapper, Footer | `.container` `.footer-container` `.header-container` `.wrapper-container` | - |
 | Elements | `.container` `.default-cointainer-bordered` `.menu` | `--athena-border` |
 | Modal (background) | `.modal` `.modal-content` | `--athena-bg` `--athena-border-width` `--athena-fg` `--athena-line` `--athena-overlay` |
 | Modal close button | `.close` | `--athena-fg` `--athena-muted` |

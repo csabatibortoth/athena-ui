@@ -75,7 +75,10 @@ export function generateMenu(options = {}) {
     const view = doc.defaultView;
     // layout "responsive": tabs at the bottom up to the breakpoint (the class is-tabs carries the style)
     let tabsQuery = null;
-    const tabsChanged = () => element.classList.toggle("is-tabs", tabsQuery.matches);
+    const tabsChanged = () => {
+        element.classList.toggle("is-tabs", tabsQuery.matches);
+        reveal();
+    };
     if (layout === "responsive" && view?.matchMedia) {
         tabsQuery = view.matchMedia(`(max-width: ${Number(options.breakpoint) > 0 ? Number(options.breakpoint) : 700}px)`);
         tabsQuery.addEventListener("change", tabsChanged);
@@ -230,6 +233,18 @@ export function generateMenu(options = {}) {
         found.control.classList.add("is-active");
         found.control.setAttribute("aria-current", "page");
         for (let parent = found.parent; parent; parent = nodes.get(parent)?.parent) nodes.get(parent)?.li.classList.add("has-active");
+        reveal();
+    }
+
+    /** In a bar that scrolls (many bottom tabs), brings the tab of the current page into view. Scrolls the bar only, never the page. */
+    function reveal() {
+        if (list.scrollWidth <= list.clientWidth) return;
+        const tab = nodes.get(active)?.li.closest(".athena-menu-list > li");
+        if (!tab) return;
+        const bar = list.getBoundingClientRect();
+        const box = tab.getBoundingClientRect();
+        if (box.left < bar.left) list.scrollLeft -= bar.left - box.left;
+        else if (box.right > bar.right) list.scrollLeft += box.right - bar.right;
     }
 
     /** Changes the badge of an item (a number, text, { text, tone }, or 0 / null to remove it) without building the menu again. */
@@ -253,6 +268,7 @@ export function generateMenu(options = {}) {
     build();
     if (options.followHash) fromHash();
     mount(options.parent, element);
+    reveal();
 
     return asHandle({
         element,

@@ -1759,6 +1759,105 @@ test("code editor: a copy typed right before a locked text does not take the loc
     host.remove();
 });
 
+// ---- ATH-39: nothing widens the page ----
+
+test("layout: bordered containers with padding, and a hidden label in a wide table, do not widen what holds them", () => {
+    const box = document.createElement("div");
+    box.style.width = "300px";
+    box.style.overflow = "auto";
+    document.getElementById("wrapper").append(box);
+    const header = document.createElement("div");
+    header.className = "header-container default-cointainer-bordered";
+    header.style.padding = "8px 16px";
+    box.append(header);
+    equal(header.getBoundingClientRect().width, 300);
+    box.style.overflow = "visible";
+    box.style.position = "static";
+    const wrapper = document.createElement("div");
+    wrapper.className = "athena-table-wrapper";
+    wrapper.innerHTML = '<table class="athena-table"><tbody><tr><td>x</td><td><span class="athena-visually-hidden">label</span></td></tr></tbody></table>';
+    box.append(wrapper);
+    $1("td", wrapper).style.minWidth = "900px";
+    equal($1("span", wrapper).offsetParent === wrapper || wrapper.contains($1("span", wrapper).offsetParent), true, "the label is positioned inside the scroll area");
+    box.remove();
+});
+
+test("menu: bottom tabs that do not fit scroll inside the bar, and the current one is in view", async () => {
+    const host = document.createElement("div");
+    host.style.width = "300px";
+    document.getElementById("wrapper").append(host);
+    const menu = A.generateMenu({ parent: host, layout: "bottom-tabs", items: Array.from({ length: 30 }, (_, i) => ({ id: `t${i}`, label: `Section ${i}` })), active: "t29" });
+    const list = $1(".athena-menu-list", menu.element);
+    assert(list.scrollWidth > list.clientWidth, "more than fit");
+    equal(getComputedStyle(list).overflowX, "auto");
+    const inView = id => {
+        const bar = list.getBoundingClientRect();
+        const tab = $1(`[data-id="${id}"]`, menu.element).getBoundingClientRect();
+        return tab.left >= bar.left - 1 && tab.right <= bar.right + 1;
+    };
+    assert(inView("t29"), "the active tab at the start");
+    menu.select("t0");
+    assert(inView("t0"), "and after select()");
+    assert($$(".menu-item", menu.element).every(item => item.getBoundingClientRect().width >= 44), "finger targets");
+    menu.destroy();
+    host.remove();
+});
+
+test("date time range: fits a narrow place, whatever the font", () => {
+    const box = document.createElement("div");
+    box.style.width = "220px";
+    box.style.fontFamily = "monospace";
+    document.getElementById("wrapper").append(box);
+    const range = A.generateDateTimeRange({ parent: box, label: "Time" });
+    for (const input of $$("input", box)) {
+        input.style.fontFamily = "monospace";
+        input.style.fontSize = "20px";
+        assert(input.getBoundingClientRect().right <= box.getBoundingClientRect().right + 0.5, `${input.type} ${input.getBoundingClientRect().width} in 220`);
+    }
+    range.destroy?.();
+    box.remove();
+});
+
+// ---- ATH-38: two older editor bugs ----
+
+test("code editor: typing on the empty last line of an open comment draws it as a fresh editor does", () => {
+    const hosts = [document.createElement("div"), document.createElement("div")];
+    document.getElementById("wrapper").append(...hosts);
+    const drawn = host => $$(".code-line", host).map(line => [...line.childNodes].map(node => `${node.className ?? ""}:${node.textContent}`).join("|")).join("\n");
+    for (const [language, opening] of [["js", "/*\n"], ["js", "a\n/* b\n"], ["html", "<script>\n"], ["js", "`\n"]]) {
+        const typed = A.createCodeEditor({ element: hosts[0], language, value: opening });
+        typed.setSelection(opening.length, opening.length);
+        typed.insertText("\" let");
+        const fresh = A.createCodeEditor({ element: hosts[1], language, value: `${opening}" let` });
+        equal(drawn(hosts[0]), drawn(hosts[1]), `${language} ${JSON.stringify(opening)}`);
+        typed.destroy();
+        fresh.destroy();
+    }
+    for (const host of hosts) host.remove();
+});
+
+test("code editor: Replace all changes everything that is not locked, and the locks stay where they are", () => {
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const editor = A.createCodeEditor({ element: host, value: "ab KEEP ab\nab\nfixed ab\nab", readOnlyRanges: [{ text: "KEEP ab" }, { from: 3, to: 3 }] });
+    editor.openFind({ replace: true });
+    type($1('input[name="find"]', host), "ab");
+    type($1('input[name="replace"]', host), "longer");
+    $$(".code-find-replace button", host).at(-1).click();
+    equal(editor.getValue(), "longer KEEP ab\nlonger\nfixed ab\nlonger");
+    const at = editor.getValue().indexOf("KEEP");
+    editor.setSelection(at, at + 4);
+    editor.insertText("gone");
+    equal(editor.getValue(), "longer KEEP ab\nlonger\nfixed ab\nlonger", "still locked after the shift");
+    editor.undo();
+    equal(editor.getValue(), "ab KEEP ab\nab\nfixed ab\nab", "one undo step");
+    editor.setSelection(3, 7);
+    editor.insertText("gone");
+    equal(editor.getValue(), "ab KEEP ab\nab\nfixed ab\nab", "and locked after undo");
+    editor.destroy();
+    host.remove();
+});
+
 // ---- ATH-10: charts morph on update ----
 
 test("charts: update({ series }) moves from the old shape to the new one; reduced motion, a resize and animate:false do not", async () => {

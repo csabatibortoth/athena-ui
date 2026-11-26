@@ -80,7 +80,7 @@ body {
 
 .demo-two {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
     gap: 24px;
 }
 
@@ -190,6 +190,13 @@ body {
     --series-5: #8fd36a; --series-6: #f1d36a; --series-7: #c79bf0; --series-8: #a9bfc8;
 }
 
+/* A statistic inside a widget: the widget is the card already (a card in a card did not fit two rows) */
+#dashboard .widget-body > .stat {
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
 /* The Motion page */
 .motion-list {
     display: flex;
@@ -209,7 +216,9 @@ body {
 }
 
 .motion-track {
-    width: 300px;
+    box-sizing: border-box;
+    width: min(318px, 100%);
+    overflow: hidden;           /* the spring overshoots: never wider than the track */
     padding: 8px;
     margin-bottom: 12px;
     border: 1px solid var(--athena-line);

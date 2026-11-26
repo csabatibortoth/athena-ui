@@ -1,11 +1,10 @@
 # Athena UI
 
-A small UI framework for development and education purposes. It generates a page
-layout (header, menu, content wrapper, footer) from a single `init()` call, loads its own libraries
-and theme, and ships the building blocks of a multipurpose application: forms, tables, charts,
-feedback, navigation, a router and more.
+A small, dependency-free UI framework written as ES modules. It ships the building blocks of a multipurpose application: forms, tables,
+charts, dialogs, menus, a router and themes, a dashboard of widgets, a Kanban board, a code editor and more. Use single components from their own
+entry points, or let one `init()` call generate the page layout (header, menu, content wrapper, footer) with its theme.
 
-Current version: **2.7.1**
+Current version: **2.11.1**
 
 [Quick start](#usage) · [API](#api) · [Components](#charts) · [Themes](#themes) · [Tests](#tests) · [Release notes](#releases)
 
@@ -26,28 +25,29 @@ Known limits are listed below, so you can judge whether it fits your project:
 
 ## Features
 
-- Generated page layout: container, header (logo, title, menu), wrapper, footer (menu, copyright text)
-- Menus built from your own item lists, with a navigation callback
-- Login, registration and lost password forms with optional SHA-256 password hashing
-- SVG charts (bar, line, area, sparkline, pie, donut) with a time axis, tooltips, zoom, a clickable legend, a table of values and streaming, without extra dependencies
-- Tables with sortable columns, filter box, pagination, row selection, inline editing, resizable columns, virtual scrolling for thousands of rows, rows loaded from a server (pages, "Load more", or scrolling through a data source), row actions and CSV export
-- Navigation menu (`generateMenu`): real links and buttons, groups of any depth, badges, a user menu with an avatar, tabs at the bottom on a phone
-- Sign in, sign up and password forms that password managers understand, and a signed-in state that lives in memory only
-- Themes and modes (light / dark / like the system) with a theme manager, a picker and a no-flash boot script
-- Form dialogs, confirmations (also "type the name to confirm"), date and time ranges with presets, page header, facts list, empty and loading states
+**Data and layout**
+- Tables: sorting, filtering, pagination, row selection, inline editing, resizable and changeable columns, expanding rows, a stacked layout for narrow tables, virtual scrolling for thousands of rows, rows from a server and CSV export
+- SVG charts (bar, line, area, sparkline, pie, donut): time axis, tooltips, zoom, clickable legend, table of values, streaming, animated updates
+- Dashboard of widgets (`createWidgetGrid`): move, resize, add from a gallery, lock, undo and redo, a layout per width, saved as JSON; mouse, touch and keyboard
+- Kanban board (`createBoard`), JSON tree, cards, grid, badges, avatars, KPI tiles, facts, page header, empty and loading states
+
+**Forms and input**
+- Form builder with validation and server errors, form dialogs, sign in / sign up / password forms that password managers understand
+- Autocomplete, multi select, file upload, drag-and-drop area, stepper, date and time ranges, rich text and WYSIWYG editor
+
+**Code**
+- Syntax highlighting (including `<script>` and `<style>` in HTML and nested template strings), a code editor on a real `<textarea>`, a diff view
+
+**Navigation and feedback**
+- Menu with groups, badges and a user menu, bottom tabs on a phone; tabs, accordion, dropdown, sidebar, breadcrumbs, pagination, hash / history router
+- Dialogs and confirmations, toasts, alerts, spinner, progress bar, tooltips, animations that respect reduced motion
+
+**Foundation**
+- Themes and modes (light / dark / like the system) with a theme manager, a picker and a no-flash boot script; translations (English, Hungarian)
 - Safe DOM building (`el`, `createSafeBuilder`): text stays text, no event attributes, no inline style
-- Form builder: text, number, date, textarea, select, radio / checkbox groups, switch, autocomplete, multi select, with validation
-- Buttons, toasts, alerts, spinner, progress bar, alert / confirm / prompt dialogs
-- Tabs, accordion, dropdown, sidebar, breadcrumbs, pagination and a hash / history router
-- Cards, grid, badges, avatars, KPI tiles, tooltips, links, sections
-- File upload with progress, drag-and-drop area, stepper (wizard), date range picker, rich text and WYSIWYG editor
-- Menus with submenus
-- Session handling (login state in a cookie), change password form
-- Default and dark theme (switchable at runtime), responsive, translations (English, Hungarian), keyboard and ARIA support
-- Modal open / close helpers
-- Themes loaded at runtime, custom stylesheets supported
 - Written as ES modules, no build step, no dependencies, TypeScript definitions, one entry point per component, and a cascade layer so your CSS always wins
 - Content-Security-Policy friendly: no inline script, no inline style, text from data is only ever inserted as text (the browser tests run under a strict policy)
+- Keyboard and ARIA support
 
 ## Requirements
 
@@ -67,7 +67,8 @@ import { generateTable } from "athena-ui-js/table";        // or only what you u
 ```
 
 The entry points are `table`, `chart`, `dialog`, `menu`, `navigation`, `forms`, `feedback`, `components`, `inputs`, `router`, `session`, `theme`, `i18n`, `format`,
-`validation`, `motion`, `widgets`, `board`, `code`, `sanitize`, `csv`, `dom` and `controls`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
+`validation`, `motion`, `widgets`, `board`, `code`, `json-tree`, `sanitize`, `csv`, `dom` and `controls`; besides them `app` (the page layout without the components),
+`classic` (everything on `window`), `testing` (for your tests) and `theme-boot.js`. TypeScript definitions are included (`types/`, generated from the JSDoc with `npm run types`).
 The package has `"sideEffects"` for `classic.js`, `theme-boot.js` and CSS only, so a bundler drops everything you do not import.
 
 Without npm, serve the `src` folder with any static web server and open `index.html` to see the example.
@@ -76,7 +77,7 @@ Without npm, serve the `src` folder with any static web server and open `index.h
 
 **Try it live: https://athena-ui-js-demo-duc7dncrfhg5fxfs.northeurope-01.azurewebsites.net** (sign in with `demo` / `demo-pass`, or `admin` / `admin-pass`; the app sleeps when nobody visits, so the first request can take a few seconds).
 
-`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, every field type, native dialogs, a menu with groups inside groups, themes
+`demo/` is a demo and test application: tables with 100,000 rows from a server, a streaming chart, the widget dashboard, the board, the code editor, motion, every field type, native dialogs, a menu with groups inside groups, themes
 and modes, and a real sign in, served by a small Node server (no dependencies) under a strict Content-Security-Policy.
 
 ```sh
@@ -114,8 +115,8 @@ GitHub Actions tests it and deploys it to an Azure App Service: [demo/README.md]
 </script>
 ```
 
-`init()` returns a Promise that resolves with the effective configuration once the libraries and
-the theme are loaded and the layout is generated.
+`init()` returns a Promise that resolves with the effective configuration once
+the theme is loaded and the layout is generated.
 
 ### Inside a page: createApp
 
@@ -152,7 +153,7 @@ It takes the options of `init()`. The header and footer follow the settings `gen
 | `header_title_text` | `"Athena UI"` | Title in the header |
 | `header_img_url` | | Header logo URL |
 | `copyright` | placeholder text | Footer text, the version is appended |
-| `version` | `"2.6.0"` | Version shown in the footer |
+| `version` | the version of the package | Version shown in the footer |
 | `bordered` | `true` | Draw a border around the layout blocks |
 | `generateHeader`, `generateFooter` | `true` | Generate the header / footer block |
 | `generateHeadercontent`, `generateFooterContent`, `generateWrappercontent` | `true` | Generate the content of the block |
@@ -198,7 +199,7 @@ Everything is exported from `athena-ui.js`:
 | `formatBytes`, `formatNumber`, `formatDuration`, `formatRelativeTime`, `formatDate` | Format helpers on top of `Intl`, in the current language |
 | `el`, `setContent`, `resolveElement`, `asHandle`, `createSafeBuilder` | See [Safe DOM building](#safe-dom-building) |
 | `animate`, `flip`, `stagger`, `spring`, `tween`, `transition`, `viewTransition`, `setMotion`, `prefersReducedMotion`, `easings`, `generateSkeleton` | See [Motion](#motion-animations-and-transitions) |
-| `registerWidget`, `createWidgetGrid`, `getWidgetTypes`, `placeItem`, `compact`, `findFreeSpot`, `normalize` | See [Widgets](#widgets-a-dashboard-that-can-be-built) |
+| `registerWidget`, `unregisterWidget`, `createWidgetGrid`, `createWidgetGallery`, `getWidgetTypes`, `getWidgetType`, `placeItem`, `compact`, `findFreeSpot`, `normalize` | See [Widgets](#widgets-a-dashboard-that-can-be-built) |
 | `createBoard`, `columnAt`, `indexAt`, `stepOf`, `focusStep`, `scrollSpeed` | See [Board](#board-columns-of-cards-that-are-moved) |
 | `highlightCode`, `generateCodeBlock`, `createCodeEditor`, `createDiffView`, `registerLanguage`, `tokenize`, `diffLines` | See [Code](#code-highlighting-an-editor-and-a-diff) |
 | `generateJsonTree`, `parseJson`, `pathOf`, `valueText` | See [JSON tree](#json-tree) |
@@ -215,7 +216,7 @@ Everything is exported from `athena-ui.js`:
 | `Cookies` | `get(name)`, `set(name, value, { expires, path, domain, sameSite, secure })`, `remove(name)`: a small cookie helper (`expires` is days or a Date) |
 | `createApp(options)` | `init` into any element, see [Inside a page](#inside-a-page-createapp) |
 | `HTMLElementGenerator(options)` | Generates a div, span, p, heading or img and appends it to the element with the id `parent` |
-| `HTMLControlGenerator(options)`, `HTMLControlGenerator.create(options)`, `HTMLControlGenerator.register(type, factory)` | Generates inputs, selects and lists from an options object. `create` builds without appending and returns the element (a jQuery object when the page has jQuery). `registerHungarianInputControls()` adds the types `hunPIN`, `hunCRID` and `hunTID` |
+| `HTMLControlGenerator(options)`, `HTMLControlGenerator.create(options)`, `HTMLControlGenerator.register(type, factory)` | Generates inputs, selects and lists from an options object. `create` builds without appending and returns the element. `registerHungarianInputControls()` adds the types `hunPIN`, `hunCRID` and `hunTID` |
 
 HTMLElementGenerator and HTMLControlGenerator used to be projects of their own. They are part of Athena UI now (the calls and options are the
 same, and HTMLControlGenerator has no jQuery in it); the old repositories are no longer developed.
@@ -255,8 +256,8 @@ Other options: `id`, `width` (600), `height` (360), `legend`, `zero: false` (a l
 - **Long series** are thinned to the width of the plot (the lowest and the highest value of every slice stay, so peaks are not lost), and dots are only drawn up to 80 points in view.
 - **Streaming**: `chart.push({ x: Date.now(), values: [12, 3] }, { maxPoints: 500 })` adds a point to every series, drops the oldest ones and redraws at most once per frame.
 - `chart.update({ series })` redraws with changes, `chart.destroy()` removes the chart and its table. `generateChart` returns the `<svg>` element that carries these
-- **Morph:** when `update({ series })` keeps the number of points, bars, lines and points move from the old values to the new ones. Not on zoom, resize or `push`, not for very long series, not under reduced motion; `animate: false` switches it off.
   methods, or `null` when the options are invalid.
+- **Morph:** when `update({ series })` keeps the number of points, bars, lines and points move from the old values to the new ones. Not on zoom, resize or `push`, not for very long series, not under reduced motion; `animate: false` switches it off.
 
 ### Tables
 
@@ -446,7 +447,7 @@ Groups nest to any depth: ArrowDown / ArrowUp open the first level, ArrowRight o
 first, Home / End jump, a click outside closes everything. A badge above 99 shows "99+". `generateHeaderMenu({ items, onNavigate })` puts the same menu into the header.
 
 On a coloured header set `--athena-menu-bg`, `--athena-menu-fg`, `--athena-menu-hover` and `--athena-menu-active` (the line under the active item) on the menu or a parent; without them the bar is
-transparent as before. `layout: "responsive"` switches to tabs at the bottom up to `breakpoint` px (default 700), and gives the menu the class `is-tabs` while they show.
+transparent as before. When there are more bottom tabs than fit, the bar scrolls sideways (the page does not) and keeps the current one in view. `layout: "responsive"` switches to tabs at the bottom up to `breakpoint` px (default 700), and gives the menu the class `is-tabs` while they show.
 
 ### Router
 
@@ -640,7 +641,7 @@ The default theme is in `src/res/themes/default/style.css`; `{ id: 1 }` is a dar
 (`--athena-bg`, `--athena-fg`, `--athena-accent`, ...), so a custom theme can import the default one and override them:
 
 ```css
-@import url("athena-ui/src/res/themes/default/style.css");
+@import url("/node_modules/athena-ui-js/src/res/themes/default/style.css");   /* the path your server gives the package */
 :root { --athena-accent: #8e44ad; }
 ```
 
@@ -684,9 +685,9 @@ New Athena components already use prefixed classes (for example `athena-jt-*` of
 A second system lets people choose a theme **and** a mode. It is just two attributes on `<html>` that `src/res/themes/appearance.css` reads:
 
 ```html
-<link rel="stylesheet" href="athena-ui/src/res/themes/default/style.css">
-<link rel="stylesheet" href="athena-ui/src/res/themes/appearance.css">
-<script src="athena-ui/src/theme-boot.js" data-key="myapp.appearance" data-theme="athena"></script>   <!-- before the page is drawn: no flash of the wrong colours -->
+<link rel="stylesheet" href="node_modules/athena-ui-js/src/res/themes/default/style.css">
+<link rel="stylesheet" href="node_modules/athena-ui-js/src/res/themes/appearance.css">
+<script src="node_modules/athena-ui-js/src/theme-boot.js" data-key="myapp.appearance" data-theme="athena"></script>   <!-- before the page is drawn: no flash of the wrong colours -->
 ```
 
 ```js
@@ -732,8 +733,6 @@ generateStat({ parent: "wrapper", label: "CPU", value: "91 %", tone: "bad", note
 await copyToClipboard(token);                                              // and says "Copied" in a toast
 formatBytes(1536); formatNumber(1234567.891); formatDuration(7500000); formatRelativeTime(date); formatDate(date, { time: true });   // Intl, in the current language
 ```
-
-**Size budget:** `npm run size` measures every entry point with what it imports (gzip, unminified) against `scripts/size-budget.json` and fails when one has grown past it.
 
 ### Motion: animations and transitions
 
@@ -808,6 +807,7 @@ const id = await grid.addWidgetWithSettings("clock");           // adds a widget
   in a live region ("Column 2, row 1, 3 wide, 2 high"). Pointer Events: mouse, pen and touch work the same.
 - **Moving**: the widget follows the pointer and a placeholder shows where it will land. `collision: "swap"` makes a widget moved onto another exchange places with it
   (under a pointer once half of it is covered, with the keyboard at once; when that is a clean exchange; otherwise, and for a resize, widgets are pushed as by default).
+- **Touch**: on a coarse pointer the handle and the buttons are 44 x 44 px (the header wraps in a narrow widget) and the bottom right corner is the one resize grip.
 - **Gallery**: `createWidgetGallery({ element, grid, types, withSettings, onAdd })` lists the registered types (`title`, `description`). A click, Enter or Space adds one; a mouse or
   pen drags it onto the grid, a finger drags it by the grip. It adds whether or not edit mode is on: show it when your application wants it.
 - **Drag from your own toolbox**: `const drop = grid.beginDrop(type)`, then `drop.move(clientX, clientY)`, `drop.drop()` or `drop.cancel()`.
@@ -879,7 +879,7 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
 
 - **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`), `log`. The `log` language comes from Heimdall's log display: times, IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Its patterns are bounded so a hostile line stays cheap; tokenizing always gives the input text back. A three-digit number in 100..599 gets the status colour even without context (a pid, for example).
   A language is a plain object (`registerLanguage({ name, aliases, rules: [{ type, pattern }], lineComment, blockComment, pairs, indentAfter })`), so your own are one call.
-  The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours) but it knows nested `${}` of a template string and the `<script>` and `<style>` inside HTML, but not, for example, CSS inside a template string. Bracket matching ignores brackets in strings and comments.
+  The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours). It knows nested `${}` of a template string and the `<script>` and `<style>` inside HTML, but not, for example, CSS inside a template string. Bracket matching ignores brackets in strings and comments.
 - **Colours** are the tokens `--athena-tok-comment`, `-string`, `-keyword` ... (light and dark); a test keeps every one at 4.5:1 contrast or more.
 - **The editor is a real `<textarea>`** with the highlighted text behind it, so native input, selection, spell-check off, mobile keyboards, IME and screen readers all work.
   Tab and Shift+Tab indent and outdent (also several lines), Enter keeps the indentation (and goes one level deeper after `{`, `(`, `:`), brackets and quotes are closed, stepped over, wrapped around a selection and
@@ -956,15 +956,19 @@ layout) and returns focus to the body when a focused element is removed by `remo
 ```sh
 npm test              # unit tests of the pure modules, run in Node
 npm run test:browser  # the components in headless Chrome
+npm run test:demo     # the demo: server, API and every page in a real browser
+npm run size          # the gzip size of every entry point against scripts/size-budget.json
+npm run check:package # the npm package holds everything the entry points import
+npm run smoke:package # the packed package installs in an empty folder and every entry point imports
 ```
 
-The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges and the URL check.
+The unit tests cover validation, translations, router matching, CSV, pagination, formatting, virtual scrolling math, date ranges, the URL check, the grid and board maths, the code tokenizer and diff, the JSON tree and the contents of the package.
 The browser tests start a small static server, open `tests/browser/index.html` in headless Chrome, Chromium or Edge and run every
 component: forms, dialogs, navigation, submenus, inputs, rich text (sanitizing, toolbar, paste), tables (resizing, virtual scrolling), router,
-session, themes. Set `CHROME_PATH` if the browser is not found. `DEBUG=1` prints the browser log when the page does not report results.
+session, themes, charts, widgets, board, code editor, JSON tree and motion. Set `CHROME_PATH` if the browser is not found. `DEBUG=1` prints the browser log when the page does not report results.
 
 - **The page runs under a strict Content-Security-Policy** (`default-src 'none'; script-src 'self'; style-src 'self'`, set by `run.mjs`), and a `securitypolicyviolation` fails the test
-  that caused it. That is the guarantee that Athena UI needs no `'unsafe-inline'`. (Three tests that hand the sanitizer hostile markup are let through for the reports Chrome
+  that caused it. That is the guarantee that Athena UI needs no `'unsafe-inline'`. (Four tests that hand the sanitizer hostile markup are let through for the reports Chrome
   makes while it parses an inline handler, a style attribute or a `<style>` element in an inert document.)
 - One test feeds markup to about 40 components and checks that text from data stays text.
 - `WITH_JQUERY=1 npm run test:browser` loads jQuery from its CDN, to check that an application that still has it works too (`JQUERY_URL` for another address).
@@ -984,14 +988,15 @@ src/
   libs/
     config/                 default configuration, application hooks
     core/                   DOM / focus helpers, el, validation, translations, CSV, formatting, sanitizer, cookies, theme manager,
-                            HTMLElementGenerator, HTMLControlGenerator, table math
+                            HTMLElementGenerator, HTMLControlGenerator, the maths of tables, grid and board, code tokenizers and diff, motion
     hephaestus/             theme loader, generators (layout, menus, forms, charts, tables, feedback, dialogs, navigation,
-                            components, inputs), router, session, auth state
+                            components, inputs, widgets, board, code), router, session, auth state
   res/themes/               tokens.css, default and dark theme, appearance.css (themes and modes)
 types/                      TypeScript definitions (npm run types)
 docs/                       styling.md (generated), migration-2.0.md
 demo/                       the demo and test application (server, API, pages, end to end tests), deployed to Azure by GitHub Actions
 .github/workflows/          ci.yml (tests) and demo-deploy.yml
+scripts/                    docs, package checks, size budget
 tests/                      unit tests (Node) and browser tests (headless Chrome, strict CSP)
 ```
 
@@ -1004,6 +1009,13 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.11.1
+
+  - **No sideways scrolling**: the layout containers are `box-sizing: border-box` (a `.container` with padding now has that much less room for its content, unless your CSS already sets border-box), hidden labels stay inside a table's scroll area, and a bottom tab bar with many tabs scrolls inside itself.
+  - **Widgets on touch screens**: the handle and the buttons are 44 x 44 px, and one large corner resizes.
+  - **Code editor**: an open comment is drawn right on the empty last line; "Replace all" works when something is locked and leaves the locked parts alone.
+  - **README**: brought up to date.
 
  ### 2.11.0
 
