@@ -119,7 +119,8 @@ export function createCodeEditor(options = {}) {
         let at = 0;
         let span = 0;
         for (const line of text.split("\n")) {
-            while (span < spans.length && spans[span].end <= at) span++;
+            // a match that ends exactly where the text ends has taken the last newline: the empty last line is still inside it
+            while (span < spans.length && spans[span].end <= at && !(spans[span].end === at && at === text.length)) span++;
             inside.push(span < spans.length && spans[span].start < at);
             at += line.length + 1;
         }
@@ -728,13 +729,25 @@ export function createCodeEditor(options = {}) {
         const value = textarea.value;
         let result = "";
         let at = 0;
+        const changes = [];
         for (const match of find.matches) {
             if (blocked(match.start, match.end)) continue;
-            result += value.slice(at, match.start) + (find.regex ? match.text.replace(new RegExp(find.query, find.matchCase ? "" : "i"), find.replacement) : find.replacement);
+            const replacement = find.regex ? match.text.replace(new RegExp(find.query, find.matchCase ? "" : "i"), find.replacement) : find.replacement;
+            result += value.slice(at, match.start) + replacement;
             at = match.end;
+            changes.push({ end: match.end, delta: replacement.length - (match.end - match.start) });
         }
         result += value.slice(at);
-        if (result !== value) applyEdit(0, value.length, result, { select: [0, 0], reason: "replace-all" });
+        if (result === value) return;
+        // Not applyEdit: this is many changes in one undo step, none of them in something locked. Every locked text moves by what changed before it.
+        relocate();
+        for (const [range, start] of anchors) {
+            if (start >= 0) anchors.set(range, changes.reduce((to, change) => (change.end <= start ? to + change.delta : to), start));
+        }
+        textarea.value = result;
+        anchoredValue = result;
+        textarea.setSelectionRange(0, 0);
+        afterChange("replace-all");
     }
 
     function buildFindBar() {

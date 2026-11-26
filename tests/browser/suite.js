@@ -1803,6 +1803,46 @@ test("menu: bottom tabs that do not fit scroll inside the bar, and the current o
     host.remove();
 });
 
+// ---- ATH-38: two older editor bugs ----
+
+test("code editor: typing on the empty last line of an open comment draws it as a fresh editor does", () => {
+    const hosts = [document.createElement("div"), document.createElement("div")];
+    document.getElementById("wrapper").append(...hosts);
+    const drawn = host => $$(".code-line", host).map(line => [...line.childNodes].map(node => `${node.className ?? ""}:${node.textContent}`).join("|")).join("\n");
+    for (const [language, opening] of [["js", "/*\n"], ["js", "a\n/* b\n"], ["html", "<script>\n"], ["js", "`\n"]]) {
+        const typed = A.createCodeEditor({ element: hosts[0], language, value: opening });
+        typed.setSelection(opening.length, opening.length);
+        typed.insertText("\" let");
+        const fresh = A.createCodeEditor({ element: hosts[1], language, value: `${opening}" let` });
+        equal(drawn(hosts[0]), drawn(hosts[1]), `${language} ${JSON.stringify(opening)}`);
+        typed.destroy();
+        fresh.destroy();
+    }
+    for (const host of hosts) host.remove();
+});
+
+test("code editor: Replace all changes everything that is not locked, and the locks stay where they are", () => {
+    const host = document.createElement("div");
+    document.getElementById("wrapper").append(host);
+    const editor = A.createCodeEditor({ element: host, value: "ab KEEP ab\nab\nfixed ab\nab", readOnlyRanges: [{ text: "KEEP ab" }, { from: 3, to: 3 }] });
+    editor.openFind({ replace: true });
+    type($1('input[name="find"]', host), "ab");
+    type($1('input[name="replace"]', host), "longer");
+    $$(".code-find-replace button", host).at(-1).click();
+    equal(editor.getValue(), "longer KEEP ab\nlonger\nfixed ab\nlonger");
+    const at = editor.getValue().indexOf("KEEP");
+    editor.setSelection(at, at + 4);
+    editor.insertText("gone");
+    equal(editor.getValue(), "longer KEEP ab\nlonger\nfixed ab\nlonger", "still locked after the shift");
+    editor.undo();
+    equal(editor.getValue(), "ab KEEP ab\nab\nfixed ab\nab", "one undo step");
+    editor.setSelection(3, 7);
+    editor.insertText("gone");
+    equal(editor.getValue(), "ab KEEP ab\nab\nfixed ab\nab", "and locked after undo");
+    editor.destroy();
+    host.remove();
+});
+
 // ---- ATH-10: charts morph on update ----
 
 test("charts: update({ series }) moves from the old shape to the new one; reduced motion, a resize and animate:false do not", async () => {
