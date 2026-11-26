@@ -92,7 +92,8 @@ describe("what a person does", { skip }, () => {
         await page.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
         await page.waitFor(`document.querySelectorAll("#dashboard .widget").length === 5`, { timeout: 90000 });
         assert.equal(await page.eval(`matchMedia("(pointer: coarse)").matches`), true, "the emulation is a touch screen");
-        await page.clickText("Edit mode: off");
+        // not a click at coordinates: while the emulated phone lays the page out again, the fixed tab bar can be where the button was a moment ago
+        await page.eval(`[...document.querySelectorAll("#widget-bar button")].find(button => button.textContent === "Edit mode: off").click()`);
         await page.waitFor(`document.getElementById("dashboard").classList.contains("is-editable")`);
         const small = await page.eval(`[...document.querySelectorAll("#dashboard .widget-handle, #dashboard .widget-action, #dashboard .widget-resize")]
             .map(node => ({ name: node.className, box: node.getBoundingClientRect() })).filter(({ box }) => box.width && (box.width < 44 || box.height < 44)).map(({ name, box }) => name + " " + box.width + "x" + box.height)`);
