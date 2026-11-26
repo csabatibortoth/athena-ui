@@ -4,7 +4,7 @@ import { generatePageHeader, generateCard, generateTooltip } from "/athena/compo
 import { generateButton } from "/athena/forms.js";
 import { showToast } from "/athena/feedback.js";
 import { el } from "/athena/dom.js";
-import { block } from "/util.js";
+import { block, code } from "/util.js";
 
 export default async function navigation(context, { app }) {
     const root = app.wrapper;
@@ -37,6 +37,12 @@ export default async function navigation(context, { app }) {
     menus.append(bump);
     generateButton({ parent: bump, text: "One more alert", variant: "secondary", onclick: () => { unread = unread >= 120 ? 0 : unread + 40; menu.setBadge("alerts", { text: unread, tone: "bad" }); } });
     generateButton({ parent: bump, text: "Select Weekly", variant: "secondary", onclick: () => menu.select("weekly") });
+
+    const coloured = block(root, "A menu on a coloured header", "Four tokens colour a menu (--athena-menu-bg, -fg, -hover, -active). With layout: \"responsive\" the option breakpoint says up to which width it is a bar of tabs at the bottom.");
+    const banner = el("div", { class: "demo-banner" });
+    coloured.append(banner);
+    const bannerMenu = generateMenu({ parent: banner, label: "Coloured menu", active: "home", items: [{ id: "home", label: "Home" }, { id: "docs", label: "Documents" }, { id: "team", label: "Team", badge: 2, badgeLabel: "2 new" }], onNavigate: item => bannerMenu.select(item.id) });
+    code(coloured, `.banner { --athena-menu-bg: #1f3a5f; --athena-menu-fg: #fff; --athena-menu-hover: #2d5080; --athena-menu-active: #ffd166; }\ngenerateMenu({ layout: "responsive", breakpoint: 1000, items });`);
 
     // ------------------------------------------------------------ tabs, accordion
     const two = el("div", { class: "demo-two" });

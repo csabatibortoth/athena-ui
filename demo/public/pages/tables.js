@@ -73,4 +73,16 @@ export default async function tables(context, { app }) {
     generateButton({ parent: bar, text: "Export CSV", variant: "secondary", onclick: () => table.exportCsv("tasks.csv") });
     bar.append(count, el("span", { text: `${formatNumber(rows.length)} rows` }));
     local.append(bar);
+
+    const open = block(root, "Rows that open, columns that change, narrow screens", "The arrow opens a row in place (expandRow). The buttons hide and bring back a column without a new table (setColumns). In a narrow place every row becomes a block (stack).");
+    const taskColumns = [{ key: "task", label: "Task" }, { key: "owner", label: "Owner" }, { key: "hours", label: "Hours", align: "right" }];
+    const expanding = generateTable({
+        parent: open, id: "expanding", columns: taskColumns, rows: rows.slice(0, 5), stack: true,
+        expandRow: row => `${row.task}: ${row.hours} hours, looked after by ${row.owner}.`
+    });
+    const switches = el("div", { class: "demo-row" });
+    open.append(switches);
+    generateButton({ parent: switches, text: "Hide the owner", variant: "secondary", onclick: () => expanding.setColumns(["task", "hours"]) });
+    generateButton({ parent: switches, text: "All columns", variant: "secondary", onclick: () => expanding.setColumns(["task", "owner", "hours"]) });
+    code(open, `const table = generateTable({ columns, rows, stack: true, expandRow: row => \`Details of \${row.task}\` });\ntable.setColumns(["task", "hours"]);   // rows and selection stay`);
 }

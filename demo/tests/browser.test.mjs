@@ -81,6 +81,34 @@ describe("no page scrolls sideways", { skip }, () => {
 });
 
 describe("what a person does", { skip }, () => {
+    test("the newer options are on their pages and work", { timeout: 240000 }, async () => {
+        await withPage("/charts", async page => {
+            await page.waitFor(`[...document.querySelectorAll(".chart-title")].some(title => title.textContent.includes("broken sensor"))`, { timeout: 90000 });
+            assert.equal(await page.eval(`[...document.querySelectorAll("svg")].find(svg => svg.textContent.includes("broken sensor")).querySelectorAll("polyline.chart-line").length`), 3, "two gaps, three pieces");
+        });
+        await withPage("/tables", async page => {
+            await page.waitFor(`document.querySelector("#expanding tbody tr")`, { timeout: 90000 });
+            await page.eval(`document.querySelector("#expanding [aria-expanded]").click()`);
+            await page.waitFor(`document.querySelector("#expanding tbody").textContent.includes("looked after by")`);
+            await page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent === "Hide the owner").click()`);
+            await page.waitFor(`![...document.querySelectorAll("#expanding thead th")].some(th => th.textContent.includes("Owner"))`);
+        });
+        await withPage("/forms", async page => {
+            await page.waitFor(`document.getElementById("free-text-result")`, { timeout: 90000 });
+            await page.eval(`(() => { const input = document.getElementById("free-text-result").parentElement.querySelector("input"); input.scrollIntoView({ block: "center" }); input.focus(); })()`);
+            await page.type("mine");
+            await page.press("Enter", "Enter", 13);
+            await page.waitFor(`document.getElementById("free-text-result").textContent === "Entered: mine"`);
+        });
+        await withPage("/code", async page => {
+            await page.waitFor(`document.querySelector(".athena-jt-hit")?.textContent === "timeout"`, { timeout: 90000 });
+        });
+        await withPage("/navigation", async page => {
+            await page.waitFor(`document.querySelector(".demo-banner .athena-menu")`, { timeout: 90000 });
+            assert.equal(await page.eval(`getComputedStyle(document.querySelector(".demo-banner .athena-menu")).color`), "rgb(255, 255, 255)");
+        });
+    });
+
     test("widgets: a statistic fits its widget at the default size", { timeout: 240000 }, () => withPage("/widgets", async page => {
         await page.waitFor(`document.querySelectorAll("#dashboard .widget .stat").length === 2`, { timeout: 90000 });
         const over = await page.eval(`[...document.querySelectorAll("#dashboard .widget .stat")].map(stat => stat.parentElement.scrollHeight - stat.parentElement.clientHeight)`);
