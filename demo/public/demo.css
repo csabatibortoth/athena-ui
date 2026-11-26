@@ -162,6 +162,7 @@ body {
     --athena-success: #17673a;
     --athena-warning: #8a5300;
     --athena-info: #00769a;
+    --athena-info-fg: #fff; --athena-success-fg: #fff; --athena-warning-fg: #fff; --athena-danger-fg: #fff;
     --athena-shadow: 0 4px 14px rgb(5 25 33 / 18%);
     --series-1: #00769a; --series-2: #d9731a; --series-3: #b3261e; --series-4: #2a9d8f;
     --series-5: #5b8e2d; --series-6: #a98a00; --series-7: #7b4fa1; --series-8: #5c6f78;
@@ -185,6 +186,7 @@ body {
     --athena-success: #5fd39a;
     --athena-warning: #f0c060;
     --athena-info: #4fc3e8;
+    --athena-info-fg: #0b1118; --athena-success-fg: #0b1118; --athena-warning-fg: #0b1118; --athena-danger-fg: #0b1118;
     --athena-shadow: 0 4px 14px rgb(0 0 0 / 55%);
     --series-1: #4fc3e8; --series-2: #f0a04b; --series-3: #ff8a80; --series-4: #6fcfc8;
     --series-5: #8fd36a; --series-6: #f1d36a; --series-7: #c79bf0; --series-8: #a9bfc8;
