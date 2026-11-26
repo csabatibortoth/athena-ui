@@ -292,14 +292,11 @@ describe("what a person does", { skip }, () => {
         await page.waitFor(`document.documentElement.dataset.motion === "reduce"`);
         assert.match(await page.eval(`document.getElementById("motion-status").textContent`), /ON: nothing below moves/);
         assert.equal(await page.eval(`getComputedStyle(document.documentElement).getPropertyValue("--athena-duration-base").trim()`), "0ms");
-        // The page change above ran as a view transition (motion was still on): until it has ended its overlay takes the clicks. And the page can be scrolled
-        // so that the buttons are above the screen: scroll each one into view. (The first version of this test clicked at that moment and asserted that
-        // nothing was animated: the clicks hit nothing, so it passed whatever the library did.)
+        // The page change above ran as a view transition (motion was still on). A click at coordinates can hit nothing then: the overlay of the transition
+        // takes it, or the page is still being scrolled to the top. That failed on CI (the new row never came). This half is about what moves, not
+        // about clicking, so the buttons are pressed themselves. The wait for the new row below proves that the presses did something.
         await page.waitFor(`!document.documentElement.getAnimations({ subtree: true }).some(animation => String(animation.effect?.pseudoElement ?? "").startsWith("::view-transition"))`, { timeout: 15000 });
-        const press = async text => {
-            await page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent.includes(${JSON.stringify(text)}))?.scrollIntoView({ block: "center", behavior: "instant" })`);
-            await page.clickText(text);
-        };
+        const press = text => page.eval(`[...document.querySelectorAll("button")].find(button => button.textContent.trim() === ${JSON.stringify(text)}).click()`);
         calls = await animated();
         const rows = await items();
         await press("Add one");
