@@ -29,6 +29,9 @@ jobs:
       - name: Unit tests (includes the type definitions and docs/styling.md)
         run: npm test
 
+      - name: Size budget of every entry point (scripts/size-budget.json)
+        run: npm run size
+
       - name: Browser tests of the components (strict Content-Security-Policy)
         run: npm run test:browser
 

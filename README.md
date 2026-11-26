@@ -255,6 +255,7 @@ Other options: `id`, `width` (600), `height` (360), `legend`, `zero: false` (a l
 - **Long series** are thinned to the width of the plot (the lowest and the highest value of every slice stay, so peaks are not lost), and dots are only drawn up to 80 points in view.
 - **Streaming**: `chart.push({ x: Date.now(), values: [12, 3] }, { maxPoints: 500 })` adds a point to every series, drops the oldest ones and redraws at most once per frame.
 - `chart.update({ series })` redraws with changes, `chart.destroy()` removes the chart and its table. `generateChart` returns the `<svg>` element that carries these
+- **Morph:** when `update({ series })` keeps the number of points, bars, lines and points move from the old values to the new ones. Not on zoom, resize or `push`, not for very long series, not under reduced motion; `animate: false` switches it off.
   methods, or `null` when the options are invalid.
 
 ### Tables
@@ -732,6 +733,8 @@ await copyToClipboard(token);                                              // an
 formatBytes(1536); formatNumber(1234567.891); formatDuration(7500000); formatRelativeTime(date); formatDate(date, { time: true });   // Intl, in the current language
 ```
 
+**Size budget:** `npm run size` measures every entry point with what it imports (gzip, unminified) against `scripts/size-budget.json` and fails when one has grown past it.
+
 ### Motion: animations and transitions
 
 Motion is an enhancement. Every transition and animation of Athena UI reads the tokens `--athena-duration-fast` (120 ms), `--athena-duration-base` (200 ms) and `--athena-duration-slow` (360 ms),
@@ -803,6 +806,11 @@ const id = await grid.addWidgetWithSettings("clock");           // adds a widget
   A **locked** widget (`lockWidget(id)`) is not moved, not resized, not pushed, and nothing can be put on it.
 - **Keyboard**: focus the handle, Space or Enter picks the widget up, arrow keys move it, Shift with arrow keys resizes it, Enter drops it, Escape cancels. Every step is announced
   in a live region ("Column 2, row 1, 3 wide, 2 high"). Pointer Events: mouse, pen and touch work the same.
+- **Moving**: the widget follows the pointer and a placeholder shows where it will land. `collision: "swap"` makes a widget moved onto another exchange places with it
+  (under a pointer once half of it is covered, with the keyboard at once; when that is a clean exchange; otherwise, and for a resize, widgets are pushed as by default).
+- **Gallery**: `createWidgetGallery({ element, grid, types, withSettings, onAdd })` lists the registered types (`title`, `description`). A click, Enter or Space adds one; a mouse or
+  pen drags it onto the grid, a finger drags it by the grip. It adds whether or not edit mode is on: show it when your application wants it.
+- **Drag from your own toolbox**: `const drop = grid.beginDrop(type)`, then `drop.move(clientX, clientY)`, `drop.drop()` or `drop.cancel()`.
 - **Undo and redo** of every change (`undo()`, `redo()`, `canUndo()`); `updateWidget(id, { config })` is for data from code and is not an undo step.
 - **Layouts** (`getLayout()` / `setLayout(json)`) are plain JSON and the application decides where they are stored. Loading is checked: a bad entry is skipped (reported in the result),
   duplicate ids are replaced, places are clamped and made free of overlaps, `__proto__`-style keys are dropped, and a type that is not registered is shown as a placeholder (its data is kept, nothing is executed).
@@ -861,7 +869,7 @@ generateCodeBlock({ parent: "docs", code: sql, language: "sql", lineNumbers: tru
 const editor = createCodeEditor({
     element: "editor", value: source, language: "ts", onChange: value => save(value),
     markers: [{ line: 3, message: "Unexpected token", level: "error" }],                                   // lint markers, shown in the status line
-    readOnlyRanges: [{ from: 1, to: 2 }],                                                                   // lines that cannot be changed
+    readOnlyRanges: [{ from: 1, to: 2 }, { text: "// do not edit" }],                                        // lines, or a piece of text, that cannot be changed
     provideCompletions: ({ prefix }) => words.filter(word => word.startsWith(prefix)).map(label => ({ label }))
 });
 
@@ -871,7 +879,7 @@ createDiffView({ parent: "review", original: before, modified: after, language: 
 
 - **Languages**: `javascript` (`js`), `typescript` (`ts`), `json`, `html` (`xml`, `svg`), `css` (`scss`, `less`), `sql`, `shell` (`sh`, `bash`), `yaml`, `csharp` (`c#`, `cs`), `python` (`py`), `log`. The `log` language comes from Heimdall's log display: times, IPv4 / IPv6, UUIDs, URLs, e-mail, paths, stack frames, sizes, `key=`, quoted request lines, HTTP methods, status codes and level words. Its patterns are bounded so a hostile line stays cheap; tokenizing always gives the input text back. A three-digit number in 100..599 gets the status colour even without context (a pid, for example).
   A language is a plain object (`registerLanguage({ name, aliases, rules: [{ type, pattern }], lineComment, blockComment, pairs, indentAfter })`), so your own are one call.
-  The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours) but it does not know nested `${}` of a template string or the `<script>` inside HTML.
+  The tokenizer is a set of regular expressions, not a parser: it is fast and tolerant (unfinished code still gets colours) but it knows nested `${}` of a template string and the `<script>` and `<style>` inside HTML, but not, for example, CSS inside a template string. Bracket matching ignores brackets in strings and comments.
 - **Colours** are the tokens `--athena-tok-comment`, `-string`, `-keyword` ... (light and dark); a test keeps every one at 4.5:1 contrast or more.
 - **The editor is a real `<textarea>`** with the highlighted text behind it, so native input, selection, spell-check off, mobile keyboards, IME and screen readers all work.
   Tab and Shift+Tab indent and outdent (also several lines), Enter keeps the indentation (and goes one level deeper after `{`, `(`, `:`), brackets and quotes are closed, stepped over, wrapped around a selection and
@@ -996,6 +1004,13 @@ tests/                      unit tests (Node) and browser tests (headless Chrome
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Releases
+
+ ### 2.11.0
+
+  - **Widgets**: `createWidgetGallery` (add a widget by click, keyboard or drag), `grid.beginDrop()` for a toolbox of your own, `collision: "swap"`, and a placeholder that shows where a dragged widget will land. A widget added onto a locked one no longer overlaps it.
+  - **Code**: `<script>` and `<style>` inside HTML and nested `${}` of template strings are highlighted (code inside `${}` is no longer coloured as a string); bracket matching ignores strings and comments; `readOnlyRanges` also takes `{ text }`.
+  - **Charts**: `update({ series })` moves bars, lines and points to their new values (`animate: false` switches it off; never under reduced motion).
+  - **Development**: `npm run size` checks the gzip size of every entry point against a budget.
 
  ### 2.10.0
 

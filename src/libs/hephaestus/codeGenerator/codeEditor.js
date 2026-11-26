@@ -30,7 +30,8 @@ const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * @param {string} [options.label] accessible name of the editor
  * @param {number} [options.maxHighlightLength=300000] longer texts are shown without highlighting (and without line numbers) to stay fast
  * @param {{line: number, message: string, level?: "error"|"warning"|"info"}[]} [options.markers] lint markers (lines count from 1)
- * @param {{from: number, to: number}[]} [options.readOnlyRanges] lines (1-based, inclusive) that cannot be changed
+ * @param {Array<{from: number, to: number}|{text: string}>} [options.readOnlyRanges] what cannot be changed: lines (1-based, inclusive), or a piece of text (its first
+ *        occurrence when it is set; it stays locked where it is while the text around it changes)
  * @param {(context: {value: string, position: number, line: number, lineText: string, prefix: string, explicit: boolean, language: string}) => (Array<{label: string, insert?: string, detail?: string}>|Promise<Array>)} [options.provideCompletions]
  * @param {boolean} [options.autoComplete=true] with provideCompletions: suggest while typing (otherwise only with Ctrl+Space)
  * @param {(value: string, reason: string) => void} [options.onChange] after every change made by typing, undo, redo, replace ... (not after setValue)
@@ -107,18 +108,24 @@ export function createCodeEditor(options = {}) {
     /** The tokens of a text, line by line, and for every line whether it starts inside a token of an earlier line. */
     function tokenLines(text) {
         const lines = [[]];
-        const inside = [false];
-        for (const token of tokenize(text, language)) {
-            const parts = token.text.split("\n");
-            parts.forEach((part, index) => {
-                if (index > 0) {
-                    lines.push([]);
-                    inside.push(token.type !== null && (part.length > 0 || index < parts.length - 1));
-                }
+        const spans = [];
+        for (const token of tokenize(text, language, spans)) {
+            token.text.split("\n").forEach((part, index) => {
+                if (index > 0) lines.push([]);
                 if (part) lines.at(-1).push({ type: token.type, text: part });
             });
         }
-        return { lines, inside };
+        const inside = [];
+        let at = 0;
+        let span = 0;
+        for (const line of text.split("\n")) {
+            while (span < spans.length && spans[span].end <= at) span++;
+            inside.push(span < spans.length && spans[span].start < at);
+            at += line.length + 1;
+        }
+        // a comment, a string, a template or a <script> that reaches the end may go on in what follows
+        const open = spans.at(-1)?.nested === true && spans.at(-1).end === text.length;
+        return { lines, inside, open };
     }
 
     /** Replaces the lines [from, to) (as drawn) by new ones: the nodes and the tokens. */
@@ -194,12 +201,20 @@ export function createCodeEditor(options = {}) {
             const end = last < count ? starts[last] - 1 : text.length;
             const fresh = tokenLines(text.slice(starts[first], end));
             const lastToken = fresh.lines.at(-1).at(-1);
-            if (last < count && lastToken && (lastToken.type === "comment" || lastToken.type === "string" || lastToken.type === "meta")) {
+            if (last < count && (fresh.open || lastToken && (lastToken.type === "comment" || lastToken.type === "string" || lastToken.type === "meta"))) {
                 last = Math.min(count, last + step);      // it may run on: look further (doubling, so a long comment does not cost much more)
                 step *= 2;
                 continue;
             }
-            replaceLines(first, last - delta, fresh);
+            let from = first;
+            let to = last - delta;
+            const same = (drawn, index) => insideAtStart[drawn] === fresh.inside[index] && lineTokens[drawn].length === fresh.lines[index].length
+                && lineTokens[drawn].every((token, i) => token.type === fresh.lines[index][i].type && token.text === fresh.lines[index][i].text);
+            let begin = 0;
+            let stop = fresh.lines.length;
+            while (begin < stop - 1 && from < to - 1 && same(from, begin)) { from++; begin++; }
+            while (stop > begin + 1 && to > from + 1 && same(to - 1, stop - 1)) { to--; stop--; }
+            replaceLines(from, to, { lines: fresh.lines.slice(begin, stop), inside: fresh.inside.slice(begin, stop) });
             break;
         }
         decorate();
@@ -207,7 +222,11 @@ export function createCodeEditor(options = {}) {
 
     function scheduleRender() {
         if (textarea.value.length <= 60000) return render();
-        if (!renderTimer) renderTimer = setTimeout(() => !destroyed && render(), 120);
+        if (!renderTimer) renderTimer = setTimeout(() => {
+            if (destroyed) return;
+            render();
+            matchBracket();
+        }, 120);
     }
 
     /* ---- decorations: caret line, markers, locked lines ---- */
@@ -218,6 +237,7 @@ export function createCodeEditor(options = {}) {
     let decorated = [];                     // [node, classes] of the lines that carry a marker or are locked
 
     function decorate() {
+        if (locked.length) relocate();
         if (plain) return;
         for (const [node, classes] of decorated) node.classList.remove(...classes);
         decorated = [];
@@ -229,7 +249,11 @@ export function createCodeEditor(options = {}) {
             seen.add(marker.line);
             add(marker.line - 1, "has-marker", `marker-${marker.level ?? "error"}`);
         }
-        for (const range of locked) for (let line = Math.max(1, range.from); line <= Math.min(range.to, nodes.length); line++) add(line - 1, "is-locked-line");
+        for (const range of locked) {
+            const at = anchors.get(range) ?? -1;
+            if (at >= 0) for (let line = lineOf(at); line <= lineOf(at + range.text.length - 1); line++) add(line, "has-locked-text");
+        }
+        for (const range of locked.filter(item => typeof item.text !== "string")) for (let line = Math.max(1, range.from); line <= Math.min(range.to, nodes.length); line++) add(line - 1, "is-locked-line");
         for (const [index, classes] of wanted) {
             const node = nodes[index];
             if (!node) continue;
@@ -309,14 +333,33 @@ export function createCodeEditor(options = {}) {
     function matchBracket() {
         const text = textarea.value;
         const caret = textarea.selectionStart;
-        if (plain || caret !== textarea.selectionEnd) return setHighlight("athena-code-bracket", []);
+        if (plain || renderedText !== text || caret !== textarea.selectionEnd) return setHighlight("athena-code-bracket", []);
+        // which characters are in a string or a comment, line by line, worked out when a line is first looked at
+        const masks = new Map();
+        const quoted = offset => {
+            const index = lineOf(offset);
+            let ranges = masks.get(index);
+            if (!ranges) {
+                ranges = [];
+                let at = starts[index];
+                for (const token of lineTokens[index] ?? []) {
+                    if (token.type === "string" || token.type === "comment") ranges.push([at, at + token.text.length]);
+                    at += token.text.length;
+                }
+                masks.set(index, ranges);
+            }
+            return ranges.find(([from, to]) => offset >= from && offset < to);
+        };
         for (const at of [caret - 1, caret]) {
             const char = text[at];
             const forward = OPEN_TO_CLOSE[char];
             const backward = CLOSE_TO_OPEN[char];
             if (!forward && !backward) continue;
             let depth = 0;
+            const home = quoted(at);      // a bracket in a string matches within that string, one in code only against code
             for (let i = at; forward ? i < text.length : i >= 0; i += forward ? 1 : -1) {
+                if (text[i] !== char && text[i] !== (forward ?? backward)) continue;
+                if (quoted(i)?.[0] !== home?.[0]) continue;
                 if (text[i] === char) depth++;
                 else if (text[i] === (forward ?? backward)) depth--;
                 if (depth === 0) {
@@ -336,7 +379,8 @@ export function createCodeEditor(options = {}) {
     let lastTime = 0;
 
     function snapshot() {
-        return { value: textarea.value, start: textarea.selectionStart, end: textarea.selectionEnd };
+        relocate();
+        return { value: textarea.value, start: textarea.selectionStart, end: textarea.selectionEnd, anchors: new Map(anchors) };
     }
 
     function remember(type) {
@@ -355,6 +399,9 @@ export function createCodeEditor(options = {}) {
 
     function restore(entry, reason) {
         textarea.value = entry.value;
+        // undo and redo put the locked texts back where they were in that state
+        for (const [range, at] of entry.anchors) anchors.set(range, at);
+        anchoredValue = entry.value;
         textarea.setSelectionRange(entry.start, entry.end);
         lastType = null;
         afterChange(reason, { remembered: true });
@@ -376,16 +423,63 @@ export function createCodeEditor(options = {}) {
 
     /* ---- changes ---- */
 
+    let anchors = new Map();               // the place of every { text } range
+    let anchoredValue = "";
+    let selectionBefore = null;            // where the selection was before the browser changed the text
+    let edit = null;                       // the change that was just made: [from, to) of the old text, and the new length
+
+    /** What the browser replaced, from the selection before and the caret after. Null when that does not explain the new text. */
+    function nativeEdit() {
+        const value = textarea.value;
+        const caret = textarea.selectionStart;
+        if (selectionBefore === null) return null;
+        const from = Math.min(selectionBefore, caret);
+        const to = caret - (value.length - anchoredValue.length);
+        const fits = to >= from && value.slice(0, from) === anchoredValue.slice(0, from) && value.slice(caret) === anchoredValue.slice(to);
+        return fits ? { from, to, length: value.length } : null;
+    }
+
+    /** Keeps the { text } ranges where they are: a change before one moves it by as much as the text grew or shrank. */
+    function relocate(fresh = false) {
+        const value = textarea.value;
+        if (fresh) anchors = new Map();
+        else if (value === anchoredValue) return;
+        // the edit says where the text changed; comparing the two texts cannot (a copy typed in front of a locked text looks like text added after it)
+        const known = edit?.length === value.length ? edit : null;
+        edit = null;
+        let head = 0;
+        while (head < value.length && head < anchoredValue.length && value[head] === anchoredValue[head]) head++;
+        const delta = value.length - anchoredValue.length;
+        for (const range of locked) {
+            if (typeof range.text !== "string" || !range.text) continue;
+            let at = anchors.get(range) ?? -1;
+            if (at < 0) at = value.indexOf(range.text);
+            else {
+                if (known ? known.to <= at : head < at + range.text.length) at += delta;
+                if (!value.startsWith(range.text, at)) at = value.indexOf(range.text);
+            }
+            anchors.set(range, at);
+        }
+        anchoredValue = value;
+    }
+
+    /** [start, end, isText] of everything that is locked. */
     function lockedSpans() {
+        measure();
+        relocate();
         return locked.map(range => {
+            if (typeof range.text === "string") {
+                const at = anchors.get(range) ?? -1;
+                return at < 0 ? null : [at, at + range.text.length, true];
+            }
             const first = Math.max(0, range.from - 1);
             const last = Math.min(starts.length - 1, range.to - 1);
             return first < starts.length ? [starts[first], starts[last] + lineText(last).length] : null;
         }).filter(Boolean);
     }
 
-    /** Would a change of [from, to) touch a locked line? An insertion is from === to. */
-    const blocked = (from, to) => lockedSpans().some(([start, end]) => from <= end && to >= start);
+    /** Would a change of [from, to) touch something locked? An insertion is from === to. Next to a locked text one may type; at the end of a locked line one may not. */
+    const blocked = (from, to) => lockedSpans().some(([start, end, isText]) => (isText ? from < end && to > start : from <= end && to >= start));
 
     function afterChange(reason, { remembered = false, native = false } = {}) {
         scheduleRender();
@@ -405,7 +499,9 @@ export function createCodeEditor(options = {}) {
     function applyEdit(from, to, text, { select = [from + text.length, from + text.length], reason = "edit" } = {}) {
         if (readOnly || blocked(from, to)) return false;
         const value = textarea.value;
+        relocate();
         textarea.value = value.slice(0, from) + text + value.slice(to);
+        edit = { from, to, length: textarea.value.length };
         textarea.setSelectionRange(select[0], select[1]);
         afterChange(reason);
         return true;
@@ -868,6 +964,7 @@ export function createCodeEditor(options = {}) {
     }
 
     function onBeforeInput(event) {
+        selectionBefore = textarea.selectionStart;
         if (event.isComposing) return;
         const type = event.inputType;
         if (type === "historyUndo" || type === "historyRedo") {
@@ -902,6 +999,8 @@ export function createCodeEditor(options = {}) {
 
     function onInput(event) {
         if (event.inputType === "historyUndo" || event.inputType === "historyRedo") return;
+        edit = nativeEdit();
+        selectionBefore = null;
         afterChange(event.inputType ?? "input", { native: true });
     }
 
@@ -959,6 +1058,7 @@ export function createCodeEditor(options = {}) {
     applyModes();
     markers = (options.markers ?? []).map(marker => ({ ...marker }));
     locked = (options.readOnlyRanges ?? []).map(range => ({ ...range }));
+    relocate(true);
     render();
     remember("initial");
 
@@ -971,6 +1071,7 @@ export function createCodeEditor(options = {}) {
             textarea.setSelectionRange(0, 0);
             history.length = 0;
             historyIndex = -1;
+            relocate(true);
             render();
             remember("initial");
             refreshFind();
@@ -1013,6 +1114,7 @@ export function createCodeEditor(options = {}) {
         },
         setReadOnlyRanges(next = []) {
             locked = next.map(range => ({ ...range }));
+            relocate(true);
             decorate();
             return handle;
         },

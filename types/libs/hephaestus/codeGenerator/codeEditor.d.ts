@@ -14,7 +14,8 @@
  * @param {string} [options.label] accessible name of the editor
  * @param {number} [options.maxHighlightLength=300000] longer texts are shown without highlighting (and without line numbers) to stay fast
  * @param {{line: number, message: string, level?: "error"|"warning"|"info"}[]} [options.markers] lint markers (lines count from 1)
- * @param {{from: number, to: number}[]} [options.readOnlyRanges] lines (1-based, inclusive) that cannot be changed
+ * @param {Array<{from: number, to: number}|{text: string}>} [options.readOnlyRanges] what cannot be changed: lines (1-based, inclusive), or a piece of text (its first
+ *        occurrence when it is set; it stays locked where it is while the text around it changes)
  * @param {(context: {value: string, position: number, line: number, lineText: string, prefix: string, explicit: boolean, language: string}) => (Array<{label: string, insert?: string, detail?: string}>|Promise<Array>)} [options.provideCompletions]
  * @param {boolean} [options.autoComplete=true] with provideCompletions: suggest while typing (otherwise only with Ctrl+Space)
  * @param {(value: string, reason: string) => void} [options.onChange] after every change made by typing, undo, redo, replace ... (not after setValue)
@@ -38,10 +39,12 @@ export function createCodeEditor(options?: {
         message: string;
         level?: "error" | "warning" | "info";
     }[];
-    readOnlyRanges?: {
+    readOnlyRanges?: Array<{
         from: number;
         to: number;
-    }[];
+    } | {
+        text: string;
+    }>;
     provideCompletions?: (context: {
         value: string;
         position: number;

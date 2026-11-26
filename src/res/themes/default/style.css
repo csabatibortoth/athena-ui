@@ -2853,6 +2853,86 @@ dialog.dialog[open]::backdrop {
     border-bottom: 2px solid var(--athena-muted);
 }
 
+/* where the widget that is being dragged will land */
+.widget-placeholder {
+    min-width: 0;
+    border: 2px dashed var(--athena-accent);
+    border-radius: var(--athena-radius);
+    background: var(--athena-hover);
+    pointer-events: none;
+}
+
+/* an empty dashboard has no height: give a widget that is dragged in somewhere to go */
+.athena-widget-grid.is-receiving {
+    min-height: 160px;
+}
+
+.athena-widget-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(12rem, 100%), 1fr));
+    gap: var(--athena-space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.widget-gallery-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    min-height: 44px;
+    padding: 4px 10px 4px 0;
+    border: var(--athena-border-width) solid var(--athena-border);
+    border-radius: var(--athena-radius);
+    background: var(--athena-surface);
+    color: var(--athena-fg);
+    font: inherit;
+    text-align: start;
+    cursor: grab;
+    user-select: none;
+}
+
+.widget-gallery-item:focus-visible {
+    outline: var(--athena-focus-width) solid var(--athena-focus);
+    outline-offset: 1px;
+}
+
+.widget-gallery-item.is-dragging {
+    border-color: var(--athena-accent);
+    cursor: grabbing;
+}
+
+/* a finger drags here (and scrolls the page everywhere else) */
+.widget-gallery-grip {
+    display: flex;
+    flex: none;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    touch-action: none;
+}
+
+.widget-gallery-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.widget-gallery-description {
+    color: var(--athena-muted);
+    font-size: 0.85rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .widget-gallery-item:hover {
+        background: var(--athena-hover);
+    }
+}
+
 
 /* ------------------------------------------------------------ Code
    highlightCode, generateCodeBlock, createCodeEditor and createDiffView. The colours of the tokens are the --athena-tok-* tokens. Line numbers are CSS counters
@@ -3112,6 +3192,10 @@ dialog.dialog[open]::backdrop {
 
 .code-line.is-locked-line {
     background: color-mix(in srgb, var(--athena-muted) 14%, transparent);
+}
+
+.code-line.has-locked-text {
+    background: color-mix(in srgb, var(--athena-muted) 7%, transparent);
 }
 
 .code-line.has-marker {

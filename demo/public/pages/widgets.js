@@ -1,4 +1,4 @@
-import { createWidgetGrid, registerWidget } from "/athena/widgets.js";
+import { createWidgetGallery, createWidgetGrid, registerWidget } from "/athena/widgets.js";
 import { generatePageHeader, generateStat } from "/athena/components.js";
 import { generateChart } from "/athena/chart.js";
 import { generateButton } from "/athena/forms.js";
@@ -14,7 +14,7 @@ function registerTypes() {
     registered = true;
 
     registerWidget("stat", {
-        title: "Statistic", defaultSize: { w: 3, h: 2 }, minSize: { w: 2, h: 2 }, defaultConfig: { label: "Hosts online", value: 1280, note: "of 100,000" },
+        title: "Statistic", description: "One number with a note", defaultSize: { w: 3, h: 2 }, minSize: { w: 2, h: 2 }, defaultConfig: { label: "Hosts online", value: 1280, note: "of 100,000" },
         configForm: [{ name: "label", label: "Label", type: "text" }, { name: "value", label: "Value", type: "number" }, { name: "note", label: "Note", type: "text" }],
         render(context) {
             let stat = generateStat({ parent: context.element, label: context.config.label, value: Number(context.config.value).toLocaleString(), note: context.config.note });
@@ -29,7 +29,7 @@ function registerTypes() {
     });
 
     registerWidget("chart", {
-        title: "Chart", defaultSize: { w: 6, h: 4 }, minSize: { w: 3, h: 3 }, defaultConfig: { type: "bar" },
+        title: "Chart", description: "Bars, a line or a pie", defaultSize: { w: 6, h: 4 }, minSize: { w: 3, h: 3 }, defaultConfig: { type: "bar" },
         configForm: [{ name: "type", label: "Kind", type: "select", options: [{ value: "bar", text: "Bars" }, { value: "line", text: "Line" }, { value: "pie", text: "Pie" }] }],
         render(context) {
             const draw = () => {
@@ -52,7 +52,7 @@ function registerTypes() {
     });
 
     registerWidget("clock", {
-        title: "Clock", defaultSize: { w: 3, h: 2 }, minSize: { w: 2, h: 1 }, defaultConfig: { seconds: true },
+        title: "Clock", description: "The time of this device", defaultSize: { w: 3, h: 2 }, minSize: { w: 2, h: 1 }, defaultConfig: { seconds: true },
         configForm: [{ name: "seconds", label: "Show seconds", type: "checkbox" }],
         render(context) {
             const time = el("p", { class: "widget-clock" });
@@ -81,16 +81,18 @@ export default async function widgets(context, { app }) {
         description: "A dashboard you can build: add, configure, move, resize, lock, undo and save. Everything also works with the keyboard."
     });
 
-    const bar = block(root, "Edit the dashboard", "Switch edit mode on. Drag a widget by its handle, resize by its edges and corners. Keyboard: focus the handle, Space picks it up, arrow keys move it, Shift and arrow keys resize it, Enter drops it, Escape cancels.");
+    const bar = block(root, "Edit the dashboard", "Switch edit mode on. Drag a new widget from the list onto the dashboard (or click it). Drag a widget by its handle (onto another: they swap), resize by its edges and corners. Keyboard: focus the handle, Space picks it up, arrow keys move it, Shift and arrow keys resize it, Enter drops it, Escape cancels.");
     const row = el("div", { class: "demo-row", attrs: { id: "widget-bar" } });
     bar.append(row);
+    const shelf = el("div", { attrs: { id: "widget-gallery" } });
+    bar.append(shelf);
     const stage = el("div", { attrs: { id: "dashboard" } });
     root.append(stage);
 
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null"); } catch { saved = null; }
     const grid = createWidgetGrid({
-        element: stage, label: "Demo dashboard", editable: false,
+        element: stage, label: "Demo dashboard", editable: false, collision: "swap",
         breakpoints: { wide: { minWidth: 900, columns: 12 }, narrow: { minWidth: 0, columns: 6 } },
         ...(saved ? { layout: saved } : { widgets: FIRST }),
         onChange(layout) {
@@ -99,6 +101,7 @@ export default async function widgets(context, { app }) {
         }
     });
 
+    const gallery = createWidgetGallery({ element: shelf, grid, types: ["stat", "chart", "clock"] });
     const edit = generateButton({ parent: row, text: "Edit mode: off", variant: "secondary", onclick: () => { grid.setEditable(!grid.isEditable()); sync(); } });
     const add = type => generateButton({ parent: row, text: `Add ${type}`, variant: "secondary", onclick: () => grid.addWidget(type) });
     ["stat", "chart", "clock"].forEach(add);
@@ -131,5 +134,8 @@ export default async function widgets(context, { app }) {
 });
 const grid = createWidgetGrid({ element: "dashboard", widgets: [{ type: "clock", x: 0, y: 0 }], editable: true, onChange: layout => save(layout) });`);
 
-    return () => grid.destroy();
+    return () => {
+        gallery.destroy();
+        grid.destroy();
+    };
 }

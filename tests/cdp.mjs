@@ -43,6 +43,9 @@ export async function launch() {
         let id = 0;
         const pending = new Map();
         const listeners = new Set();
+        const networkRequests = [];
+        const activeNetworkRequests = new Set();
+        let lastNetworkActivity = Date.now();
         const problems = [];
         socket.onmessage = event => {
             const message = JSON.parse(event.data);
@@ -64,7 +67,14 @@ export async function launch() {
         // Everything that goes wrong in the page is collected: exceptions, console errors and warnings, policy violations, failed requests
         listeners.add(message => {
             const { method, params } = message;
-            if (method === "Runtime.exceptionThrown") problems.push(`exception: ${params.exceptionDetails.exception?.description ?? params.exceptionDetails.text}`);
+            if (method === "Network.requestWillBeSent") {
+                networkRequests.push({ url: params.request.url, method: params.request.method });
+                activeNetworkRequests.add(params.requestId);
+                lastNetworkActivity = Date.now();
+            } else if (method === "Network.loadingFinished" || method === "Network.loadingFailed") {
+                activeNetworkRequests.delete(params.requestId);
+                lastNetworkActivity = Date.now();
+            } else if (method === "Runtime.exceptionThrown") problems.push(`exception: ${params.exceptionDetails.exception?.description ?? params.exceptionDetails.text}`);
             else if (method === "Runtime.consoleAPICalled" && (params.type === "error" || params.type === "warning" || params.type === "assert")) {
                 problems.push(`console.${params.type}: ${params.args.map(arg => arg.value ?? arg.description ?? "").join(" ")}`);
             } else if (method === "Log.entryAdded" && (params.entry.level === "error" || params.entry.level === "warning")) {
@@ -78,6 +88,7 @@ export async function launch() {
 
         const page = {
             problems,
+            networkRequests,
             send,
             async goto(url) {
                 problems.length = 0;
@@ -92,6 +103,10 @@ export async function launch() {
             },
             /** Waits until an expression is true in the page. */
             waitFor: (expression, options = {}) => until(() => page.eval(`Boolean(${expression})`), { message: expression.slice(0, 80), ...options }),
+            async waitForNetworkIdle({ quietMs = 500, timeout = 10000 } = {}) {
+                await until(() => activeNetworkRequests.size === 0 && Date.now() - lastNetworkActivity >= quietMs,
+                    { timeout, interval: 25, message: "the browser network to become idle" });
+            },
             /** A real key press (not a synthetic event). */
             async press(key, code = key, keyCode = 0, modifiers = 0) {
                 const base = { key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode, modifiers };
