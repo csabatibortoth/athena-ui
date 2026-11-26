@@ -23,6 +23,7 @@
    --athena-surface / -alt          cards, table heads, striped rows
    --athena-hover                   hovered and selected rows, menu items
    --athena-overlay                 the dim layer behind a dialog
+   --athena-info-fg / -success-fg / -warning-fg / -danger-fg   the text on the status colours (4.5 : 1)
    --athena-accent / -fg            primary buttons, the active menu item, and the text on them
    --athena-focus                   outline of the element that has the keyboard focus
    --athena-danger / success / warning / info   states
