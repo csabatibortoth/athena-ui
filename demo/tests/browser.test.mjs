@@ -61,13 +61,15 @@ describe("every page draws, without a single error, under the strict policy", { 
 
 describe("no page scrolls sideways", { skip }, () => {
     const routes = ["/", "/tables", "/charts", "/forms", "/dialogs", "/navigation", "/widgets", "/board", "/code", "/motion", "/themes", "/about", "/account"];
-    for (const width of [320, 375, 768, 1440]) {
-        test(`at ${width} px`, { timeout: 240000 }, async () => {
+    // the last run has a wide font: how wide text is differs from machine to machine, and a page must not depend on it
+    for (const [width, font] of [[320, ""], [375, ""], [768, ""], [1440, ""], [320, "monospace"]]) {
+        test(`at ${width} px${font ? ` with a ${font} font` : ""}`, { timeout: 240000 }, async () => {
             const wide = [];
             for (const route of routes) {
                 await withPage(route, async page => {
                     await page.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
                     await page.waitFor(`document.querySelector(".page-title")`, { timeout: 90000 });
+                    if (font) await page.eval(`(() => { const sheet = new CSSStyleSheet(); sheet.replaceSync("*, *::before { font-family: ${font} !important }"); document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]; })()`);
                     await new Promise(resolve => setTimeout(resolve, 600));
                     const over = await page.eval(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
                     if (over > 0) wide.push(`${route}: ${over}px`);

@@ -1803,6 +1803,21 @@ test("menu: bottom tabs that do not fit scroll inside the bar, and the current o
     host.remove();
 });
 
+test("date time range: fits a narrow place, whatever the font", () => {
+    const box = document.createElement("div");
+    box.style.width = "220px";
+    box.style.fontFamily = "monospace";
+    document.getElementById("wrapper").append(box);
+    const range = A.generateDateTimeRange({ parent: box, label: "Time" });
+    for (const input of $$("input", box)) {
+        input.style.fontFamily = "monospace";
+        input.style.fontSize = "20px";
+        assert(input.getBoundingClientRect().right <= box.getBoundingClientRect().right + 0.5, `${input.type} ${input.getBoundingClientRect().width} in 220`);
+    }
+    range.destroy?.();
+    box.remove();
+});
+
 // ---- ATH-38: two older editor bugs ----
 
 test("code editor: typing on the empty last line of an open comment draws it as a fresh editor does", () => {

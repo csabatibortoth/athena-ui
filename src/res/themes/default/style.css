@@ -1481,8 +1481,16 @@ dialog.dialog::backdrop {
 
 .daterange-part {
     display: inline-flex;
+    flex-wrap: wrap;           /* in a narrow place the word goes above its input */
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.daterange-part input {
+    min-width: 0;              /* a date input is as wide as its font makes it: let it shrink with its place */
+    max-width: 100%;
 }
 
 /* Rich text editor */
